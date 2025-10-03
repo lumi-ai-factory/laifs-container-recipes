@@ -2,9 +2,9 @@
 
 ## Usage
 
-Render a recipe from template and vars file into stdout:
+Render a recipe from template and vars file to stdout:
 ```
-laifs-container-recipes$ scripts/j2render recipes/laifs-lumi-multi-recipe-template.yaml recipes/laifs-lumi-multi-recipe-vars.yaml | head
+$ scripts/j2render recipes/laifs-lumi-multi-recipe-template.yaml recipes/laifs-lumi-multi-recipe-vars.yaml | head
 name: laifs-lumi-multi-recipe
 steps:
   - name: ubuntu-noble-20250925-rocm-6.4.4
@@ -19,7 +19,7 @@ steps:
 
 Usage for build-image:
 ```
-Usage build-image <build|dump|commands> <recipe file> <target directory>
+Usage build-image <build|dump|commands> <recipe file> [<target directory>]
 ```
 
 Print commands that would be used to create images from a rendered recipe:
@@ -30,6 +30,8 @@ ubuntu-noble-20250925-rocm-6.4.4:20251003_120511: podman build -f containerfiles
 
 Dump internal representation of each step from a recipe:
 ```
+$ scripts/build-recipe dump builds/laifs-lumi-multi-recipe-20251003_115037/laifs-lumi-multi-recipe-20251003_115037.yaml
+
 Recipe laifs-lumi-multi-recipe from file builds/laifs-lumi-multi-recipe-20251003_115037/laifs-lumi-multi-recipe-20251003_115037.yaml:
 
   ubuntu-noble-20250925-rocm-6.4.4
@@ -46,6 +48,7 @@ Recipe laifs-lumi-multi-recipe from file builds/laifs-lumi-multi-recipe-20251003
       SKIP_BUILD: true
       BASE_IMAGE: ubuntu
       EXISTING_IMAGE: ubuntu-noble-20250925-rocm-6.4.4:20251002_132141
+[...]
 ```
 
 Build full recipe using `build-wrapper`:
@@ -53,7 +56,7 @@ Build full recipe using `build-wrapper`:
 scripts/build-wrapper recipes/laifs-lumi-multi-recipe-template.yaml recipes/laifs-lumi-multi-recipe-vars.yaml
 ```
 
-Build a recpie into selected dir:
+Build a recipe into selected directory:
 ```
 $ scripts/build-recipe build builds/laifs-lumi-multi-recipe-20251003_115037/laifs-lumi-multi-recipe-20251003_115037.yaml my-tmp-dir
 ```
