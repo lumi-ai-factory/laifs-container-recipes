@@ -1,5 +1,7 @@
 # LUMI AI Factory Container Recipes
 
+Container recipes and scripts for managing LUMI AI Factory container builds.
+
 ## Usage
 
 Render a recipe from template and vars file to stdout:
@@ -53,7 +55,7 @@ Recipe laifs-lumi-multi-recipe from file builds/laifs-lumi-multi-recipe-20251003
 
 Build full recipe using `build-wrapper`:
 ```
-scripts/build-wrapper recipes/laifs-lumi-multi-recipe-template.yaml recipes/laifs-lumi-multi-recipe-vars.yaml
+$ scripts/build-wrapper recipes/laifs-lumi-multi-recipe-template.yaml recipes/laifs-lumi-multi-recipe-vars.yaml
 ```
 
 Build a recipe into selected directory:
