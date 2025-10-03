@@ -1,0 +1,117 @@
+FROM $BASE_IMAGE:$BASE_IMAGE_TAG AS builder
+
+ARG BASE_IMAGE
+ARG BASE_IMAGE_TAG
+ARG CASSINI_HEADERS_VERSION
+ARG CXI_HEADERS_VERSION
+ARG LIBCXI_VERSION
+ARG LIBFABRIC_VERSION
+ARG NPROC
+
+RUN set -ue; \
+    #
+    # Build requisites
+    #
+    export DEBIAN_FRONTEND=noninteractive; \
+    apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
+        autoconf \
+        libconfig-dev \
+        libcurl4-openssl-dev \
+        libfuse-dev \
+        libjson-c-dev \
+        libnl-3-dev \
+        libsensors-dev \
+        libtool \
+        libuv1-dev \
+        libyaml-dev \
+        pkg-config \
+        ruby \
+        ruby-dev; \
+    gem install --no-document fpm; \
+    mkdir /debs; \
+    cd /debs; \
+    #
+    # Cassini headers
+    #
+    TMPROOT=$(mktemp -d); \
+    CASSINI_HEADERS_TGZ="shs-${CASSINI_HEADERS_VERSION}.tar.gz"; \
+    CASSINI_HEADERS_URL="https://github.com/HewlettPackard/shs-cassini-headers/archive/refs/tags/release/${CASSINI_HEADERS_TGZ}"; \
+    install -d "$TMPROOT/usr/share/cassini-headers" "$TMPROOT/usr/include" "$TMPROOT/src"; \
+    curl -L -o "${TMPROOT}/src/${CASSINI_HEADERS_TGZ}" "${CASSINI_HEADERS_URL}"; \
+    tar --transform='s|shs-cassini-headers-release-shs-[^/]*||' -C "${TMPROOT}/src" -xzf "${TMPROOT}/src/${CASSINI_HEADERS_TGZ}"; \
+    cp "${TMPROOT}/src/share/cassini-headers/csr_defs.json" "$TMPROOT/usr/share/cassini-headers/"; \
+    cp -r "${TMPROOT}"/src/include/* "$TMPROOT/usr/include/"; \
+    fpm -s dir -t deb -n shs-cassini-headers -v "${CASSINI_HEADERS_VERSION}" --description "LUMI-AIF-$(date -u +'%Y%m%d%H%M%S')" --prefix / -C "$TMPROOT" usr/include usr/share/cassini-headers; \
+    rm -rf "$TMPROOT"; \
+    dpkg -i "shs-cassini-headers_${CASSINI_HEADERS_VERSION}_amd64.deb"; \
+    #
+    # CXI headers
+    #
+    CXI_HEADERS_TGZ="shs-${CXI_HEADERS_VERSION}.tar.gz"; \
+    CXI_HEADERS_URL="https://github.com/HewlettPackard/shs-cxi-driver/archive/refs/tags/release/${CXI_HEADERS_TGZ}"; \
+    TMPROOT=$(mktemp -d); \
+    install -d "$TMPROOT/src" "$TMPROOT/usr/include"; \
+    curl -L -o "${TMPROOT}/src/${CXI_HEADERS_TGZ}" "${CXI_HEADERS_URL}"; \
+    tar --transform='s|shs-cxi-driver-release-shs-[^/]*||' -C "${TMPROOT}/src" -xzf "${TMPROOT}/src/${CXI_HEADERS_TGZ}"; \
+    cp -r "${TMPROOT}"/src/include/* "$TMPROOT/usr/include/"; \
+    echo fpm -s dir -t deb -n shs-cxi-driver-dev -v ${CXI_HEADERS_VERSION} --description "LUMI-AIF-$(date -u +'%Y%m%d%H%M%S')" --prefix / -C "$TMPROOT" usr/include; \
+    fpm -s dir -t deb -n shs-cxi-driver-dev -v ${CXI_HEADERS_VERSION} --prefix / -C "$TMPROOT" usr/include; \
+    rm -rf "$TMPROOT"; \
+    dpkg -i shs-cxi-driver-dev_${CXI_HEADERS_VERSION}_amd64.deb; \
+    #
+    # Libcxi
+    #
+    LIBCXI_TGZ="shs-${LIBCXI_VERSION}.tar.gz"; \
+    LIBCXI_URL="https://github.com/HewlettPackard/shs-libcxi/archive/refs/tags/release/${LIBCXI_TGZ}"; \
+    TMPROOT=$(mktemp -d); \
+    install -d "$TMPROOT/src" "$TMPROOT/usr"; \
+    curl -L -o "${TMPROOT}/src/${LIBCXI_TGZ}" "${LIBCXI_URL}"; \
+    tar --transform='s|shs-libcxi-release-shs-[^/]*||' -C "${TMPROOT}/src" -xzf "${TMPROOT}/src/${LIBCXI_TGZ}"; \
+    cd "${TMPROOT}/src"; \
+    ./autogen.sh; \
+    ./configure --disable-static --with-udevrulesdir=/usr/lib/udev/rules.d --prefix=/usr --with-rocm=/opt/rocm CFLAGS='-I /usr/include'; \
+    make -j "$NPROC" DESTDIR="$TMPROOT" install; \
+    cd -; \
+    fpm -s dir -t deb -n libcxi -v ${LIBCXI_VERSION} --description "LUMI-AIF-$(date -u +'%Y%m%d%H%M%S')" --prefix / -C "$TMPROOT" usr; \
+    rm -rf "$TMPROOT"; \
+    dpkg -i libcxi_${LIBCXI_VERSION}_amd64.deb; \
+    #
+    # Libfabric
+    #
+    LIBFABRIC_TGZ="libfabric-$LIBFABRIC_VERSION.tar.bz2"; \
+    LIBFABRIC_URL="https://github.com/ofiwg/libfabric/releases/download/v$LIBFABRIC_VERSION/libfabric-$LIBFABRIC_VERSION.tar.bz2"; \
+    TMPROOT=$(mktemp -d); \
+    install -d "$TMPROOT/src" "$TMPROOT/usr"; \
+    curl -L -o "${TMPROOT}/src/${LIBFABRIC_TGZ}" "${LIBFABRIC_URL}"; \
+    tar -C "${TMPROOT}/src" -xf "${TMPROOT}/src/${LIBFABRIC_TGZ}" --no-same-owner; \
+    cd "${TMPROOT}/src/libfabric-$LIBFABRIC_VERSION"; \
+    ./configure --enable-cxi=/usr --prefix=/usr --with-rocr=/opt/rocm --enable-rocr-dlopen CFLAGS='-I /usr/local/include'; \
+    sed -i 's/| CXI_MAP_IOVA_ALLOC//g' prov/cxi/include/cxip.h; \
+    make -j "$NPROC" DESTDIR="$TMPROOT" install; \
+    cd -; \
+    fpm -s dir -t deb -n libfabric -v ${LIBFABRIC_VERSION} --description "LUMI-AIF-$(date -u +'%Y%m%d%H%M%S')" --prefix / -C "$TMPROOT" usr/bin usr/include usr/lib usr/share; \
+    rm -rf "$TMPROOT"; \
+    dpkg -i libfabric_${LIBFABRIC_VERSION}_amd64.deb
+
+FROM $BASE_IMAGE:$BASE_IMAGE_TAG
+
+COPY --from=builder /debs/*.deb /tmp/debs/
+
+RUN set -ue; \
+    apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
+        autoconf \
+        libconfig-dev \
+        libcurl4-openssl-dev \
+        libfuse-dev \
+        libjson-c-dev \
+        libnl-3-dev \
+        libsensors-dev \
+        libtool \
+        libuv1-dev \
+        libyaml-dev \
+        pkg-config; \
+    dpkg -i /tmp/debs/*.deb ;\
+    rm -rf /tmp/debs
+
+CMD ["/bin/bash"]
+

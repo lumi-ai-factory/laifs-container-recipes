@@ -1,0 +1,50 @@
+name: laifs-lumi-multi-recipe
+steps:
+  - name: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}
+    file: rocm/Ubuntu2404_Rocm6
+    force: False
+    base: ubuntu:{{ubuntu_tag}}
+    env:
+      - ROCM_VERSION={{rocm_version}}
+      - AMDGPU_VERSION={{amd_gpu_version}}
+  - name: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}
+    base: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}
+    file: libfabric/Ubuntu_Rocm_Slingshot
+    force: False
+    env:
+      - CASSINI_HEADERS_VERSION={{cassini_headers_version}}
+      - CXI_HEADERS_VERSION={{cxi_headers_version}}
+      - LIBCXI_VERSION={{libcxi_version}}
+      - LIBFABRIC_VERSION={{libfabric_version}}
+    #export:
+    #  name: "laifs-lumi-base-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}"
+  - name: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}-mpich-{{mpich_version}}
+    base: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}
+    file: mpich/Ubuntu_Rocm_Slingshot
+    force: False
+    env:
+      - MPICH_VERSION={{mpich_version}}
+      - AWS_OFI_RCCL_VERSION={{aws_ofi_rccl_version}}
+      - AWS_OFI_RCCL_COMMIT={{aws_ofi_rccl_commit}}
+  - name: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}-mpich-{{mpich_version}}-torch-{{torch_version}}
+    base: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}-mpich-{{mpich_version}}
+    file: torch/Venv_Torch
+    force: False
+    env:
+      - TORCH_VERSION={{torch_version}}
+      - TORCH_URL={{torch_url}}
+      - TORCHVISION_URL={{torchvision_url}}
+      - TORCHAUDIO_URL={{torchaudio_url}}
+      - PYTORCH_TRITON_URL={{pytorch_triton_url}}
+  - name: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}-mpich-{{mpich_version}}-torch-{{torch_version}}-multi
+    base: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}-mpich-{{mpich_version}}-torch-{{torch_version}}
+    file: multi/Rocm_Multipurpose
+    force: False
+    export:
+      name: "laifs-lumi-multi"
+    env:
+      - FLASH_ATTENTION_REPO_COMMIT={{flash_attention_repo_commit}}
+      - FLASH_ATTENTION_REPO_URL={{flash_attention_repo_url}}
+      - FLASH_ATTENTION_GPU_ARCHS={{flash_attention_gpu_archs}}
+      - VLLM_COMMIT={{vllm_commit}}
+      - VLLM_GPU_ARCHS={{vllm_gpu_archs}}

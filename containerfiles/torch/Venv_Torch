@@ -1,0 +1,19 @@
+
+FROM $BASE_IMAGE:$BASE_IMAGE_TAG
+
+ARG BASE_IMAGE
+ARG BASE_IMAGE_TAG
+ARG TORCH_URL
+ARG TORCHVISION_URL
+ARG PYTORCH_TRITON_ROCM_URL
+ARG TORCHAUDIO_URL
+
+RUN python3.12 -m venv /opt/venv \
+	&& . /opt/venv/bin/activate \
+        && pip3.12 install $TORCH_URL $TORCHVISION_URL $PYTORCH_TRITON_ROCM_URL $TORCHAUDIO_URL \
+        && echo "source /opt/venv/bin/activate" >> ~/.bashrc
+
+ENV PATH="/opt/venv/bin:$PATH"
+
+CMD ["/bin/bash"]
+

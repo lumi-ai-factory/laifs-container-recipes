@@ -1,0 +1,60 @@
+FROM $BASE_IMAGE:$BASE_IMAGE_TAG AS builder
+
+ARG BASE_IMAGE
+ARG BASE_IMAGE_TAG
+ARG NPROC
+ARG MPICH_VERSION
+ARG AWS_OFI_RCCL_VERSION
+ARG AWS_OFI_RCCL_COMMIT
+
+RUN set -ue; \
+    export DEBIAN_FRONTEND=noninteractive; \
+    apt-get update; \
+    apt-get install -y ruby ruby-dev; \
+    gem install --no-document fpm; \
+    mkdir /debs; \
+    cd /debs; \
+    #
+    # MPICH
+    #
+    TMPROOT=$(mktemp -d); \
+    MPICH_TGZ="mpich-${MPICH_VERSION}.tar.gz"; \
+    MPICH_URL="http://www.mpich.org/static/downloads/${MPICH_VERSION}/${MPICH_TGZ}"; \
+    install -d "$TMPROOT/usr" "$TMPROOT/src"; \
+    curl -L -o "${TMPROOT}/src/${MPICH_TGZ}" "${MPICH_URL}"; \
+    tar -C "${TMPROOT}/src" -xf "${TMPROOT}/src/${MPICH_TGZ}" --no-same-owner; \
+    cd "${TMPROOT}/src/mpich-$MPICH_VERSION"; \
+    ./configure --with-libfabric --disable-fortran --without-ucx --prefix=/usr; \
+    make -j $NPROC DESTDIR="$TMPROOT" install; \
+    cd -; \
+    fpm -s dir -t deb -n mpich -v "${MPICH_VERSION}" --prefix / -C "$TMPROOT"  usr/bin usr/etc usr/include usr/lib usr/share; \
+    rm -rf "$TMPROOT"; \
+    dpkg -i "mpich_${MPICH_VERSION}_amd64.deb";
+RUN set -ue; \
+    cd /debs; \
+    #
+    # AWS-OFI-RCCL
+    #
+    TMPROOT=$(mktemp -d); \
+    git clone https://github.com/ROCm/aws-ofi-rccl "$TMPROOT/aws-ofi-rccl"; \
+    cd  "$TMPROOT/aws-ofi-rccl"; \
+    git checkout "${AWS_OFI_RCCL_COMMIT}"; \
+    ./autogen.sh; \
+    ./configure --with-libfabric=/usr --enable-trace --disable-tests --prefix=/usr; \
+    make -j $NPROC DESTDIR="$TMPROOT" install; \
+    cd -; \
+    fpm -s dir -t deb -n aws-ofi-rccl -v "${AWS_OFI_RCCL_VERSION}" --prefix / -C "$TMPROOT"  usr/lib; \
+    rm -rf "$TMPROOT"; \
+    dpkg -i "aws-ofi-rccl_${AWS_OFI_RCCL_VERSION}_amd64.deb";
+
+FROM $BASE_IMAGE:$BASE_IMAGE_TAG
+
+COPY --from=builder /debs/*.deb /tmp/debs/
+
+RUN set -ue; \
+    dpkg -i /tmp/debs/*.deb ;\
+    rm -rf /tmp/debs
+
+ENV SLURM_MPI_TYPE=mpi2
+
+CMD ["/bin/bash"]

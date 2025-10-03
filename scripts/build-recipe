@@ -1,0 +1,282 @@
+#!/bin/bash
+
+set -e
+
+log() {
+    if [ $# -gt 0 ]; then
+        printf "%s: %s\n" "$(date +'%Y%m%d %H:%M:%S')" "$@" | tee -a "$LOG_FILE"
+    else
+        tee -a "$LOG_FILE"
+    fi
+}
+
+usage() {
+    echo "Usage build-image <build|dump|commands> <recipe file> [<target directory>]"
+    exit 1
+}
+
+fail() {
+    echo "Error: $1" >&2
+    exit 1
+}
+
+check_var() {
+    for var in "$@"; do
+        if [ -z "${!var:-}" ]; then
+            fail "$var is not set or empty"
+            exit 1
+        fi
+    done
+}
+
+check_bash_features() {
+    if ! local -n test_nameref &>/dev/null; then
+        echo "Error: Your Bash version does not support namerefs (-n)." >&2
+        return 1
+    fi
+    if ! typeset -A test_array &>/dev/null; then
+        echo "Error: Your Bash version does not support associative arrays." >&2
+        return 1
+    fi
+}
+
+
+get_existing_images() {
+    podman images --format json | jq -r -c '.[] | select(.Names != null and .Names != []) | .Names[]'
+}
+
+get_latest_tag_for_image() {
+    local IMAGE_NAME=$1
+
+    grep -o -P "${IMAGE_NAME}:\d{8}_\d{6}" <<< "$(get_existing_images) " | sort -n | tail -1 | cut -d ':' -f2
+}
+
+get_latest_image() {
+    local IMAGE_NAME=$1
+    local LATEST_TAG=$(get_latest_tag_for_image "$IMAGE_NAME")
+
+    if [[ -n "$LATEST_TAG" ]]; then
+        echo "${IMAGE_NAME}:${LATEST_TAG}"
+    else
+        echo ""
+    fi
+}
+
+get_image_tag() {
+    # If the given image string has tag, return that, otherwise return the latest tag
+    # from existing images using get_latest_tag_for_image.
+    local IMAGE="$1"
+
+    if [[ "$IMAGE" == *:* ]]; then
+        echo "${IMAGE#*:}"
+        return 0
+    fi
+
+    local LATEST_TAG=$(get_latest_tag_for_image "$IMAGE")
+
+    echo "$LATEST_TAG"
+}
+
+get_image_name() {
+    # Print image name without tag
+
+    local IMAGE="$1"
+
+    if [[ "$IMAGE" == *:* ]]; then
+        echo "${IMAGE%:*}"
+    else
+        echo "$IMAGE"
+    fi
+}
+
+export_image() {
+    local IMAGE_NAME=$1
+    local IMAGE_TAG=$2
+    local EXPORT_IMAGE_NAME=$3
+
+    local OCI_FILE="${BUILD_DIR}/${EXPORT_IMAGE_NAME}-${IMAGE_TAG}.tar"
+    local SIF_FILE="${BUILD_DIR}/${EXPORT_IMAGE_NAME}-${IMAGE_TAG}.sif"
+
+    local OCI_COMMAND="podman image save --format oci-archive ${IMAGE_NAME}:${IMAGE_TAG} -o $OCI_FILE"
+    local SIF_COMMAND="singularity build ${SIF_FILE} oci-archive://${OCI_FILE}"
+
+    log "*** Exporting image with command $OCI_COMMAND"
+    ${OCI_COMMAND[@]} | log
+
+    log "*** Creating sif file with command $SIF_COMMAND"
+    ${SIF_COMMAND[@]} | log
+
+    log "*** Image checksums:"
+    sha256sum "$OCI_FILE" "$SIF_FILE" | log
+}
+
+parse_step() {
+    local STEP_JSON=$1
+    local -n STEP_DATA=$2
+
+    STEP_DATA["BASE_IMAGE"]=$(jq -r '.base' <<< "$STEP_JSON")
+    STEP_DATA["BUILD_ENV"]=$(jq -c -r '.env' <<< "$STEP_JSON")
+    STEP_DATA["CONTAINERFILE"]=$(jq -r '.file' <<< "$STEP_JSON")
+    STEP_DATA["FORCE_NEW"]=$(jq -r '.force // "false"' <<< "$STEP_JSON")
+    STEP_DATA["IMAGE_NAME"]=$(jq -r '.name' <<< "$STEP_JSON")
+    STEP_DATA["EXPORT_IMAGE_NAME"]=$(jq -r '.export.name // ""' <<< "$STEP_JSON")
+    STEP_DATA["IMAGE_TAG"]="$(date +'%Y%m%d_%H%M%S')"
+    STEP_DATA["BASE_IMAGE_TAG"]="$(get_image_tag ${STEP_DATA['BASE_IMAGE']})"
+    STEP_DATA["BASE_IMAGE"]="$(get_image_name ${STEP_DATA["BASE_IMAGE"]})"
+    STEP_DATA["EXISTING_IMAGE"]="$(get_latest_image ${STEP_DATA["IMAGE_NAME"]})"
+
+    if [[ -n "${STEP_DATA['EXISTING_IMAGE']}" && "${STEP_DATA["FORCE_NEW"]}" != "true" ]]; then
+        STEP_DATA["SKIP_BUILD"]="true"
+    else
+        STEP_DATA["SKIP_BUILD"]="false"
+    fi
+
+    local ENV_ARGS=$(echo "${STEP_DATA['BUILD_ENV']}" | jq -r '.[] | split("=") | "--build-arg \(.[0])=\(.[1])"')
+
+    local BUILD_COMMAND=(
+        podman build -f "containerfiles/${STEP_DATA['CONTAINERFILE']}"
+        --cgroup-manager cgroupfs 
+        -t "${STEP_DATA['IMAGE_NAME']}:${STEP_DATA['IMAGE_TAG']}"
+        -t "${STEP_DATA['IMAGE_NAME']}:latest"
+        "--build-arg" "NPROC=$(nproc)"
+        "--build-arg" "BASE_IMAGE=${STEP_DATA['BASE_IMAGE']}"
+        "--build-arg" "BASE_IMAGE_TAG=${STEP_DATA['BASE_IMAGE_TAG']}"
+        $ENV_ARGS
+    )
+
+    STEP_DATA["BUILD_COMMAND"]="${BUILD_COMMAND[@]}"
+}
+
+
+build_image() {
+
+    local STEP_JSON=$1
+    declare -A STEP
+    parse_step "$STEP_JSON" STEP
+
+    LOG_FILE=$(printf "${BUILD_DIR}/%s-%s.log" "${STEP['IMAGE_NAME']}" "${STEP['IMAGE_TAG']}")
+
+    if [[ ${STEP['SKIP_BUILD']} == "true" ]]; then
+        log "Skipping build for ${STEP['IMAGE_NAME']}. Using existing image ${STEP['EXISTING_IMAGE']}:"
+        podman image inspect ${STEP['EXISTING_IMAGE']} | log
+        return
+    fi
+
+    if [[ -z "${STEP['BASE_IMAGE_TAG']}" ]]; then
+        fail "TAG for BASE_IMAGE \"${STEP['BASE_IMAGE']}\" could not be determined"
+    fi
+
+    #check_var RECIPE BASE_IMAGE BUILD_ENV CONTAINERFILE FORCE_NEW IMAGE_NAME
+
+    log "*** Build started $(date)"
+    log "*** Building image: ${STEP['IMAGE_NAME']}:${STEP['IMAGE_TAG']}"
+    log "*** Using Containerfile: ${STEP['CONTAINERFILE']}"
+    log "*** Containerfile content:"
+    cat "containerfiles/${STEP['CONTAINERFILE']}" | log
+
+    log  "*** Base image: ${STEP['BASE_IMAGE']}:${STEP['BASE_IMAGE_TAG']}"
+    log  "*** Base image information:"
+    podman image inspect ${STEP['BASE_IMAGE']}:${STEP['BASE_IMAGE_TAG']}| log
+
+    log "*** Starting build command: ${STEP['BUILD_COMMAND']}"
+
+    ${STEP['BUILD_COMMAND']} 2>&1 | log
+
+    if [[ $? != 0 ]]; then
+        fail "Build failed for ${STEP['IMAGE_NAME']}:${STEP['IMAGE_TAG']}"
+    fi
+    # revisit: also check the image was actually created
+
+    log "*** Image info:"
+    podman image inspect ${STEP['IMAGE_NAME']}:${STEP['IMAGE_TAG']}| log
+
+    if [[ -n "${STEP['EXPORT_IMAGE_NAME']}" ]]; then
+        export_image "${STEP['IMAGE_NAME']}" "${STEP['IMAGE_TAG']}" "${STEP['EXPORT_IMAGE_NAME']}"
+    fi
+
+    log "*** Build completed $(date)"
+
+    printf "\n\n\n"
+}
+
+build_images() {
+    echo "Building images from recipe $(yq . $RECIPE_FILE | jq -r '.name') at $RECIPE_FILE"
+
+    for step in $(yq . $RECIPE_FILE | jq -c '.steps.[]'); do
+        build_image "${step}"
+    done
+}
+
+dump_recipe() {
+
+    echo -e "Recipe $(yq . $RECIPE_FILE | jq -r '.name') from file $RECIPE_FILE:\n"
+
+    for step_json in $(yq . $RECIPE_FILE | jq -c '.steps.[]'); do
+
+        declare -A step_data
+        parse_step "$step_json" step_data 
+
+        echo "  ${step_data['IMAGE_NAME']}"
+        echo "    spec: $step_json"
+        echo "    data:"
+
+        for key in "${!step_data[@]}"; do
+            echo "      $key: ${step_data[$key]}"
+        done
+
+        echo
+    done
+
+}
+
+show_commands() {
+
+    for step_json in $(yq . $RECIPE_FILE | jq -c '.steps.[]'); do
+        declare -A step_data
+        parse_step "$step_json" step_data 
+        echo "${step_data['IMAGE_NAME']}:${step_data['IMAGE_TAG']}: ${step_data['BUILD_COMMAND']}"
+        echo
+    done
+}
+
+
+if ! check_bash_features; then
+    exit 1
+fi
+
+if [ "$#" -ne 2 ] && [ "$#" -ne 3 ]  ; then
+    usage
+fi
+
+ACTION=$1
+
+if [ "$ACTION" != "build" ] && [ "$ACTION" != "dump" ] && [ "$ACTION" != "commands" ]; then
+    usage
+fi
+
+RECIPE_FILE=$2
+if [ ! -f "$RECIPE_FILE" ]; then
+    echo "Error: Recipe file '$RECIPE_FILE' not found or not a file."
+    usage
+fi
+
+BUILD_DIR=$3
+
+case "$ACTION" in
+    "build")
+        if [ ! -d "$BUILD_DIR" ]; then
+            echo "Error: Target directory'$BUILD_DIR' does not exist."
+            usage
+        fi
+        build_images $RECIPE_FILE
+        ;;
+    "dump")
+        dump_recipe $RECIPE_FILE
+        ;;
+    "commands")
+        show_commands $RECIPE_FILE
+        ;;
+    *)
+        usage
+        ;;
+esac
