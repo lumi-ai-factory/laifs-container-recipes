@@ -3,7 +3,7 @@ FROM $BASE_IMAGE:$BASE_IMAGE_TAG AS builder
 ARG BASE_IMAGE
 ARG BASE_IMAGE_TAG
 ARG NPROC
-ARG MPICH_VERSION
+ARG OSU_VERSION
 ARG AWS_OFI_RCCL_VERSION
 ARG AWS_OFI_RCCL_COMMIT
 
@@ -24,12 +24,30 @@ RUN set -ue; \
     curl -L -o "${TMPROOT}/src/${MPICH_TGZ}" "${MPICH_URL}"; \
     tar -C "${TMPROOT}/src" -xf "${TMPROOT}/src/${MPICH_TGZ}" --no-same-owner; \
     cd "${TMPROOT}/src/mpich-$MPICH_VERSION"; \
-    ./configure --with-libfabric --disable-fortran --without-ucx --prefix=/usr; \
+    ./configure --disable-fortran --enable-fast=O3 --enable-threads=multiple --prefix=/usr --with-device=ch4:ofi --with-hip=/opt/rocm --with-libfabric --with-xpmem=/usr --without-cuda --without-ucx; \
     make -j $NPROC DESTDIR="$TMPROOT" install; \
-    cd -; \
-    fpm -s dir -t deb -n mpich -v "${MPICH_VERSION}" --prefix / -C "$TMPROOT"  usr/bin usr/etc usr/include usr/lib usr/share; \
+    cd /debs; \
+    fpm -s dir -t deb -n mpich -v "${MPICH_VERSION}" --description "LUMI-AIF-$(date -u +'%Y%m%d%H%M%S')" --prefix / -C "$TMPROOT"  usr/bin usr/etc usr/include usr/lib usr/share; \
     rm -rf "$TMPROOT"; \
     dpkg -i "mpich_${MPICH_VERSION}_amd64.deb";
+    #
+    # OSU Benchmarks
+    #
+RUN set -ue; \
+    TMPROOT=$(mktemp -d); \
+    OSU_TGZ="osu-micro-benchmarks-${OSU_VERSION}.tar.gz"; \
+    OSU_URL="https://mvapich.cse.ohio-state.edu/download/mvapich/${OSU_TGZ}"; \
+    install -d "$TMPROOT/libexec" "$TMPROOT/src"; \
+    curl -L -o "${TMPROOT}/src/${OSU_TGZ}" "${OSU_URL}"; \
+    tar -C "${TMPROOT}/src" -xf "${TMPROOT}/src/${OSU_TGZ}" --no-same-owner; \
+    cd "${TMPROOT}/src/osu-micro-benchmarks-${OSU_VERSION}"; \
+    ./configure --prefix=/usr CC=mpicc CXX=mpicxx --enable-rocm --with-rocm=/opt/rocm; \
+    make -j $NPROC DESTDIR="$TMPROOT" install; \
+    cd /debs; \
+    fpm -s dir -t deb -n osu-micro-benchmarks -v "${OSU_VERSION}" --description "LUMI-AIF-$(date -u +'%Y%m%d%H%M%S')" --prefix / -C "$TMPROOT"  usr/libexec; \
+    rm -rf "$TMPROOT"; \
+    dpkg -i "osu-micro-benchmarks_${MPICH_VERSION}_amd64.deb";
+
 RUN set -ue; \
     cd /debs; \
     #
@@ -43,7 +61,7 @@ RUN set -ue; \
     ./configure --with-libfabric=/usr --enable-trace --disable-tests --prefix=/usr; \
     make -j $NPROC DESTDIR="$TMPROOT" install; \
     cd -; \
-    fpm -s dir -t deb -n aws-ofi-rccl -v "${AWS_OFI_RCCL_VERSION}" --prefix / -C "$TMPROOT"  usr/lib; \
+    fpm -s dir -t deb -n aws-ofi-rccl -v "${AWS_OFI_RCCL_VERSION}" --description "LUMI-AIF-$(date -u +'%Y%m%d%H%M%S')" --prefix / -C "$TMPROOT"  usr/lib; \
     rm -rf "$TMPROOT"; \
     dpkg -i "aws-ofi-rccl_${AWS_OFI_RCCL_VERSION}_amd64.deb";
 
@@ -55,6 +73,9 @@ RUN set -ue; \
     dpkg -i /tmp/debs/*.deb ;\
     rm -rf /tmp/debs
 
-ENV SLURM_MPI_TYPE=mpi2
+ENV SLURM_MPI_TYPE=pmi2
+ENV MPIR_CVAR_CH4_OFI_ENABLE_HMEM=1
+ENV MPIR_CVAR_CH4_OFI_ENABLE_MR_HMEM=1
+ENV MPIR_CVAR_ENABLE_GPU=1
 
 CMD ["/bin/bash"]

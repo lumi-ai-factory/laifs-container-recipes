@@ -12,6 +12,7 @@ RUN /usr/bin/echo -e 'Package: *\nPin: release o=repo.radeon.com\nPin-Priority: 
   && printf "deb [arch=amd64] https://repo.radeon.com/rocm/apt/${ROCM_VERSION}/ noble main\n" | tee --append /etc/apt/sources.list.d/rocm.list \
   && printf "deb [arch=amd64] https://repo.radeon.com/amdgpu/${AMDGPU_VERSION}/ubuntu noble main\n" | tee /etc/apt/sources.list.d/amdgpu.list \
   && apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+      amdgpu-dkms \
       build-essential \
       file \
       git \
@@ -27,5 +28,7 @@ RUN /usr/bin/echo -e 'Package: *\nPin: release o=repo.radeon.com\nPin-Priority: 
       rocm-libs$ROCM_VERSION \
       sudo \
       wget \
+  && echo /opt/rocm/lib > /etc/ld.so.conf.d/rocm-30.conf \
+  && ldconfig \
   && apt-get clean  \
   && rm -rf /var/lib/apt/lists/*

@@ -2,10 +2,28 @@ FROM $BASE_IMAGE:$BASE_IMAGE_TAG AS builder
 
 ARG BASE_IMAGE
 ARG BASE_IMAGE_TAG
+
 ARG CASSINI_HEADERS_VERSION
+
 ARG CXI_HEADERS_VERSION
+ARG CXI_HEADERS_CLONE_URL
+ARG CXI_HEADERS_GIT_COMMIT
+
 ARG LIBCXI_VERSION
+ARG LIBCXI_CLONE_URL
+ARG LIBCXI_GIT_COMMIT
+
 ARG LIBFABRIC_VERSION
+ARG LIBFABRIC_CLONE_URL
+ARG LIBFABRIC_GIT_COMMIT
+
+ARG XPMEM_CLONE_URL
+ARG XPMEM_GIT_COMMIT
+ARG XPMEM_VERSION
+ARG XPMEM_KERNEL_BASE_SRC
+ARG XPMEM_KERNEL_GENERIC_SRC
+ARG XPMEM_KERNEL_ID
+
 ARG NPROC
 
 RUN set -ue; \
@@ -28,8 +46,35 @@ RUN set -ue; \
         ruby \
         ruby-dev; \
     gem install --no-document fpm; \
-    mkdir /debs; \
+    mkdir /debs;
+
+RUN set -ue; \
+    #
+    # XPMEM
+    #
+    TMPROOT=$(mktemp -d); \
+    #
+    XPMEM_KERNEL_PATH=${TMPROOT}/src/kernel/usr/src/${XPMEM_KERNEL_ID}; \
+    #
+    install -d "$TMPROOT/src" "$TMPROOT/src/kernel"  "$TMPROOT/usr"; \
+    cd "$TMPROOT/src"; \
+    wget http://archive.ubuntu.com/ubuntu/pool/main/l/linux/${XPMEM_KERNEL_BASE_SRC}; \
+    wget http://archive.ubuntu.com/ubuntu/pool/main/l/linux/${XPMEM_KERNEL_GENERIC_SRC}; \
+    dpkg-deb -x ${XPMEM_KERNEL_BASE_SRC} kernel/; \
+    dpkg-deb -x ${XPMEM_KERNEL_GENERIC_SRC} kernel/; \
+    #
+    git clone ${XPMEM_CLONE_URL} "$TMPROOT/src/xpmem"; \
+    cd "$TMPROOT/src/xpmem"; \
+    git checkout "${XPMEM_GIT_COMMIT}"; \
+    ./autogen.sh; \
+    ./configure --prefix=/usr --with-kerneldir=${XPMEM_KERNEL_PATH}; \
+    make -j "$NPROC" DESTDIR="$TMPROOT" install; \
+    #
     cd /debs; \
+    fpm -s dir -t deb -n xpmem -v "${XPMEM_VERSION}" --description "LUMI-AIF-$(date -u +'%Y%m%d%H%M%S')" --prefix / -C "$TMPROOT" usr/include usr/lib; \
+    dpkg -i "xpmem_${XPMEM_VERSION}_amd64.deb";
+
+RUN set -ue; \
     #
     # Cassini headers
     #
@@ -41,55 +86,57 @@ RUN set -ue; \
     tar --transform='s|shs-cassini-headers-release-shs-[^/]*||' -C "${TMPROOT}/src" -xzf "${TMPROOT}/src/${CASSINI_HEADERS_TGZ}"; \
     cp "${TMPROOT}/src/share/cassini-headers/csr_defs.json" "$TMPROOT/usr/share/cassini-headers/"; \
     cp -r "${TMPROOT}"/src/include/* "$TMPROOT/usr/include/"; \
+    cd /debs; \
     fpm -s dir -t deb -n shs-cassini-headers -v "${CASSINI_HEADERS_VERSION}" --description "LUMI-AIF-$(date -u +'%Y%m%d%H%M%S')" --prefix / -C "$TMPROOT" usr/include usr/share/cassini-headers; \
     rm -rf "$TMPROOT"; \
-    dpkg -i "shs-cassini-headers_${CASSINI_HEADERS_VERSION}_amd64.deb"; \
+    dpkg -i "shs-cassini-headers_${CASSINI_HEADERS_VERSION}_amd64.deb";
+
+RUN set -ue; \
     #
     # CXI headers
     #
-    CXI_HEADERS_TGZ="shs-${CXI_HEADERS_VERSION}.tar.gz"; \
-    CXI_HEADERS_URL="https://github.com/HewlettPackard/shs-cxi-driver/archive/refs/tags/release/${CXI_HEADERS_TGZ}"; \
     TMPROOT=$(mktemp -d); \
     install -d "$TMPROOT/src" "$TMPROOT/usr/include"; \
-    curl -L -o "${TMPROOT}/src/${CXI_HEADERS_TGZ}" "${CXI_HEADERS_URL}"; \
-    tar --transform='s|shs-cxi-driver-release-shs-[^/]*||' -C "${TMPROOT}/src" -xzf "${TMPROOT}/src/${CXI_HEADERS_TGZ}"; \
-    cp -r "${TMPROOT}"/src/include/* "$TMPROOT/usr/include/"; \
-    echo fpm -s dir -t deb -n shs-cxi-driver-dev -v ${CXI_HEADERS_VERSION} --description "LUMI-AIF-$(date -u +'%Y%m%d%H%M%S')" --prefix / -C "$TMPROOT" usr/include; \
-    fpm -s dir -t deb -n shs-cxi-driver-dev -v ${CXI_HEADERS_VERSION} --prefix / -C "$TMPROOT" usr/include; \
+    git clone "${CXI_HEADERS_CLONE_URL}" "$TMPROOT/src/shs-cxi-driver"; \
+    cd "$TMPROOT/src/shs-cxi-driver"; \
+    git checkout "${CXI_HEADERS_GIT_COMMIT}"; \
+    cp -r include/* "$TMPROOT/usr/include/"; \
+    cd /debs; \
+    fpm -s dir -t deb -n shs-cxi-driver-dev -v ${CXI_HEADERS_VERSION} --description "LUMI-AIF-$(date -u +'%Y%m%d%H%M%S')" --prefix / -C "$TMPROOT" usr/include; \
     rm -rf "$TMPROOT"; \
-    dpkg -i shs-cxi-driver-dev_${CXI_HEADERS_VERSION}_amd64.deb; \
+    dpkg -i shs-cxi-driver-dev_${CXI_HEADERS_VERSION}_amd64.deb;
+
+RUN set -ue; \
     #
     # Libcxi
     #
-    LIBCXI_TGZ="shs-${LIBCXI_VERSION}.tar.gz"; \
-    LIBCXI_URL="https://github.com/HewlettPackard/shs-libcxi/archive/refs/tags/release/${LIBCXI_TGZ}"; \
     TMPROOT=$(mktemp -d); \
     install -d "$TMPROOT/src" "$TMPROOT/usr"; \
-    curl -L -o "${TMPROOT}/src/${LIBCXI_TGZ}" "${LIBCXI_URL}"; \
-    tar --transform='s|shs-libcxi-release-shs-[^/]*||' -C "${TMPROOT}/src" -xzf "${TMPROOT}/src/${LIBCXI_TGZ}"; \
-    cd "${TMPROOT}/src"; \
+    git clone ${LIBCXI_CLONE_URL} "$TMPROOT/src/shs-libcxi"; \
+    cd "$TMPROOT/src/shs-libcxi"; \
+    git checkout "${LIBCXI_GIT_COMMIT}"; \
     ./autogen.sh; \
-    ./configure --disable-static --with-udevrulesdir=/usr/lib/udev/rules.d --prefix=/usr --with-rocm=/opt/rocm CFLAGS='-I /usr/include'; \
+    ./configure --with-udevrulesdir=/usr/lib/udev/rules.d --prefix=/usr --with-rocm=/opt/rocm ; \
     make -j "$NPROC" DESTDIR="$TMPROOT" install; \
-    cd -; \
+    cd /debs; \
     fpm -s dir -t deb -n libcxi -v ${LIBCXI_VERSION} --description "LUMI-AIF-$(date -u +'%Y%m%d%H%M%S')" --prefix / -C "$TMPROOT" usr; \
     rm -rf "$TMPROOT"; \
-    dpkg -i libcxi_${LIBCXI_VERSION}_amd64.deb; \
+    dpkg -i libcxi_${LIBCXI_VERSION}_amd64.deb;
+
+RUN set -ue; \
     #
     # Libfabric
     #
-    LIBFABRIC_TGZ="libfabric-$LIBFABRIC_VERSION.tar.bz2"; \
-    LIBFABRIC_URL="https://github.com/ofiwg/libfabric/releases/download/v$LIBFABRIC_VERSION/libfabric-$LIBFABRIC_VERSION.tar.bz2"; \
     TMPROOT=$(mktemp -d); \
     install -d "$TMPROOT/src" "$TMPROOT/usr"; \
-    curl -L -o "${TMPROOT}/src/${LIBFABRIC_TGZ}" "${LIBFABRIC_URL}"; \
-    tar -C "${TMPROOT}/src" -xf "${TMPROOT}/src/${LIBFABRIC_TGZ}" --no-same-owner; \
-    cd "${TMPROOT}/src/libfabric-$LIBFABRIC_VERSION"; \
-    ./configure --enable-cxi=/usr --prefix=/usr --with-rocr=/opt/rocm --enable-rocr-dlopen CFLAGS='-I /usr/local/include'; \
-    sed -i 's/| CXI_MAP_IOVA_ALLOC//g' prov/cxi/include/cxip.h; \
+    git clone ${LIBFABRIC_CLONE_URL} "$TMPROOT/src/libfabric"; \
+    cd "$TMPROOT/src/libfabric"; \
+    git checkout "${LIBFABRIC_GIT_COMMIT}"; \
+    ./autogen.sh; \
+    ./configure LDFLAGS=-Wl,--build-id --prefix=/usr --enable-only --enable-rxm  --enable-rxd --enable-shm --enable-hook_hmem --enable-dmabuf_peer_mem --enable-cxi=/usr --enable-lnx --enable-xpmem=/usr --with-rocr=/opt/rocm ; \
     make -j "$NPROC" DESTDIR="$TMPROOT" install; \
-    cd -; \
-    fpm -s dir -t deb -n libfabric -v ${LIBFABRIC_VERSION} --description "LUMI-AIF-$(date -u +'%Y%m%d%H%M%S')" --prefix / -C "$TMPROOT" usr/bin usr/include usr/lib usr/share; \
+    cd /debs; \
+    fpm -s dir -t deb -n libfabric -v ${LIBFABRIC_VERSION} --description "LUMI-AIF-$(date -u +'%Y%m%d%H%M%S')" --prefix / -C "$TMPROOT" usr; \
     rm -rf "$TMPROOT"; \
     dpkg -i libfabric_${LIBFABRIC_VERSION}_amd64.deb
 
@@ -109,9 +156,11 @@ RUN set -ue; \
         libtool \
         libuv1-dev \
         libyaml-dev \
-        pkg-config; \
-    dpkg -i /tmp/debs/*.deb ;\
-    rm -rf /tmp/debs
+        pkg-config \
+        strace; \
+    dpkg -i /tmp/debs/*.deb; \
+    rm -rf /tmp/debs; \
+    ln -s /usr/lib/x86_64-linux-gnu/libcurl.so.4.8.0 /usr/lib64/libcurl.so.4
 
 CMD ["/bin/bash"]
 

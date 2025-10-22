@@ -10,22 +10,41 @@ steps:
   - name: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}
     base: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}
     file: libfabric/Ubuntu_Rocm_Slingshot
+    export:
+      name: "laifs-lumi-libfabric-{{libfabric_version}}-test"
     force: False
     env:
+      - XPMEM_CLONE_URL={{xpmem_clone_url}}
+      - XPMEM_GIT_COMMIT={{xpmem_git_commit}}
+      - XPMEM_VERSION={{xpmem_version}}
+      - XPMEM_KERNEL_BASE_SRC={{xpmem_kernel_base_src}}
+      - XPMEM_KERNEL_GENERIC_SRC={{xpmem_kernel_generic_src}}
+      - XPMEM_KERNEL_ID={{xpmem_kernel_id}}
+      #
       - CASSINI_HEADERS_VERSION={{cassini_headers_version}}
+      #
       - CXI_HEADERS_VERSION={{cxi_headers_version}}
+      - CXI_HEADERS_CLONE_URL={{cxi_headers_clone_url}}
+      - CXI_HEADERS_GIT_COMMIT={{cxi_headers_git_commit}}
+      #
       - LIBCXI_VERSION={{libcxi_version}}
+      - LIBCXI_CLONE_URL={{libcxi_clone_url}}
+      - LIBCXI_GIT_COMMIT={{libcxi_git_commit}}
+      #
       - LIBFABRIC_VERSION={{libfabric_version}}
-    #export:
-    #  name: "laifs-lumi-base-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}"
+      - LIBFABRIC_CLONE_URL={{libfabric_clone_url}}
+      - LIBFABRIC_GIT_COMMIT={{libfabric_git_commit}}
   - name: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}-mpich-{{mpich_version}}
     base: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}
     file: mpich/Ubuntu_Rocm_Slingshot
-    force: False
+    force: True
     env:
       - MPICH_VERSION={{mpich_version}}
+      - OSU_VERSION={{osu_version}}
       - AWS_OFI_RCCL_VERSION={{aws_ofi_rccl_version}}
       - AWS_OFI_RCCL_COMMIT={{aws_ofi_rccl_commit}}
+    export:
+      name: "laifs-lumi-mpich-{{mpich_version}}-test"
   - name: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}-mpich-{{mpich_version}}-torch-{{torch_version}}
     base: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}-mpich-{{mpich_version}}
     file: torch/Venv_Torch
@@ -48,3 +67,6 @@ steps:
       - FLASH_ATTENTION_GPU_ARCHS={{flash_attention_gpu_archs}}
       - VLLM_COMMIT={{vllm_commit}}
       - VLLM_GPU_ARCHS={{vllm_gpu_archs}}
+      - XFORMERS_PIP_URL={{xformers_pip_url}}
+      - EXTRA_APT_PACKAGES="{{extra_apt_packages | join(' ')}}"
+      - EXTRA_PIP_PACKAGES="{{extra_pip_packages | join(' ')}}"

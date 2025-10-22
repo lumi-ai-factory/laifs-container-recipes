@@ -1,20 +1,89 @@
-ubuntu_tag: "noble-20250925"
+ubuntu_tag: "noble-20251001"
+#
 amd_gpu_version: "6.4.4"
 rocm_version: "6.4.4"
+#
+xpmem_clone_url: "https://github.com/hpc/xpmem"
+xpmem_git_commit: "3bcab55"
+xpmem_version: "0.1-git3bcab55"
+xpmem_kernel_base_src: "linux-headers-5.15.0-160_5.15.0-160.170_all.deb"
+xpmem_kernel_generic_src: "linux-headers-5.15.0-160-generic_5.15.0-160.170_amd64.deb"
+xpmem_kernel_id: "linux-headers-5.15.0-160-generic"
+#
 cassini_headers_version: "12.0.1"
-cxi_headers_version: "12.0.1"
-libcxi_version: "12.0.1"
-libfabric_version: "1.22.0"
-mpich_version: "4.3.2rc2"
+cxi_headers_version: "0.1git-3233be5b1"
+cxi_headers_clone_url: "https://github.com/HewlettPackard/shs-cxi-driver"
+cxi_headers_git_commit: "3233be5b1"
+#
+libcxi_version: "0.1git-ebd57a9ca"
+libcxi_clone_url: "https://github.com/HewlettPackard/shs-libcxi"
+libcxi_git_commit: "ebd57a9ca"
+#
+libfabric_git_commit: "e9cf535a"
+libfabric_version: "2.1git-e9cf535a"
+libfabric_clone_url: "https://github.com/ofiwg/libfabric"
+#
+mvapich_version: "4.1"
+#
+mpich_version: "4.3.2"
+osu_version: "7.5.1"
+#
+openmpi_version: "5.0.8"
+#
 aws_ofi_rccl_version: "1.4.0-1"
 aws_ofi_rccl_commit: "6dae1b0"
+#
 torch_version: "2.8.0"
 torch_url: "https://download.pytorch.org/whl/rocm6.4/torch-2.8.0%2Brocm6.4-cp312-cp312-manylinux_2_28_x86_64.whl"
 torchaudio_url: "https://download.pytorch.org/whl/rocm6.4/torchaudio-2.8.0%2Brocm6.4-cp312-cp312-manylinux_2_28_x86_64.whl"
 torchvision_url: "https://download.pytorch.org/whl/rocm6.4/torchvision-0.23.0%2Brocm6.4-cp312-cp312-manylinux_2_28_x86_64.whl"
 pytorch_triton_url: "https://download.pytorch.org/whl/pytorch_triton_rocm-3.4.0-cp312-cp312-linux_x86_64.whl"
+#
 flash_attention_repo_commit: "465cb97"
 flash_attention_repo_url: "https://github.com/ROCm/flash-attention"
 flash_attention_gpu_archs: "gfx90a"
-vllm_commit: "tags/v0.10.2"
+#
+vllm_commit: "tags/v0.11.0"
 vllm_gpu_archs: "gfx90a"
+#
+xformers_pip_url: "https://download.pytorch.org/whl/rocm6.4"
+#
+extra_apt_packages:
+  - cmake
+  # Dependencies for vLLM build
+  - apt-transport-https
+  - ca-certificates
+  - libfmt-dev
+  - libmsgpack-dev
+  - libsqlite3-dev
+  - libsuitesparse-dev
+  - sqlite3
+  # Ultralytics dependencies
+  - ffmpeg
+  - libglib2.0-dev
+  - libopencv-dev
+#
+extra_pip_packages:
+  - accelerate
+  - bitsandbytes
+  - datasets
+  - evaluate
+  - huggingface-hub
+  - jupyter
+  - llmcompressor
+  - matplotlib
+  - mpi4py
+  - numba
+  - numpy
+  - pandas
+  - scipy
+  - sentencepiece
+  - tensorboard
+  - ultralytics
+  # Required for flash-attention build
+  - ninja
+  - packaging
+  # Required for vLLM build
+  - jinja2
+  - setuptools_scm
+#
