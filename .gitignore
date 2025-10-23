@@ -1,0 +1,9 @@
+# Files that Git should ignore
+#
+
+# Build artifacts
+/builds/
+
+# Vim swap files
+*.swp
+
