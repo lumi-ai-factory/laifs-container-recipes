@@ -10,8 +10,6 @@ steps:
   - name: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}
     base: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}
     file: libfabric/Ubuntu_Rocm_Slingshot
-    export:
-      name: "laifs-lumi-libfabric-{{libfabric_version}}-test"
     force: False
     env:
       - XPMEM_CLONE_URL={{xpmem_clone_url}}
@@ -34,17 +32,19 @@ steps:
       - LIBFABRIC_VERSION={{libfabric_version}}
       - LIBFABRIC_CLONE_URL={{libfabric_clone_url}}
       - LIBFABRIC_GIT_COMMIT={{libfabric_git_commit}}
+    export:
+      name: "laifs-lumi-libfabric-{{libfabric_version}}"
   - name: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}-mpich-{{mpich_version}}
     base: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}
     file: mpich/Ubuntu_Rocm_Slingshot
-    force: True
+    force: False
     env:
       - MPICH_VERSION={{mpich_version}}
       - OSU_VERSION={{osu_version}}
       - AWS_OFI_RCCL_VERSION={{aws_ofi_rccl_version}}
       - AWS_OFI_RCCL_COMMIT={{aws_ofi_rccl_commit}}
     export:
-      name: "laifs-lumi-mpich-{{mpich_version}}-test"
+      name: "laifs-lumi-mpich-{{mpich_version}}"
   - name: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}-mpich-{{mpich_version}}-torch-{{torch_version}}
     base: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}-mpich-{{mpich_version}}
     file: torch/Venv_Torch
@@ -59,8 +59,6 @@ steps:
     base: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}-mpich-{{mpich_version}}-torch-{{torch_version}}
     file: multi/Rocm_Multipurpose
     force: False
-    export:
-      name: "laifs-lumi-multi"
     env:
       - FLASH_ATTENTION_REPO_COMMIT={{flash_attention_repo_commit}}
       - FLASH_ATTENTION_REPO_URL={{flash_attention_repo_url}}
@@ -68,5 +66,7 @@ steps:
       - VLLM_COMMIT={{vllm_commit}}
       - VLLM_GPU_ARCHS={{vllm_gpu_archs}}
       - XFORMERS_PIP_URL={{xformers_pip_url}}
-      - EXTRA_APT_PACKAGES="{{extra_apt_packages | join(' ')}}"
-      - EXTRA_PIP_PACKAGES="{{extra_pip_packages | join(' ')}}"
+      - EXTRA_APT_PACKAGES='{{extra_apt_packages | join(" ")}}'
+      - EXTRA_PIP_PACKAGES='{{extra_pip_packages | join(" ")}}'
+    export:
+      name: "laifs-lumi-multi"

@@ -163,4 +163,3 @@ RUN set -ue; \
     ln -s /usr/lib/x86_64-linux-gnu/libcurl.so.4.8.0 /usr/lib64/libcurl.so.4
 
 CMD ["/bin/bash"]
-

@@ -16,4 +16,3 @@ RUN python3.12 -m venv /opt/venv \
 ENV PATH="/opt/venv/bin:$PATH"
 
 CMD ["/bin/bash"]
-

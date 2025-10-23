@@ -18,76 +18,71 @@ ARG EXTRA_APT_PACKAGES
 
 ARG NPROC
 
+
 # Install required pre-built pip and apt packages
-RUN <<EOF
-#!/bin/bash
-  set -ue
-  python3.12 -m venv /opt/venv
-  . /opt/venv/bin/activate
-  apt-get -y --no-install-recommends install $EXTRA_APT_PACKAGES
-  pip install $EXTRA_PIP_PACKAGES
-EOF
+
+RUN set -ue; \
+  python3.12 -m venv /opt/venv; \
+  . /opt/venv/bin/activate; \
+  apt-get -y --no-install-recommends install $EXTRA_APT_PACKAGES; \
+  pip install $EXTRA_PIP_PACKAGES;
+
 
 # Compile and install Flash Attention
-RUN <<EOF
-#!/bin/bash
-  set -ue
-  . /opt/venv/bin/activate
-  mkdir /opt/src
-  git clone $FLASH_ATTENTION_REPO_URL /opt/src/flash-attention
-  cd /opt/src/flash-attention
-  git checkout $FLASH_ATTENTION_REPO_COMMIT
-  BUILD_TARGET=rocm MAX_JOBS=$NPROC GPU_ARCHS=$FLASH_ATTENTION_GPU_ARCHS python3 setup.py bdist_wheel --dist-dir=dist
-  pip3.12 install /opt/src/flash-attention/dist/*.whl
-EOF
+
+RUN set -ue; \
+  . /opt/venv/bin/activate; \
+  mkdir /opt/src; \
+  git clone $FLASH_ATTENTION_REPO_URL /opt/src/flash-attention; \
+  cd /opt/src/flash-attention; \
+  git checkout $FLASH_ATTENTION_REPO_COMMIT; \
+  BUILD_TARGET=rocm MAX_JOBS=$NPROC GPU_ARCHS=$FLASH_ATTENTION_GPU_ARCHS python3 setup.py bdist_wheel --dist-dir=dist; \
+  pip3.12 install /opt/src/flash-attention/dist/*.whl;
+
 
 # Install xFormers
-RUN <<EOF
-  set -ue
-  . /opt/venv/bin/activate
-  pip install xformers --index-url $XFORMERS_PIP_URL
-EOF
+
+RUN set -ue; \
+  . /opt/venv/bin/activate; \
+  pip install xformers --index-url $XFORMERS_PIP_URL;
+
 
 # Compile and install vLLM
-RUN <<EOF
-  set -ue
-  . /opt/venv/bin/activate
-  git clone https://github.com/vllm-project/vllm.git /opt/src/vllm
-  cd /opt/rocm/share/amd_smi
-  python3 -m pip install .
-  cd /opt/src/vllm
-  git fetch --tags
-  git checkout $VLLM_COMMIT
-  export GPU_ARCHS=$VLLM_GPU_ARCHS
-  export PYTORCH_ROCM_ARCH=$VLLM_GPU_ARCHS
-  export GPU_TARGETS=$VLLM_GPU_ARCHS
-  export MAKEFLAGS="-j$NPROC"
-  python3 setup.py clean --all
-  python3 setup.py bdist_wheel --dist-dir=dist
-  pip install ./dist/*.whl
-EOF
+
+RUN set -ue; \
+  . /opt/venv/bin/activate; \
+  git clone https://github.com/vllm-project/vllm.git /opt/src/vllm; \
+  cd /opt/rocm/share/amd_smi; \
+  python3 -m pip install .; \
+  cd /opt/src/vllm; \
+  git fetch --tags; \
+  git checkout $VLLM_COMMIT; \
+  export GPU_ARCHS=$VLLM_GPU_ARCHS; \
+  export PYTORCH_ROCM_ARCH=$VLLM_GPU_ARCHS; \
+  export GPU_TARGETS=$VLLM_GPU_ARCHS; \
+  export MAKEFLAGS="-j$NPROC"; \
+  python3 setup.py clean --all; \
+  python3 setup.py bdist_wheel --dist-dir=dist; \
+  pip install ./dist/*.whl;
+
 
 # Install Deepspeed and compile extensions
-RUN <<EOF
-  set -ue
-  . /opt/venv/bin/activate
 
-  # Enable
-  export DS_BUILD_AIO=1
-  export DS_BUILD_CCL_COMM=1
-  export DS_BUILD_EVOFORMER_ATTN=1
-  export DS_BUILD_FUSED_ADAM=1
-  export DS_BUILD_FUSED_LION=1
-  export DS_BUILD_FUSED_LAMB=1
-  export DS_BUILD_QUANTIZER=1
-  export DS_BUILD_RANDOM_LTD=1
-  export DS_BUILD_SPARSE_ATTN=1
-  export DS_BUILD_TRANSFORMER=1
-  export DS_BUILD_TRANSFORMER_INFERENCE=1
-  export DS_BUILD_STOCHASTIC_TRANSFORMER=1
-
-  python3 -m pip install deepspeed --no-build-isolation
-EOF
+RUN set -ue; \
+  . /opt/venv/bin/activate; \
+  export DS_BUILD_AIO=1; \
+  export DS_BUILD_CCL_COMM=1; \
+  export DS_BUILD_EVOFORMER_ATTN=1; \
+  export DS_BUILD_FUSED_ADAM=1; \
+  export DS_BUILD_FUSED_LION=1; \
+  export DS_BUILD_FUSED_LAMB=1; \
+  export DS_BUILD_QUANTIZER=1; \
+  export DS_BUILD_RANDOM_LTD=1; \
+  export DS_BUILD_SPARSE_ATTN=1; \
+  export DS_BUILD_TRANSFORMER=1; \
+  export DS_BUILD_TRANSFORMER_INFERENCE=1; \
+  export DS_BUILD_STOCHASTIC_TRANSFORMER=1; \
+  python3 -m pip install deepspeed --no-build-isolation;
 
 ENV PATH="/opt/venv/bin:$PATH"
 

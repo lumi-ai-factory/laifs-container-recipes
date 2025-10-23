@@ -1,6 +1,7 @@
 #!/bin/bash
 
 set -e
+#set -x
 
 log() {
     if [ $# -gt 0 ]; then
@@ -150,7 +151,7 @@ parse_step() {
 
 build_image() {
 
-    local STEP_JSON=$1
+    local STEP_JSON="$1"
     declare -A STEP
     parse_step "$STEP_JSON" STEP
 
@@ -180,9 +181,10 @@ build_image() {
 
     log "*** Starting build command: ${STEP['BUILD_COMMAND']}"
 
-    ${STEP['BUILD_COMMAND']} 2>&1 | log
+    bash -c "${STEP['BUILD_COMMAND']}" 2>&1 | log
 
     if [[ $? != 0 ]]; then
+	# revisit: this never hits, even if the build command fails. podman always returns 0?
         fail "Build failed for ${STEP['IMAGE_NAME']}:${STEP['IMAGE_TAG']}"
     fi
     # revisit: also check the image was actually created
@@ -202,7 +204,7 @@ build_image() {
 build_images() {
     echo "Building images from recipe $(yq . $RECIPE_FILE | jq -r '.name') at $RECIPE_FILE"
 
-    for step in $(yq . $RECIPE_FILE | jq -c '.steps.[]'); do
+    yq -c . $RECIPE_FILE | jq -c '.steps.[]' | while IFS= read step; do
         build_image "${step}"
     done
 }
@@ -211,8 +213,7 @@ dump_recipe() {
 
     echo -e "Recipe $(yq . $RECIPE_FILE | jq -r '.name') from file $RECIPE_FILE:\n"
 
-    for step_json in $(yq . $RECIPE_FILE | jq -c '.steps.[]'); do
-
+    yq -c . $RECIPE_FILE | jq -c '.steps.[]' | while IFS= read step_json; do
         declare -A step_data
         parse_step "$step_json" step_data 
 
@@ -231,7 +232,7 @@ dump_recipe() {
 
 show_commands() {
 
-    for step_json in $(yq . $RECIPE_FILE | jq -c '.steps.[]'); do
+    yq -c . $RECIPE_FILE | jq -c '.steps.[]' | while IFS= read step_json; do
         declare -A step_data
         parse_step "$step_json" step_data 
         echo "${step_data['IMAGE_NAME']}:${step_data['IMAGE_TAG']}: ${step_data['BUILD_COMMAND']}"
