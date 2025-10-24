@@ -1,10 +1,11 @@
+@@ BUILD_ARGS @@
 
 FROM $BASE_IMAGE:$BASE_IMAGE_TAG
 
+ARG AMDGPU_VERSION
 ARG BASE_IMAGE
 ARG BASE_IMAGE_TAG
 ARG ROCM_VERSION
-ARG AMDGPU_VERSION
 
 RUN /usr/bin/echo -e 'Package: *\nPin: release o=repo.radeon.com\nPin-Priority: 800\n' > /etc/apt/preferences.d/rocm-pin-prio-800 \
   && apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates curl libnuma-dev gnupg \

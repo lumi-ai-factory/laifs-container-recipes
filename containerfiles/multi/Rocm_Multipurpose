@@ -1,22 +1,17 @@
+@@ BUILD_ARGS @@
 
 FROM $BASE_IMAGE:$BASE_IMAGE_TAG
 
 ARG BASE_IMAGE
 ARG BASE_IMAGE_TAG
-
+ARG EXTRA_APT_PACKAGES
+ARG EXTRA_PIP_PACKAGES
+ARG FLASH_ATTENTION_GPU_ARCHS
 ARG FLASH_ATTENTION_REPO_COMMIT
 ARG FLASH_ATTENTION_REPO_URL
-ARG FLASH_ATTENTION_GPU_ARCHS
-
-ARG XFORMERS_PIP_URL
-
 ARG VLLM_COMMIT
 ARG VLLM_GPU_ARCHS
-
-ARG EXTRA_PIP_PACKAGES
-ARG EXTRA_APT_PACKAGES
-
-ARG NPROC
+ARG XFORMERS_PIP_URL
 
 
 # Install required pre-built pip and apt packages
@@ -24,8 +19,8 @@ ARG NPROC
 RUN set -ue; \
   python3.12 -m venv /opt/venv; \
   . /opt/venv/bin/activate; \
-  apt-get -y --no-install-recommends install $EXTRA_APT_PACKAGES; \
-  pip install $EXTRA_PIP_PACKAGES;
+  apt-get -y --no-install-recommends install ${EXTRA_APT_PACKAGES}; \
+  pip install ${EXTRA_PIP_PACKAGES};
 
 
 # Compile and install Flash Attention
@@ -36,7 +31,7 @@ RUN set -ue; \
   git clone $FLASH_ATTENTION_REPO_URL /opt/src/flash-attention; \
   cd /opt/src/flash-attention; \
   git checkout $FLASH_ATTENTION_REPO_COMMIT; \
-  BUILD_TARGET=rocm MAX_JOBS=$NPROC GPU_ARCHS=$FLASH_ATTENTION_GPU_ARCHS python3 setup.py bdist_wheel --dist-dir=dist; \
+  BUILD_TARGET=rocm MAX_JOBS=$(nproc) GPU_ARCHS=$FLASH_ATTENTION_GPU_ARCHS python3 setup.py bdist_wheel --dist-dir=dist; \
   pip3.12 install /opt/src/flash-attention/dist/*.whl;
 
 
@@ -60,7 +55,7 @@ RUN set -ue; \
   export GPU_ARCHS=$VLLM_GPU_ARCHS; \
   export PYTORCH_ROCM_ARCH=$VLLM_GPU_ARCHS; \
   export GPU_TARGETS=$VLLM_GPU_ARCHS; \
-  export MAKEFLAGS="-j$NPROC"; \
+  export MAKEFLAGS="-j$(nproc)"; \
   python3 setup.py clean --all; \
   python3 setup.py bdist_wheel --dist-dir=dist; \
   pip install ./dist/*.whl;

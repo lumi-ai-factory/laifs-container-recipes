@@ -1,6 +1,6 @@
-FROM $BASE_IMAGE:$BASE_IMAGE_TAG AS builder
+@@ BUILD_ARGS @@
 
-ARG NPROC
+FROM $BASE_IMAGE:$BASE_IMAGE_TAG AS builder
 
 ARG AWS_OFI_RCCL_COMMIT
 ARG AWS_OFI_RCCL_VERSION
@@ -32,9 +32,9 @@ RUN set -ue; \
   install -d "$TMPROOT/usr" "$TMPROOT/src"; \
   curl -L -o "${TMPROOT}/src/${MPICH_TGZ}" "${MPICH_URL}"; \
   tar -C "${TMPROOT}/src" -xf "${TMPROOT}/src/${MPICH_TGZ}" --no-same-owner; \
-  cd "${TMPROOT}/src/mpich-$MPICH_VERSION"; \
+  cd "${TMPROOT}/src/mpich-${MPICH_VERSION}"; \
   ./configure --disable-fortran --enable-fast=O3 --enable-threads=multiple --prefix=/usr --with-device=ch4:ofi --with-hip=/opt/rocm --with-libfabric --with-xpmem=/usr --without-cuda --without-ucx; \
-  make -j $NPROC DESTDIR="$TMPROOT" install; \
+  make -j $(nproc) DESTDIR="$TMPROOT" install; \
   cd /debs; \
   fpm -s dir -t deb -n mpich -v "${MPICH_VERSION}" --description "LUMI-AIF-$(date -u +'%Y%m%d%H%M%S')" --prefix / -C "$TMPROOT"  usr/bin usr/etc usr/include usr/lib usr/share; \
   rm -rf "$TMPROOT"; \
@@ -54,7 +54,7 @@ RUN set -ue; \
     tar -C "${TMPROOT}/src" -xf "${TMPROOT}/src/${OSU_TGZ}" --no-same-owner; \
     cd "${TMPROOT}/src/osu-micro-benchmarks-${OSU_VERSION}"; \
     ./configure --prefix=/usr CC=mpicc CXX=mpicxx --enable-rocm --with-rocm=/opt/rocm; \
-    make -j $NPROC DESTDIR="$TMPROOT" install; \
+    make -j $(nproc) DESTDIR="$TMPROOT" install; \
     cd /debs; \
     fpm -s dir -t deb -n osu-micro-benchmarks -v "${OSU_VERSION}" --description "LUMI-AIF-$(date -u +'%Y%m%d%H%M%S')" --prefix / -C "$TMPROOT"  usr/libexec; \
     rm -rf "$TMPROOT"; \
@@ -72,7 +72,7 @@ RUN set -ue; \
     git checkout "${AWS_OFI_RCCL_COMMIT}"; \
     ./autogen.sh; \
     ./configure --with-libfabric=/usr --enable-trace --disable-tests --prefix=/usr; \
-    make -j $NPROC DESTDIR="$TMPROOT" install; \
+    make -j $(nproc) DESTDIR="$TMPROOT" install; \
     cd /debs; \
     fpm -s dir -t deb -n aws-ofi-rccl -v "${AWS_OFI_RCCL_VERSION}" --description "LUMI-AIF-$(date -u +'%Y%m%d%H%M%S')" --prefix / -C "$TMPROOT"  usr/lib; \
     rm -rf "$TMPROOT"; \

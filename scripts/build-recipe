@@ -116,8 +116,6 @@ parse_step() {
     local -n STEP_DATA=$2
 
     STEP_DATA["BASE_IMAGE"]=$(jq -r '.base' <<< "$STEP_JSON")
-    STEP_DATA["BUILD_ENV"]=$(jq -c -r '.env' <<< "$STEP_JSON")
-    STEP_DATA["CONTAINERFILE"]=$(jq -r '.file' <<< "$STEP_JSON")
     STEP_DATA["FORCE_NEW"]=$(jq -r '.force // "false"' <<< "$STEP_JSON")
     STEP_DATA["IMAGE_NAME"]=$(jq -r '.name' <<< "$STEP_JSON")
     STEP_DATA["EXPORT_IMAGE_NAME"]=$(jq -r '.export.name // ""' <<< "$STEP_JSON")
@@ -126,23 +124,25 @@ parse_step() {
     STEP_DATA["BASE_IMAGE"]="$(get_image_name ${STEP_DATA["BASE_IMAGE"]})"
     STEP_DATA["EXISTING_IMAGE"]="$(get_latest_image ${STEP_DATA["IMAGE_NAME"]})"
 
+    local BASE_ARGS=$(printf "ARG BASE_IMAGE=%s\nARG BASE_IMAGE_TAG=%s" ${STEP_DATA["BASE_IMAGE"]} ${STEP_DATA["BASE_IMAGE_TAG"]})
+    local ENV_ARGS=$(jq -r '.env.[]|split("=")|"ARG \(.[0])=\(.[1])"' <<< "$STEP_JSON")
+    local BUILD_ARGS=$(printf "%s\n%s" "$BASE_ARGS" "$ENV_ARGS")
+
+    STEP_DATA["CF_TEMPLATE"]=$(jq -r '.template' <<< "$STEP_JSON")
+    STEP_DATA["CF_NAME"]=$(printf "%s-%s.Containerfile" ${STEP_DATA["IMAGE_NAME"]} ${STEP_DATA["IMAGE_TAG"]})
+    STEP_DATA["CF_CONTENT"]=$(awk -v pat='^@@ BUILD_ARGS @@$' -v rep="$BUILD_ARGS" '{gsub(pat, rep)}1' containerfiles/${STEP_DATA["CF_TEMPLATE"]})
+
     if [[ -n "${STEP_DATA['EXISTING_IMAGE']}" && "${STEP_DATA["FORCE_NEW"]}" != "true" ]]; then
         STEP_DATA["SKIP_BUILD"]="true"
     else
         STEP_DATA["SKIP_BUILD"]="false"
     fi
 
-    local ENV_ARGS=$(echo "${STEP_DATA['BUILD_ENV']}" | jq -r '.[] | split("=") | "--build-arg \(.[0])=\(.[1])"')
-
     local BUILD_COMMAND=(
-        podman build -f "containerfiles/${STEP_DATA['CONTAINERFILE']}"
+        podman build -f "$BUILD_DIR/${STEP_DATA['CF_NAME']}"
         --cgroup-manager cgroupfs 
         -t "${STEP_DATA['IMAGE_NAME']}:${STEP_DATA['IMAGE_TAG']}"
         -t "${STEP_DATA['IMAGE_NAME']}:latest"
-        "--build-arg" "NPROC=$(nproc)"
-        "--build-arg" "BASE_IMAGE=${STEP_DATA['BASE_IMAGE']}"
-        "--build-arg" "BASE_IMAGE_TAG=${STEP_DATA['BASE_IMAGE_TAG']}"
-        $ENV_ARGS
     )
 
     STEP_DATA["BUILD_COMMAND"]="${BUILD_COMMAND[@]}"
@@ -171,9 +171,13 @@ build_image() {
 
     log "*** Build started $(date)"
     log "*** Building image: ${STEP['IMAGE_NAME']}:${STEP['IMAGE_TAG']}"
-    log "*** Using Containerfile: ${STEP['CONTAINERFILE']}"
+    log "*** Using Containerfile template: ${STEP['CF_TEMPLATE']}"
+    log "*** Creating Containerfile: ${STEP['CF_NAME']}"
+
+    echo "${STEP['CF_CONTENT']}" > "${BUILD_DIR}/${STEP['CF_NAME']}"
+
     log "*** Containerfile content:"
-    cat "containerfiles/${STEP['CONTAINERFILE']}" | log
+    cat "${BUILD_DIR}/${STEP['CF_NAME']}" | log
 
     log  "*** Base image: ${STEP['BASE_IMAGE']}:${STEP['BASE_IMAGE_TAG']}"
     log  "*** Base image information:"
@@ -181,7 +185,7 @@ build_image() {
 
     log "*** Starting build command: ${STEP['BUILD_COMMAND']}"
 
-    bash -c "${STEP['BUILD_COMMAND']}" 2>&1 | log
+    eval "${STEP['BUILD_COMMAND']}" 2>&1 | log
 
     if [[ $? != 0 ]]; then
 	# revisit: this never hits, even if the build command fails. podman always returns 0?
@@ -222,7 +226,7 @@ dump_recipe() {
         echo "    data:"
 
         for key in "${!step_data[@]}"; do
-            echo "      $key: ${step_data[$key]}"
+            printf "      %s: %s\n" $key "${step_data[$key]//$'\n'/\\n}"
         done
 
         echo
@@ -262,13 +266,13 @@ if [ ! -f "$RECIPE_FILE" ]; then
 fi
 
 BUILD_DIR=$3
+if [ ! -d "$BUILD_DIR" ]; then
+    echo "Error: Target directory'$BUILD_DIR' does not exist."
+    usage
+fi
 
 case "$ACTION" in
     "build")
-        if [ ! -d "$BUILD_DIR" ]; then
-            echo "Error: Target directory'$BUILD_DIR' does not exist."
-            usage
-        fi
         build_images $RECIPE_FILE
         ;;
     "dump")

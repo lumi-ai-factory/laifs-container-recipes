@@ -1,30 +1,23 @@
+@@ BUILD_ARGS @@
+
 FROM $BASE_IMAGE:$BASE_IMAGE_TAG AS builder
 
-ARG BASE_IMAGE
-ARG BASE_IMAGE_TAG
-
 ARG CASSINI_HEADERS_VERSION
-
-ARG CXI_HEADERS_VERSION
 ARG CXI_HEADERS_CLONE_URL
 ARG CXI_HEADERS_GIT_COMMIT
-
-ARG LIBCXI_VERSION
+ARG CXI_HEADERS_VERSION
 ARG LIBCXI_CLONE_URL
 ARG LIBCXI_GIT_COMMIT
-
-ARG LIBFABRIC_VERSION
+ARG LIBCXI_VERSION
 ARG LIBFABRIC_CLONE_URL
 ARG LIBFABRIC_GIT_COMMIT
-
+ARG LIBFABRIC_VERSION
 ARG XPMEM_CLONE_URL
 ARG XPMEM_GIT_COMMIT
-ARG XPMEM_VERSION
 ARG XPMEM_KERNEL_BASE_SRC
 ARG XPMEM_KERNEL_GENERIC_SRC
 ARG XPMEM_KERNEL_ID
-
-ARG NPROC
+ARG XPMEM_VERSION
 
 RUN set -ue; \
     #
@@ -68,7 +61,7 @@ RUN set -ue; \
     git checkout "${XPMEM_GIT_COMMIT}"; \
     ./autogen.sh; \
     ./configure --prefix=/usr --with-kerneldir=${XPMEM_KERNEL_PATH}; \
-    make -j "$NPROC" DESTDIR="$TMPROOT" install; \
+    make -j "$(nproc)" DESTDIR="$TMPROOT" install; \
     #
     cd /debs; \
     fpm -s dir -t deb -n xpmem -v "${XPMEM_VERSION}" --description "LUMI-AIF-$(date -u +'%Y%m%d%H%M%S')" --prefix / -C "$TMPROOT" usr/include usr/lib; \
@@ -117,7 +110,7 @@ RUN set -ue; \
     git checkout "${LIBCXI_GIT_COMMIT}"; \
     ./autogen.sh; \
     ./configure --with-udevrulesdir=/usr/lib/udev/rules.d --prefix=/usr --with-rocm=/opt/rocm ; \
-    make -j "$NPROC" DESTDIR="$TMPROOT" install; \
+    make -j "$(nproc)" DESTDIR="$TMPROOT" install; \
     cd /debs; \
     fpm -s dir -t deb -n libcxi -v ${LIBCXI_VERSION} --description "LUMI-AIF-$(date -u +'%Y%m%d%H%M%S')" --prefix / -C "$TMPROOT" usr; \
     rm -rf "$TMPROOT"; \
@@ -134,7 +127,7 @@ RUN set -ue; \
     git checkout "${LIBFABRIC_GIT_COMMIT}"; \
     ./autogen.sh; \
     ./configure LDFLAGS=-Wl,--build-id --prefix=/usr --enable-only --enable-rxm  --enable-rxd --enable-shm --enable-hook_hmem --enable-dmabuf_peer_mem --enable-cxi=/usr --enable-lnx --enable-xpmem=/usr --with-rocr=/opt/rocm ; \
-    make -j "$NPROC" DESTDIR="$TMPROOT" install; \
+    make -j "$(nproc)" DESTDIR="$TMPROOT" install; \
     cd /debs; \
     fpm -s dir -t deb -n libfabric -v ${LIBFABRIC_VERSION} --description "LUMI-AIF-$(date -u +'%Y%m%d%H%M%S')" --prefix / -C "$TMPROOT" usr; \
     rm -rf "$TMPROOT"; \

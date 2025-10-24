@@ -1,7 +1,7 @@
 name: laifs-lumi-multi-recipe
 steps:
   - name: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}
-    file: rocm/Ubuntu2404_Rocm6
+    template: rocm/Ubuntu2404_Rocm6
     force: False
     base: ubuntu:{{ubuntu_tag}}
     env:
@@ -9,7 +9,7 @@ steps:
       - AMDGPU_VERSION={{amd_gpu_version}}
   - name: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}
     base: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}
-    file: libfabric/Ubuntu_Rocm_Slingshot
+    template: libfabric/Ubuntu_Rocm_Slingshot
     force: False
     env:
       - XPMEM_CLONE_URL={{xpmem_clone_url}}
@@ -36,7 +36,7 @@ steps:
       name: "laifs-lumi-libfabric-{{libfabric_version}}"
   - name: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}-mpich-{{mpich_version}}
     base: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}
-    file: mpich/Ubuntu_Rocm_Slingshot
+    template: mpich/Ubuntu_Rocm_Slingshot
     force: False
     env:
       - MPICH_VERSION={{mpich_version}}
@@ -47,7 +47,7 @@ steps:
       name: "laifs-lumi-mpich-{{mpich_version}}"
   - name: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}-mpich-{{mpich_version}}-torch-{{torch_version}}
     base: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}-mpich-{{mpich_version}}
-    file: torch/Venv_Torch
+    template: torch/Venv_Torch
     force: False
     env:
       - TORCH_VERSION={{torch_version}}
@@ -57,7 +57,7 @@ steps:
       - PYTORCH_TRITON_URL={{pytorch_triton_url}}
   - name: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}-mpich-{{mpich_version}}-torch-{{torch_version}}-multi
     base: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}-mpich-{{mpich_version}}-torch-{{torch_version}}
-    file: multi/Rocm_Multipurpose
+    template: multi/Rocm_Multipurpose
     force: False
     env:
       - FLASH_ATTENTION_REPO_COMMIT={{flash_attention_repo_commit}}
@@ -66,7 +66,7 @@ steps:
       - VLLM_COMMIT={{vllm_commit}}
       - VLLM_GPU_ARCHS={{vllm_gpu_archs}}
       - XFORMERS_PIP_URL={{xformers_pip_url}}
-      - EXTRA_APT_PACKAGES='{{extra_apt_packages | join(" ")}}'
-      - EXTRA_PIP_PACKAGES='{{extra_pip_packages | join(" ")}}'
+      - EXTRA_APT_PACKAGES=\"{{extra_apt_packages | join(' ')}}\"
+      - EXTRA_PIP_PACKAGES=\"{{extra_pip_packages | join(' ')}}\"
     export:
       name: "laifs-lumi-multi"
