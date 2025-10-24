@@ -66,22 +66,22 @@ RUN set -ue; \
   pip install ./dist/*.whl;
 
 
-# Install Deepspeed and compile extensions
+# Install Deepspeed (revisit: compile also extensions)
 
 RUN set -ue; \
   . /opt/venv/bin/activate; \
-  export DS_BUILD_AIO=1; \
-  export DS_BUILD_CCL_COMM=1; \
-  export DS_BUILD_EVOFORMER_ATTN=1; \
-  export DS_BUILD_FUSED_ADAM=1; \
-  export DS_BUILD_FUSED_LION=1; \
-  export DS_BUILD_FUSED_LAMB=1; \
-  export DS_BUILD_QUANTIZER=1; \
-  export DS_BUILD_RANDOM_LTD=1; \
-  export DS_BUILD_SPARSE_ATTN=1; \
-  export DS_BUILD_TRANSFORMER=1; \
-  export DS_BUILD_TRANSFORMER_INFERENCE=1; \
-  export DS_BUILD_STOCHASTIC_TRANSFORMER=1; \
+  #export DS_BUILD_AIO=1; \
+  #export DS_BUILD_CCL_COMM=1; \
+  #export DS_BUILD_EVOFORMER_ATTN=1; \
+  #export DS_BUILD_FUSED_ADAM=1; \
+  #export DS_BUILD_FUSED_LION=1; \
+  #export DS_BUILD_FUSED_LAMB=1; \
+  #export DS_BUILD_QUANTIZER=1; \
+  #export DS_BUILD_RANDOM_LTD=1; \
+  #export DS_BUILD_SPARSE_ATTN=1; \
+  #export DS_BUILD_TRANSFORMER=1; \
+  #export DS_BUILD_TRANSFORMER_INFERENCE=1; \
+  #export DS_BUILD_STOCHASTIC_TRANSFORMER=1; \
   python3 -m pip install deepspeed --no-build-isolation;
 
 ENV PATH="/opt/venv/bin:$PATH"
