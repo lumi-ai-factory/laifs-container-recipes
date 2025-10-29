@@ -20,6 +20,7 @@ RUN /usr/bin/echo -e 'Package: *\nPin: release o=repo.radeon.com\nPin-Priority: 
       kmod \
       less \
       libelf1 \
+      locales \
       neovim \
       python3-dev \
       python3-packaging \
@@ -32,4 +33,5 @@ RUN /usr/bin/echo -e 'Package: *\nPin: release o=repo.radeon.com\nPin-Priority: 
   && echo /opt/rocm/lib > /etc/ld.so.conf.d/rocm-30.conf \
   && ldconfig \
   && apt-get clean  \
-  && rm -rf /var/lib/apt/lists/*
+  && rm -rf /var/lib/apt/lists/* \
+  && locale-gen en_US.UTF-8
