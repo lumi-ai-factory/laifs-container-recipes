@@ -23,15 +23,15 @@ libfabric_git_commit: "e9cf535a"
 libfabric_version: "2.1git-e9cf535a"
 libfabric_clone_url: "https://github.com/ofiwg/libfabric"
 #
-mvapich_version: "4.1"
-#
 mpich_version: "4.3.2"
 osu_version: "7.5.1"
 #
-openmpi_version: "5.0.8"
-#
 aws_ofi_rccl_version: "1.4.0-1"
 aws_ofi_rccl_commit: "6dae1b0"
+#
+rccl_tests_git_commit: "33cc4df" # Latest commit at the time
+rccl_tests_gpu_archs: "gfx90a"
+rccl_tests_version: "0.1git-33cc4df"
 #
 torch_version: "2.8.0"
 torch_url: "https://download.pytorch.org/whl/rocm6.4/torch-2.8.0%2Brocm6.4-cp312-cp312-manylinux_2_28_x86_64.whl"
@@ -39,7 +39,7 @@ torchaudio_url: "https://download.pytorch.org/whl/rocm6.4/torchaudio-2.8.0%2Broc
 torchvision_url: "https://download.pytorch.org/whl/rocm6.4/torchvision-0.23.0%2Brocm6.4-cp312-cp312-manylinux_2_28_x86_64.whl"
 pytorch_triton_url: "https://download.pytorch.org/whl/pytorch_triton_rocm-3.4.0-cp312-cp312-linux_x86_64.whl"
 #
-flash_attention_repo_commit: "465cb97"
+flash_attention_repo_commit: "465cb97" # Latest commit from the main_perf branch before AITER integration
 flash_attention_repo_url: "https://github.com/ROCm/flash-attention"
 flash_attention_gpu_archs: "gfx90a"
 #

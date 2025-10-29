@@ -8,6 +8,10 @@ ARG BASE_IMAGE
 ARG BASE_IMAGE_TAG
 ARG MPICH_VERSION
 ARG OSU_VERSION
+ARG RCCL_TESTS_GIT_COMMIT
+ARG RCCL_TESTS_GPU_ARCHS
+ARG RCCL_TESTS_VERSION
+
 
 #
 # Install FPM package builder using GEM (only for the builder image)
@@ -77,6 +81,24 @@ RUN set -ue; \
     fpm -s dir -t deb -n aws-ofi-rccl -v "${AWS_OFI_RCCL_VERSION}" --description "LUMI-AIF-$(date -u +'%Y%m%d%H%M%S')" --prefix / -C "$TMPROOT"  usr/lib; \
     rm -rf "$TMPROOT"; \
     dpkg -i "aws-ofi-rccl_${AWS_OFI_RCCL_VERSION}_amd64.deb";
+
+
+#
+# Build and install rccl-tests package into the builder container
+#
+
+RUN set -ue; \
+    TMPROOT=$(mktemp -d); \
+    git clone "https://github.com/ROCm/rccl-tests" "$TMPROOT/rccl-tests"; \
+    cd  "$TMPROOT/rccl-tests"; \
+    git checkout "${RCCL_TESTS_GIT_COMMIT}"; \
+    make -j $(nproc) MPI=1 GPU_TARGETS="${RCCL_TESTS_GPU_ARCHS}"; \
+    install -d "${TMPROOT}/libexec/rccl-tests"; \
+    cp build/*_perf "${TMPROOT}/libexec/rccl-tests"; \
+    cd /debs; \
+    fpm -s dir -t deb -n rccl-tests -v "${RCCL_TESTS_VERSION}" --description "LUMI-AIF-$(date -u +'%Y%m%d%H%M%S')" --prefix /usr -C "$TMPROOT" libexec; \
+    rm -rf "$TMPROOT"; \
+    dpkg -i "rccl-tests_${RCCL_TESTS_VERSION}_amd64.deb"
 
 
 #

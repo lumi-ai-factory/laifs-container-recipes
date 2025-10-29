@@ -43,6 +43,9 @@ steps:
       - OSU_VERSION={{osu_version}}
       - AWS_OFI_RCCL_VERSION={{aws_ofi_rccl_version}}
       - AWS_OFI_RCCL_COMMIT={{aws_ofi_rccl_commit}}
+      - RCCL_TESTS_GIT_COMMIT={{rccl_tests_git_commit}}
+      - RCCL_TESTS_GPU_ARCHS={{rccl_tests_gpu_archs}}
+      - RCCL_TESTS_VERSION={{rccl_tests_version}}
     export:
       name: "laifs-lumi-mpich-{{mpich_version}}"
   - name: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}-mpich-{{mpich_version}}-torch-{{torch_version}}
