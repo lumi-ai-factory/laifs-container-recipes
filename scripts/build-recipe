@@ -94,12 +94,17 @@ export_image() {
     local IMAGE_NAME=$1
     local IMAGE_TAG=$2
     local EXPORT_IMAGE_NAME=$3
+    local EXPORT_SIF_DEF=$4
 
     local OCI_FILE="${BUILD_DIR}/${EXPORT_IMAGE_NAME}-${IMAGE_TAG}.tar"
+    local DEF_FILE="${BUILD_DIR}/${EXPORT_IMAGE_NAME}-${IMAGE_TAG}.def"
     local SIF_FILE="${BUILD_DIR}/${EXPORT_IMAGE_NAME}-${IMAGE_TAG}.sif"
 
     local OCI_COMMAND="podman image save --format oci-archive ${IMAGE_NAME}:${IMAGE_TAG} -o $OCI_FILE"
-    local SIF_COMMAND="singularity build ${SIF_FILE} oci-archive://${OCI_FILE}"
+
+    printf 'Bootstrap: oci-archive\nFrom: %s\n%s\n' "${OCI_FILE}" "${EXPORT_SIF_DEF}" > "$DEF_FILE"
+
+    local SIF_COMMAND="singularity build ${SIF_FILE} ${DEF_FILE}"
 
     log "*** Exporting image with command $OCI_COMMAND"
     ${OCI_COMMAND[@]} | log
@@ -119,6 +124,7 @@ parse_step() {
     STEP_DATA["FORCE_NEW"]=$(jq -r '.force // "false"' <<< "$STEP_JSON")
     STEP_DATA["IMAGE_NAME"]=$(jq -r '.name' <<< "$STEP_JSON")
     STEP_DATA["EXPORT_IMAGE_NAME"]=$(jq -r '.export.name // ""' <<< "$STEP_JSON")
+    STEP_DATA["EXPORT_SIF_DEF"]=$(jq -r '.export.def // ""' <<< "$STEP_JSON")
     STEP_DATA["IMAGE_TAG"]="$(date +'%Y%m%d_%H%M%S')"
     STEP_DATA["BASE_IMAGE_TAG"]="$(get_image_tag ${STEP_DATA['BASE_IMAGE']})"
     STEP_DATA["BASE_IMAGE"]="$(get_image_name ${STEP_DATA["BASE_IMAGE"]})"
@@ -140,7 +146,7 @@ parse_step() {
 
     local BUILD_COMMAND=(
         podman build -f "$BUILD_DIR/${STEP_DATA['CF_NAME']}"
-        --cgroup-manager cgroupfs 
+        --cgroup-manager cgroupfs
         -t "${STEP_DATA['IMAGE_NAME']}:${STEP_DATA['IMAGE_TAG']}"
         -t "${STEP_DATA['IMAGE_NAME']}:latest"
     )
@@ -188,7 +194,7 @@ build_image() {
     eval "${STEP['BUILD_COMMAND']}" 2>&1 | log
 
     if [[ $? != 0 ]]; then
-	# revisit: this never hits, even if the build command fails. podman always returns 0?
+        # revisit: this never hits, even if the build command fails. podman always returns 0?
         fail "Build failed for ${STEP['IMAGE_NAME']}:${STEP['IMAGE_TAG']}"
     fi
     # revisit: also check the image was actually created
@@ -197,7 +203,7 @@ build_image() {
     podman image inspect ${STEP['IMAGE_NAME']}:${STEP['IMAGE_TAG']}| log
 
     if [[ -n "${STEP['EXPORT_IMAGE_NAME']}" ]]; then
-        export_image "${STEP['IMAGE_NAME']}" "${STEP['IMAGE_TAG']}" "${STEP['EXPORT_IMAGE_NAME']}"
+        export_image "${STEP['IMAGE_NAME']}" "${STEP['IMAGE_TAG']}" "${STEP['EXPORT_IMAGE_NAME']}" "${STEP['EXPORT_SIF_DEF']}"
     fi
 
     log "*** Build completed $(date)"
@@ -208,7 +214,7 @@ build_image() {
 build_images() {
     echo "Building images from recipe $(yq . $RECIPE_FILE | jq -r '.name') at $RECIPE_FILE"
 
-    yq -c . $RECIPE_FILE | jq -c '.steps.[]' | while IFS= read step; do
+    yq -c . $RECIPE_FILE | jq -c '.steps.[]' | while IFS= read -r step; do
         build_image "${step}"
     done
 }
@@ -217,9 +223,10 @@ dump_recipe() {
 
     echo -e "Recipe $(yq . $RECIPE_FILE | jq -r '.name') from file $RECIPE_FILE:\n"
 
-    yq -c . $RECIPE_FILE | jq -c '.steps.[]' | while IFS= read step_json; do
+    yq -c . $RECIPE_FILE | jq -c '.steps.[]' | while IFS= read -r step_json; do
         declare -A step_data
-        parse_step "$step_json" step_data 
+        declare -p step_json
+        parse_step "$step_json" step_data
 
         echo "  ${step_data['IMAGE_NAME']}"
         echo "    spec: $step_json"
@@ -236,9 +243,9 @@ dump_recipe() {
 
 show_commands() {
 
-    yq -c . $RECIPE_FILE | jq -c '.steps.[]' | while IFS= read step_json; do
+    yq -c . $RECIPE_FILE | jq -c '.steps.[]' | while IFS= read -r step_json; do
         declare -A step_data
-        parse_step "$step_json" step_data 
+        parse_step "$step_json" step_data
         echo "${step_data['IMAGE_NAME']}:${step_data['IMAGE_TAG']}: ${step_data['BUILD_COMMAND']}"
         echo
     done

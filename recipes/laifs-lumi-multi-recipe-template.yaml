@@ -69,7 +69,13 @@ steps:
       - VLLM_COMMIT={{vllm_commit}}
       - VLLM_GPU_ARCHS={{vllm_gpu_archs}}
       - XFORMERS_PIP_URL={{xformers_pip_url}}
-      - EXTRA_APT_PACKAGES=\"{{extra_apt_packages | join(' ')}}\"
-      - EXTRA_PIP_PACKAGES=\"{{extra_pip_packages | join(' ')}}\"
+      - EXTRA_APT_PACKAGES="{{extra_apt_packages | join(' ')}}"
+      - EXTRA_PIP_PACKAGES="{{extra_pip_packages | join(' ')}}"
     export:
       name: "laifs-lumi-multi"
+      def: |
+        %runscript
+        if [ "${ROCR_USE_SLURM_LOCALID}" = 1 ] && [ -n "${SLURM_LOCALID}" ]; then
+            export ROCR_VISIBLE_DEVICES="$SLURM_LOCALID"
+        fi
+        exec "$@"
