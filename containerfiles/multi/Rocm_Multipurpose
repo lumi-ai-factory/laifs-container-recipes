@@ -4,13 +4,21 @@ FROM $BASE_IMAGE:$BASE_IMAGE_TAG
 
 ARG BASE_IMAGE
 ARG BASE_IMAGE_TAG
+
+ARG BITSANDBYTES_COMMIT
+ARG BITSANDBYTES_GPU_ARCHS
+ARG BITSANDBYTES_REPO_URL
+
 ARG EXTRA_APT_PACKAGES
 ARG EXTRA_PIP_PACKAGES
+
 ARG FLASH_ATTENTION_GPU_ARCHS
 ARG FLASH_ATTENTION_REPO_COMMIT
 ARG FLASH_ATTENTION_REPO_URL
+
 ARG VLLM_COMMIT
 ARG VLLM_GPU_ARCHS
+
 ARG XFORMERS_PIP_URL
 
 
@@ -23,11 +31,25 @@ RUN set -ue; \
   pip install ${EXTRA_PIP_PACKAGES};
 
 
+# Install bitsandbytes for ROCm
+
+ARG BITSANDBYTES_GPU_ARCHS
+
+RUN set -ue; \
+  mkdir /opt/src; \
+  . /opt/venv/bin/activate; \
+  git clone ${BITSANDBYTES_REPO_URL} /opt/src/bitsandbytes; \
+  cd /opt/src/bitsandbytes; \
+  git checkout ${BITSANDBYTES_COMMIT}; \
+  cmake -DCOMPUTE_BACKEND=hip -DGPU_TARGETS=${BITSANDBYTES_GPU_ARCHS} -DBNB_ROCM_ARCH=${BITSANDBYTES_GPU_ARCHS} -S .; \
+  make; \
+  pip install .; \
+  rm -rf /opt/src/bitsandbytes
+
 # Compile and install Flash Attention
 
 RUN set -ue; \
   . /opt/venv/bin/activate; \
-  mkdir /opt/src; \
   git clone $FLASH_ATTENTION_REPO_URL /opt/src/flash-attention; \
   cd /opt/src/flash-attention; \
   git checkout $FLASH_ATTENTION_REPO_COMMIT; \
@@ -61,22 +83,12 @@ RUN set -ue; \
   pip install ./dist/*.whl;
 
 
-# Install Deepspeed (revisit: compile also extensions)
+# Install Deepspeed
+# revisit: The ops are currently being built likely because of issues in the DS v0.18.1 release
 
 RUN set -ue; \
   . /opt/venv/bin/activate; \
-  #export DS_BUILD_AIO=1; \
-  #export DS_BUILD_CCL_COMM=1; \
-  #export DS_BUILD_EVOFORMER_ATTN=1; \
-  #export DS_BUILD_FUSED_ADAM=1; \
-  #export DS_BUILD_FUSED_LION=1; \
-  #export DS_BUILD_FUSED_LAMB=1; \
-  #export DS_BUILD_QUANTIZER=1; \
-  #export DS_BUILD_RANDOM_LTD=1; \
-  #export DS_BUILD_SPARSE_ATTN=1; \
-  #export DS_BUILD_TRANSFORMER=1; \
-  #export DS_BUILD_TRANSFORMER_INFERENCE=1; \
-  #export DS_BUILD_STOCHASTIC_TRANSFORMER=1; \
+  export DS_BUILD_OPS=1; \
   python3 -m pip install deepspeed --no-build-isolation;
 
 ENV PATH="/opt/venv/bin:$PATH"

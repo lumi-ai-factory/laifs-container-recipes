@@ -43,6 +43,10 @@ flash_attention_repo_commit: "465cb97" # Latest commit from the main_perf branch
 flash_attention_repo_url: "https://github.com/ROCm/flash-attention"
 flash_attention_gpu_archs: "gfx90a"
 #
+bitsandbytes_commit: "tags/0.48.1"
+bitsandbytes_repo_url: "https://github.com/bitsandbytes-foundation/bitsandbytes"
+bitsandbytes_gpu_archs: "gfx90a"
+#
 vllm_commit: "tags/v0.11.0"
 vllm_gpu_archs: "gfx90a"
 #
@@ -62,10 +66,12 @@ extra_apt_packages:
   - ffmpeg
   - libglib2.0-dev
   - libopencv-dev
+  # For DeepSpeed
+  - libaio-dev
+  - libaio1t64
 #
 extra_pip_packages:
   - accelerate
-  - bitsandbytes
   - datasets
   - evaluate
   - huggingface-hub
@@ -86,4 +92,7 @@ extra_pip_packages:
   # Required for vLLM build
   - jinja2
   - setuptools_scm
+  # For DeepSpeed OPS builds
+  - impi-devel
+  - oneccl-devel
 #

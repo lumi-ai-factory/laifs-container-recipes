@@ -63,14 +63,21 @@ steps:
     template: multi/Rocm_Multipurpose
     force: False
     env:
-      - FLASH_ATTENTION_REPO_COMMIT={{flash_attention_repo_commit}}
-      - FLASH_ATTENTION_REPO_URL={{flash_attention_repo_url}}
-      - FLASH_ATTENTION_GPU_ARCHS={{flash_attention_gpu_archs}}
-      - VLLM_COMMIT={{vllm_commit}}
-      - VLLM_GPU_ARCHS={{vllm_gpu_archs}}
-      - XFORMERS_PIP_URL={{xformers_pip_url}}
+      - BITSANDBYTES_COMMIT={{bitsandbytes_commit}}
+      - BITSANDBYTES_GPU_ARCHS={{bitsandbytes_gpu_archs}}
+      - BITSANDBYTES_REPO_URL={{bitsandbytes_repo_url}}
+      #
       - EXTRA_APT_PACKAGES="{{extra_apt_packages | join(' ')}}"
       - EXTRA_PIP_PACKAGES="{{extra_pip_packages | join(' ')}}"
+      #
+      - FLASH_ATTENTION_GPU_ARCHS={{flash_attention_gpu_archs}}
+      - FLASH_ATTENTION_REPO_COMMIT={{flash_attention_repo_commit}}
+      - FLASH_ATTENTION_REPO_URL={{flash_attention_repo_url}}
+      #
+      - VLLM_COMMIT={{vllm_commit}}
+      - VLLM_GPU_ARCHS={{vllm_gpu_archs}}
+      #
+      - XFORMERS_PIP_URL={{xformers_pip_url}}
     export:
       name: "laifs-lumi-multi"
       def: |
