@@ -63,9 +63,17 @@ steps:
     template: multi/Rocm_Multipurpose
     force: False
     env:
+      - APEX_GIT_REPO={{apex_git_repo}}
+      - APEX_GIT_COMMIT={{apex_git_commit}}
+      - APEX_BUILD_ARCHS={{apex_build_archs}}
+      #
       - BITSANDBYTES_COMMIT={{bitsandbytes_commit}}
       - BITSANDBYTES_GPU_ARCHS={{bitsandbytes_gpu_archs}}
       - BITSANDBYTES_REPO_URL={{bitsandbytes_repo_url}}
+      #
+      - CAUSAL_CONV1D_REPO={{causal_conv1d_repo}}
+      - CAUSAL_CONV1D_COMMIT={{causal_conv1d_commit}}
+      - CAUSAL_CONV1D_ARCHS={{causal_conv1d_archs}}
       #
       - EXTRA_APT_PACKAGES="{{extra_apt_packages | join(' ')}}"
       - EXTRA_PIP_PACKAGES="{{extra_pip_packages | join(' ')}}"

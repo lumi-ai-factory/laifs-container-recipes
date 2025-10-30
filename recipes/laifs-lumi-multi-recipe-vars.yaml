@@ -43,9 +43,17 @@ flash_attention_repo_commit: "465cb97" # Latest commit from the main_perf branch
 flash_attention_repo_url: "https://github.com/ROCm/flash-attention"
 flash_attention_gpu_archs: "gfx90a"
 #
+causal_conv1d_repo: "https://github.com/Dao-AILab/causal-conv1d"
+causal_conv1d_commit: "22a4577" # Latest commit 2025-10-30
+causal_conv1d_archs: "gfx90a"
+#
+apex_git_repo: "https://github.com/ROCm/apex"
+apex_git_commit: "3f26640" # Latest from branch release/1.8.0 (this branch is specifically for Pytorch 2.8)
+apex_build_archs: "gfx90a"
+#
 bitsandbytes_commit: "tags/0.48.1"
-bitsandbytes_repo_url: "https://github.com/bitsandbytes-foundation/bitsandbytes"
 bitsandbytes_gpu_archs: "gfx90a"
+bitsandbytes_repo_url: "https://github.com/bitsandbytes-foundation/bitsandbytes"
 #
 vllm_commit: "tags/v0.11.0"
 vllm_gpu_archs: "gfx90a"
@@ -54,7 +62,14 @@ xformers_pip_url: "https://download.pytorch.org/whl/rocm6.4"
 #
 extra_apt_packages:
   - cmake
-  # Dependencies for vLLM build
+  # DeepSpeed
+  - libaio-dev
+  - libaio1t64
+  # Ultralytics dependencies
+  - ffmpeg
+  - libglib2.0-dev
+  - libopencv-dev
+  # vLLM build
   - apt-transport-https
   - ca-certificates
   - libfmt-dev
@@ -62,13 +77,6 @@ extra_apt_packages:
   - libsqlite3-dev
   - libsuitesparse-dev
   - sqlite3
-  # Ultralytics dependencies
-  - ffmpeg
-  - libglib2.0-dev
-  - libopencv-dev
-  # For DeepSpeed
-  - libaio-dev
-  - libaio1t64
 #
 extra_pip_packages:
   - accelerate
@@ -86,13 +94,22 @@ extra_pip_packages:
   - sentencepiece
   - tensorboard
   - ultralytics
-  # Required for flash-attention build
-  - ninja
-  - packaging
-  # Required for vLLM build
-  - jinja2
-  - setuptools_scm
-  # For DeepSpeed OPS builds
+  # DeepSpeed OPS build
   - impi-devel
   - oneccl-devel
+  # Flash-attention build
+  - ninja
+  - packaging
+  # Megatron-LM
+  - flask-restful
+  - nltk
+  - pybind11
+  - pynvml
+  - tensorstore
+  - wandb
+  - wrapt
+  - zarr
+  # vLLM build
+  - jinja2
+  - setuptools_scm
 #
