@@ -1,9 +1,7 @@
 #!/bin/bash
 
-set -e
-#set -x
-
 log() {
+    # Write command to log file. If no args are entered, open an input stream.
     if [ $# -gt 0 ]; then
         printf "%s: %s\n" "$(date +'%Y%m%d %H:%M:%S')" "$@" | tee -a "$LOG_FILE"
     else
@@ -22,6 +20,7 @@ fail() {
 }
 
 check_var() {
+    # Utility function for ensuring that a set of variables is defined.
     for var in "$@"; do
         if [ -z "${!var:-}" ]; then
             fail "$var is not set or empty"
@@ -31,6 +30,8 @@ check_var() {
 }
 
 check_bash_features() {
+    # Ensure shell has features required by build pipeline.
+    #
     if ! local -n test_nameref &>/dev/null; then
         echo "Error: Your Bash version does not support namerefs (-n)." >&2
         return 1
@@ -43,6 +44,7 @@ check_bash_features() {
 
 
 get_existing_images() {
+    # Query container engine for all existing images.
     podman images --format json | jq -r -c '.[] | select(.Names != null and .Names != []) | .Names[]'
 }
 
@@ -53,6 +55,9 @@ get_latest_tag_for_image() {
 }
 
 get_latest_image() {
+    # If tags exist for an image, return the latest one.
+    # Otherwise return empty string.
+    #
     local IMAGE_NAME=$1
     local LATEST_TAG=$(get_latest_tag_for_image "$IMAGE_NAME")
 
@@ -66,6 +71,7 @@ get_latest_image() {
 get_image_tag() {
     # If the given image string has tag, return that, otherwise return the latest tag
     # from existing images using get_latest_tag_for_image.
+    #
     local IMAGE="$1"
 
     if [[ "$IMAGE" == *:* ]]; then
@@ -80,7 +86,7 @@ get_image_tag() {
 
 get_image_name() {
     # Print image name without tag
-
+    #
     local IMAGE="$1"
 
     if [[ "$IMAGE" == *:* ]]; then
@@ -91,6 +97,8 @@ get_image_name() {
 }
 
 export_image() {
+    # Export OCI archive produced by Podman into Singularity image file.
+    #
     local IMAGE_NAME=$1
     local IMAGE_TAG=$2
     local EXPORT_IMAGE_NAME=$3
@@ -212,6 +220,8 @@ build_image() {
 }
 
 build_images() {
+    # Execute all build steps from a recipe
+    #
     echo "Building images from recipe $(yq . $RECIPE_FILE | jq -r '.name') at $RECIPE_FILE"
 
     yq -c . $RECIPE_FILE | jq -c '.steps.[]' | while IFS= read -r step; do
@@ -220,7 +230,7 @@ build_images() {
 }
 
 dump_recipe() {
-
+    # Print internal representation of each step of a recipe
     echo -e "Recipe $(yq . $RECIPE_FILE | jq -r '.name') from file $RECIPE_FILE:\n"
 
     yq -c . $RECIPE_FILE | jq -c '.steps.[]' | while IFS= read -r step_json; do
@@ -242,7 +252,7 @@ dump_recipe() {
 }
 
 show_commands() {
-
+    # Perform a dry run based on generated recipe
     yq -c . $RECIPE_FILE | jq -c '.steps.[]' | while IFS= read -r step_json; do
         declare -A step_data
         parse_step "$step_json" step_data
@@ -251,44 +261,58 @@ show_commands() {
     done
 }
 
+main() {
+    # Set shell options
+    set -e  # Exit on non-zero exit status
+    #set -x  # Print executed commands
 
-if ! check_bash_features; then
-    exit 1
-fi
+    # Ensure availability of required shell features
+    if ! check_bash_features; then
+        exit 1
+    fi
 
-if [ "$#" -ne 2 ] && [ "$#" -ne 3 ]  ; then
-    usage
-fi
-
-ACTION=$1
-
-if [ "$ACTION" != "build" ] && [ "$ACTION" != "dump" ] && [ "$ACTION" != "commands" ]; then
-    usage
-fi
-
-RECIPE_FILE=$2
-if [ ! -f "$RECIPE_FILE" ]; then
-    echo "Error: Recipe file '$RECIPE_FILE' not found or not a file."
-    usage
-fi
-
-BUILD_DIR=$3
-if [ ! -d "$BUILD_DIR" ]; then
-    echo "Error: Target directory'$BUILD_DIR' does not exist."
-    usage
-fi
-
-case "$ACTION" in
-    "build")
-        build_images $RECIPE_FILE
-        ;;
-    "dump")
-        dump_recipe $RECIPE_FILE
-        ;;
-    "commands")
-        show_commands $RECIPE_FILE
-        ;;
-    *)
+    # If invalid number of arguments provided, print usage instructions
+    if [ "$#" -ne 2 ] && [ "$#" -ne 3 ]; then
         usage
-        ;;
-esac
+    fi
+
+    # If invalid action provided, print usage instructions
+    ACTION=$1
+    if [ "$ACTION" != "build" ] && [ "$ACTION" != "dump" ] && [ "$ACTION" != "commands" ]; then
+        usage
+    fi
+
+    # Ensure provided recipe file exists
+    RECIPE_FILE=$2
+    if [ ! -f "$RECIPE_FILE" ]; then
+        echo "Error: Recipe file '$RECIPE_FILE' not found or not a file."
+        usage
+    fi
+
+    # Ensure build directory exists, if provided
+    if [ "$#" -eq 3 ]; then
+        BUILD_DIR=$3
+        if [ ! -d "$BUILD_DIR" ]; then
+            echo "Error: Target directory '$BUILD_DIR' does not exist."
+            usage
+        fi
+    fi
+
+    # Execute provided action
+    case "$ACTION" in
+        "build")
+            build_images $RECIPE_FILE
+            ;;
+        "dump")
+            dump_recipe $RECIPE_FILE
+            ;;
+        "commands")
+            show_commands $RECIPE_FILE
+            ;;
+        *)
+            usage
+            ;;
+    esac
+}
+
+main "$@"

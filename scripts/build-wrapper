@@ -1,39 +1,51 @@
 #!/bin/bash
 
-set -eu
+main() {
+    # Set shell options
+    set -eu
 
-TEMPLATE=$1
-VARS=$2
+    # Get build args
+    TEMPLATE=$1
+    VARS=$2
 
-TS=$(date +"%Y%m%d_%H%M%S")
+    # Define build vars
+    TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+    NAME=$(scripts/j2render $TEMPLATE $VARS | yq . | jq -r '.name')
 
-NAME=$(scripts/j2render $TEMPLATE $VARS | yq . | jq -r '.name')
+    # Define build paths
+    build_dir="builds/$NAME-${TIMESTAMP}"
+    recipe_file="$build_dir/$NAME-${TIMESTAMP}.yaml"
+    build_log="$build_dir/$NAME-${TIMESTAMP}.log"
 
-build_dir="builds/$NAME-${TS}"
+    # Make build directory
+    mkdir $build_dir
 
-mkdir $build_dir
+    # Log recipe template
+    echo "$(date +'%Y%m%d %H:%M:%S') generating build recipe from template" | tee -a $build_log
+    echo "$(date +'%Y%m%d %H:%M:%S') template $TEMPLATE:" | tee -a $build_log
+    cat $TEMPLATE | tee -a $build_log
+    echo | tee -a $build_log
 
-recipe_file="$build_dir/$NAME-${TS}.yaml"
-build_log="$build_dir/$NAME-${TS}.log"
+    # Log recipe vars
+    echo "$(date +'%Y%m%d %H:%M:%S') vars $VARS:" | tee -a $build_log
+    cat $VARS| tee -a $build_log
+    echo | tee -a $build_log
 
-echo "$(date +'%Y%m%d %H:%M:%S') generating build recipe from template" | tee -a $build_log
-echo "$(date +'%Y%m%d %H:%M:%S') template $TEMPLATE:" | tee -a $build_log
-cat $TEMPLATE | tee -a $build_log
-echo | tee -a $build_log
+    # Generate build recipe
+    scripts/j2render $TEMPLATE $VARS | tee $recipe_file
 
-echo "$(date +'%Y%m%d %H:%M:%S') vars $VARS:" | tee -a $build_log
-cat $VARS| tee -a $build_log
-echo | tee -a $build_log
+    # Log generated recipe
+    echo "$(date +'%Y%m%d %H:%M:%S'): generated recipe $recipe_file:" | tee -a $build_log
+    cat $recipe_file | tee -a $build_log
 
-scripts/j2render $TEMPLATE $VARS | tee $recipe_file
+    # Log git status
+    echo "$(date +'%Y%m%d %H:%M:%S'): git working dir status:" | tee -a $build_log
+    git status | tee -a $build_log
 
-echo "$(date +'%Y%m%d %H:%M:%S'): generated recipe $recipe_file:" | tee -a $build_log
-cat $recipe_file | tee -a $build_log
+    # Build container image from recipe
+    echo "$(date +'%Y%m%d %H:%M:%S'): starting build" | tee -a $build_log
+    scripts/build-image build $recipe_file $build_dir | tee -a $build_log
+    echo "$(date +'%Y%m%d %H:%M:%S'): build completed" | tee -a $build_log
+}
 
-echo "$(date +'%Y%m%d %H:%M:%S'): git working dir status:" | tee -a $build_log
-git status | tee -a $build_log
-
-echo "$(date +'%Y%m%d %H:%M:%S'): starting build" | tee -a $build_log
-scripts/build-recipe build $recipe_file $build_dir | tee -a $build_log
-
-echo "$(date +'%Y%m%d %H:%M:%S'): build completed" | tee -a $build_log
+main "$@"

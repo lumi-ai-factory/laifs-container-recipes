@@ -26,13 +26,13 @@ Usage build-image <build|dump|commands> <recipe file> [<target directory>]
 
 Print commands that would be used to create images from a rendered recipe:
 ```
-$ scripts/build-recipe commands builds/laifs-lumi-multi-recipe-20251003_115037/laifs-lumi-multi-recipe-20251003_115037.yaml | head -1
+$ scripts/build-image commands builds/laifs-lumi-multi-recipe-20251003_115037/laifs-lumi-multi-recipe-20251003_115037.yaml | head -1
 ubuntu-noble-20250925-rocm-6.4.4:20251003_120511: podman build -f containerfiles/rocm/Ubuntu2404_Rocm6 --cgroup-manager cgroupfs -t ubuntu-noble-20250925-rocm-6.4.4:20251003_120511 -t ubuntu-noble-20250925-rocm-6.4.4:latest --build-arg NPROC=8 --build-arg BASE_IMAGE=ubuntu --build-arg BASE_IMAGE_TAG=noble-20250925 --build-arg ROCM_VERSION=6.4.4 --build-arg AMDGPU_VERSION=6.4.4
 ```
 
 Dump internal representation of each step from a recipe:
 ```
-$ scripts/build-recipe dump builds/laifs-lumi-multi-recipe-20251003_115037/laifs-lumi-multi-recipe-20251003_115037.yaml
+$ scripts/build-image dump builds/laifs-lumi-multi-recipe-20251003_115037/laifs-lumi-multi-recipe-20251003_115037.yaml
 
 Recipe laifs-lumi-multi-recipe from file builds/laifs-lumi-multi-recipe-20251003_115037/laifs-lumi-multi-recipe-20251003_115037.yaml:
 
@@ -60,5 +60,5 @@ $ scripts/build-wrapper recipes/laifs-lumi-multi-recipe-template.yaml recipes/la
 
 Build a recipe into selected directory:
 ```
-$ scripts/build-recipe build builds/laifs-lumi-multi-recipe-20251003_115037/laifs-lumi-multi-recipe-20251003_115037.yaml my-tmp-dir
+$ scripts/build-image build builds/laifs-lumi-multi-recipe-20251003_115037/laifs-lumi-multi-recipe-20251003_115037.yaml my-tmp-dir
 ```
