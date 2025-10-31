@@ -30,8 +30,8 @@ aws_ofi_rccl_version: "1.4.0-1"
 aws_ofi_rccl_commit: "6dae1b0"
 #
 rccl_tests_git_commit: "33cc4df" # Latest commit at the time
-rccl_tests_gpu_archs: "gfx90a"
 rccl_tests_version: "0.1git-33cc4df"
+rccl_tests_gpu_archs: "gfx90a"
 #
 torch_version: "2.8.0"
 torch_url: "https://download.pytorch.org/whl/rocm6.4/torch-2.8.0%2Brocm6.4-cp312-cp312-manylinux_2_28_x86_64.whl"
@@ -39,24 +39,21 @@ torchaudio_url: "https://download.pytorch.org/whl/rocm6.4/torchaudio-2.8.0%2Broc
 torchvision_url: "https://download.pytorch.org/whl/rocm6.4/torchvision-0.23.0%2Brocm6.4-cp312-cp312-manylinux_2_28_x86_64.whl"
 pytorch_triton_url: "https://download.pytorch.org/whl/pytorch_triton_rocm-3.4.0-cp312-cp312-linux_x86_64.whl"
 #
+multi_image_gpu_arch: "gfx90a"
+#
 flash_attention_repo_commit: "465cb97" # Latest commit from the main_perf branch before AITER integration
 flash_attention_repo_url: "https://github.com/ROCm/flash-attention"
-flash_attention_gpu_archs: "gfx90a"
 #
 causal_conv1d_repo: "https://github.com/Dao-AILab/causal-conv1d"
 causal_conv1d_commit: "22a4577" # Latest commit 2025-10-30
-causal_conv1d_archs: "gfx90a"
 #
 apex_git_repo: "https://github.com/ROCm/apex"
 apex_git_commit: "3f26640" # Latest from branch release/1.8.0 (this branch is specifically for Pytorch 2.8)
-apex_build_archs: "gfx90a"
 #
 bitsandbytes_commit: "tags/0.48.1"
-bitsandbytes_gpu_archs: "gfx90a"
 bitsandbytes_repo_url: "https://github.com/bitsandbytes-foundation/bitsandbytes"
 #
 vllm_commit: "tags/v0.11.0"
-vllm_gpu_archs: "gfx90a"
 #
 xformers_pip_url: "https://download.pytorch.org/whl/rocm6.4"
 #

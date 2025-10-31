@@ -61,29 +61,26 @@ steps:
   - name: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}-mpich-{{mpich_version}}-torch-{{torch_version}}-multi
     base: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}-mpich-{{mpich_version}}-torch-{{torch_version}}
     template: multi/Rocm_Multipurpose
-    force: False
+    force: True
     env:
       - APEX_GIT_REPO={{apex_git_repo}}
       - APEX_GIT_COMMIT={{apex_git_commit}}
-      - APEX_BUILD_ARCHS={{apex_build_archs}}
       #
       - BITSANDBYTES_COMMIT={{bitsandbytes_commit}}
-      - BITSANDBYTES_GPU_ARCHS={{bitsandbytes_gpu_archs}}
       - BITSANDBYTES_REPO_URL={{bitsandbytes_repo_url}}
       #
       - CAUSAL_CONV1D_REPO={{causal_conv1d_repo}}
       - CAUSAL_CONV1D_COMMIT={{causal_conv1d_commit}}
-      - CAUSAL_CONV1D_ARCHS={{causal_conv1d_archs}}
       #
       - EXTRA_APT_PACKAGES="{{extra_apt_packages | join(' ')}}"
       - EXTRA_PIP_PACKAGES="{{extra_pip_packages | join(' ')}}"
       #
-      - FLASH_ATTENTION_GPU_ARCHS={{flash_attention_gpu_archs}}
       - FLASH_ATTENTION_REPO_COMMIT={{flash_attention_repo_commit}}
       - FLASH_ATTENTION_REPO_URL={{flash_attention_repo_url}}
       #
+      - MULTI_IMAGE_GPU_ARCH={{multi_image_gpu_arch}}
+      #
       - VLLM_COMMIT={{vllm_commit}}
-      - VLLM_GPU_ARCHS={{vllm_gpu_archs}}
       #
       - XFORMERS_PIP_URL={{xformers_pip_url}}
     export:

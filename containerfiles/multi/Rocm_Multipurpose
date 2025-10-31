@@ -2,42 +2,54 @@
 
 FROM $BASE_IMAGE:$BASE_IMAGE_TAG
 
-ARG APEX_GIT_REPO
 ARG APEX_GIT_COMMIT
-ARG APEX_BUILD_ARCHS
+ARG APEX_GIT_REPO
 
 ARG BASE_IMAGE
 ARG BASE_IMAGE_TAG
 
 ARG BITSANDBYTES_COMMIT
-ARG BITSANDBYTES_GPU_ARCHS
 ARG BITSANDBYTES_REPO_URL
 
-ARG CAUSAL_CONV1D_ARCHS
 ARG CAUSAL_CONV1D_COMMIT
 ARG CAUSAL_CONV1D_REPO
 
 ARG EXTRA_APT_PACKAGES
 ARG EXTRA_PIP_PACKAGES
 
-ARG FLASH_ATTENTION_GPU_ARCHS
 ARG FLASH_ATTENTION_REPO_COMMIT
 ARG FLASH_ATTENTION_REPO_URL
 
+ARG MULTI_IMAGE_GPU_ARCH
+
 ARG VLLM_COMMIT
-ARG VLLM_GPU_ARCHS
 
 ARG XFORMERS_PIP_URL
 
 
 #
-# Install required pre-built pip and apt packages
+# Prepare build environment
 #
 RUN set -ue; \
-  python3.12 -m venv /opt/venv; \
-  . /opt/venv/bin/activate; \
+  #
+  mkdir /opt/src; \
+  #
+  # revisit:
+  #
+  #   Even with the various GPU arch options set, we still get these type of complaints from 
+  #   various HIP build steps: "GPU_TARGETS was not set, and system GPU detection was unsuccsesful"
+  #   This is reverted at the last RUN step at the bottom of this file. Lets get rid ot this later.
+  #
+  test -f /opt/rocm/lib/llvm/bin/amdgpu-arch.really && { echo "error: amdgpu-arch.really already exists"; false; } || true; \
+  mv /opt/rocm/lib/llvm/bin/amdgpu-arch /opt/rocm/lib/llvm/bin/amdgpu-arch.really; \
+  printf "#!/bin/bash\necho MULTI_IMAGE_GPU_ARCH\n" > /opt/rocm/lib/llvm/bin/amdgpu-arch; \
+  chmod a+rx /opt/rocm/lib/llvm/bin/amdgpu-arch; \
+  #
   apt-get -y --no-install-recommends install ${EXTRA_APT_PACKAGES}; \
   apt clean ;\
+  #
+  python3.12 -m venv /opt/venv; \
+  . /opt/venv/bin/activate; \
   pip install ${EXTRA_PIP_PACKAGES};
 
 
@@ -45,12 +57,11 @@ RUN set -ue; \
 # Install bitsandbytes for ROCm
 #
 RUN set -ue; \
-  mkdir /opt/src; \
   . /opt/venv/bin/activate; \
   git clone ${BITSANDBYTES_REPO_URL} /opt/src/bitsandbytes; \
   cd /opt/src/bitsandbytes; \
   git checkout ${BITSANDBYTES_COMMIT}; \
-  cmake -DCOMPUTE_BACKEND=hip -DGPU_TARGETS=${BITSANDBYTES_GPU_ARCHS} -DBNB_ROCM_ARCH=${BITSANDBYTES_GPU_ARCHS} -S .; \
+  cmake -DCOMPUTE_BACKEND=hip -DGPU_TARGETS=${MULTI_IMAGE_GPU_ARCH} -DBNB_ROCM_ARCH=${MULTI_IMAGE_GPU_ARCH} -S .; \
   make; \
   pip install .; \
   cd / && rm -rf /opt/src/bitsandbytes;
@@ -64,7 +75,7 @@ RUN set -ue; \
   git clone $FLASH_ATTENTION_REPO_URL /opt/src/flash-attention; \
   cd /opt/src/flash-attention; \
   git checkout $FLASH_ATTENTION_REPO_COMMIT; \
-  BUILD_TARGET=rocm MAX_JOBS=$(nproc) GPU_ARCHS=$FLASH_ATTENTION_GPU_ARCHS python3 setup.py bdist_wheel --dist-dir=dist; \
+  BUILD_TARGET=rocm MAX_JOBS=$(nproc) GPU_ARCHS=$MULTI_IMAGE_GPU_ARCH python3 setup.py bdist_wheel --dist-dir=dist; \
   pip install /opt/src/flash-attention/dist/*.whl; \
   cd / && rm -rf /opt/src/flash-attention;
 
@@ -84,9 +95,8 @@ RUN set -ue; \
   . /opt/venv/bin/activate; \
   git clone $CAUSAL_CONV1D_REPO /opt/src/causal-conv1d; \
   cd /opt/src/causal-conv1d; \
-  cd causal-conv1d; \
-  export PYTORCH_ROCM_ARCH_OVERRIDE="${CAUSAL_CONV1D_ARCHS}"; \
-  export HIP_ARCHITECTURES="${CAUSAL_CONV1D_ARCHS}"; \
+  export PYTORCH_ROCM_ARCH_OVERRIDE="${MULTI_IMAGE_GPU_ARCH}"; \
+  export HIP_ARCHITECTURES="${MULTI_IMAGE_GPU_ARCH}"; \
   pip install --no-build-isolation .; \
   rm -rf /opt/src/causal-conv1d;
 
@@ -99,7 +109,7 @@ RUN set -ue; \
   git clone "${APEX_GIT_REPO}" /opt/src/apex;\
   cd /opt/src/apex; \
   git checkout "${APEX_GIT_COMMIT}"; \
-  export PYTORCH_ROCM_ARCH="${APEX_BUILD_ARCHS}"; \
+  export PYTORCH_ROCM_ARCH="${MULTI_IMAGE_GPU_ARCH}"; \
   pip install -v --disable-pip-version-check --no-cache-dir --no-build-isolation --config-settings "--build-option=--cpp_ext" --config-settings "--build-option=--cuda_ext" ./; \
   cd / && rm -rf /opt/src/apex;
 
@@ -115,13 +125,16 @@ RUN set -ue; \
   cd /opt/src/vllm; \
   git fetch --tags; \
   git checkout $VLLM_COMMIT; \
-  export GPU_ARCHS=$VLLM_GPU_ARCHS; \
-  export PYTORCH_ROCM_ARCH=$VLLM_GPU_ARCHS; \
-  export GPU_TARGETS=$VLLM_GPU_ARCHS; \
-  export MAKEFLAGS="-j$(nproc)"; \
+  export MAKEFLAGS="-j$(nproc)" ; \
+  # revisit: which of the arch defs really makes a difference
+  export AMDGPU_TARGETS=$MULTI_IMAGE_GPU_ARCH; \
+  export GPU_ARCHS=$MULTI_IMAGE_GPU_ARCH; \
+  export GPU_TARGETS=$MULTI_IMAGE_GPU_ARCH; \
+  export HIP_ARCHTECTURES=$MULTI_IMAGE_GPU_ARCH; \
+  export PYTORCH_ROCM_ARCH=$MULTI_IMAGE_GPU_ARCH; \
   python3 setup.py clean --all; \
   python3 setup.py bdist_wheel --dist-dir=dist; \
-  pip install ./dist/*.whl;
+  pip install ./dist/*.whl; \
   cd / && rm -rf /opt/src/vllm;
 
 
@@ -133,6 +146,16 @@ RUN set -ue; \
   export DS_BUILD_OPS=1; \
   python3 -m pip install deepspeed --no-build-isolation;
 
+#
+# Cleanup
+#
+RUN set -ue; \
+  #
+  rmdir /opt/src; \
+  #
+  test -f /opt/rocm/lib/llvm/bin/amdgpu-arch.really || { echo "error: amdgpu-arch.really is missing"; false; }; \
+  rm /opt/rocm/lib/llvm/bin/amdgpu-arch; \
+  mv /opt/rocm/lib/llvm/bin/amdgpu-arch.really /opt/rocm/lib/llvm/bin/amdgpu-arch ;
 
 ENV PATH="/opt/venv/bin:$PATH"
 
