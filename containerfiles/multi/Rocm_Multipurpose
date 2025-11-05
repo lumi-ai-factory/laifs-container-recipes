@@ -42,7 +42,7 @@ RUN set -ue; \
   #
   test -f /opt/rocm/lib/llvm/bin/amdgpu-arch.really && { echo "error: amdgpu-arch.really already exists"; false; } || true; \
   mv /opt/rocm/lib/llvm/bin/amdgpu-arch /opt/rocm/lib/llvm/bin/amdgpu-arch.really; \
-  printf "#!/bin/bash\necho MULTI_IMAGE_GPU_ARCH\n" > /opt/rocm/lib/llvm/bin/amdgpu-arch; \
+  printf "#!/bin/bash\necho ${MULTI_IMAGE_GPU_ARCH}\n" > /opt/rocm/lib/llvm/bin/amdgpu-arch; \
   chmod a+rx /opt/rocm/lib/llvm/bin/amdgpu-arch; \
   #
   apt-get -y --no-install-recommends install ${EXTRA_APT_PACKAGES}; \
@@ -130,7 +130,7 @@ RUN set -ue; \
   export AMDGPU_TARGETS=$MULTI_IMAGE_GPU_ARCH; \
   export GPU_ARCHS=$MULTI_IMAGE_GPU_ARCH; \
   export GPU_TARGETS=$MULTI_IMAGE_GPU_ARCH; \
-  export HIP_ARCHTECTURES=$MULTI_IMAGE_GPU_ARCH; \
+  export HIP_ARCHITECTURES=$MULTI_IMAGE_GPU_ARCH; \
   export PYTORCH_ROCM_ARCH=$MULTI_IMAGE_GPU_ARCH; \
   python3 setup.py clean --all; \
   python3 setup.py bdist_wheel --dist-dir=dist; \

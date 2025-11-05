@@ -61,7 +61,7 @@ steps:
   - name: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}-mpich-{{mpich_version}}-torch-{{torch_version}}-multi
     base: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}-mpich-{{mpich_version}}-torch-{{torch_version}}
     template: multi/Rocm_Multipurpose
-    force: True
+    force: False
     env:
       - APEX_GIT_REPO={{apex_git_repo}}
       - APEX_GIT_COMMIT={{apex_git_commit}}
