@@ -10,7 +10,7 @@ log() {
 }
 
 usage() {
-    echo "Usage build-image <build|dump|commands> <recipe file> [<target directory>]"
+    echo "Usage build-images <build|dump|commands> <recipe file> [<target directory>]"
     exit 1
 }
 

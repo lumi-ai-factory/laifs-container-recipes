@@ -44,7 +44,7 @@ main() {
 
     # Build container image from recipe
     echo "$(date +'%Y%m%d %H:%M:%S'): starting build" | tee -a $build_log
-    scripts/build-image build $recipe_file $build_dir | tee -a $build_log
+    scripts/build-images build $recipe_file $build_dir | tee -a $build_log
     echo "$(date +'%Y%m%d %H:%M:%S'): build completed" | tee -a $build_log
 }
 
