@@ -2,18 +2,27 @@
 
 FROM $BASE_IMAGE:$BASE_IMAGE_TAG
 
-ARG AMDGPU_VERSION
 ARG BASE_IMAGE
 ARG BASE_IMAGE_TAG
+
+ARG AMDGPU_VERSION
 ARG ROCM_VERSION
-ARG BASE_EXTRA_PACKAGES
+
+ARG EXTRA_LOCALES
+ARG EXTRA_PACKAGES
 
 RUN set -ue; \
   #
-  # Add ROCm repository
+  # Enable man pages with unminimize and install additional locales
   #
   export DEBIAN_FRONTEND=noninteractive; \
   apt-get update; \
+  yes | unminimize; \
+  apt-get -y --no-install-recommends install man locales; \
+  locale-gen ${EXTRA_LOCALES}; \
+  #
+  # Add ROCm repository
+  #
   apt-get install -y --no-install-recommends ca-certificates curl gnupg; \
   #
   /usr/bin/echo -e 'Package: *\nPin: release o=repo.radeon.com\nPin-Priority: 800\n' > /etc/apt/preferences.d/rocm-pin-prio-800; \
@@ -32,9 +41,8 @@ RUN set -ue; \
   echo /opt/rocm/lib > /etc/ld.so.conf.d/rocm-30.conf; \
   ldconfig; \
   #
-  # Install locales and extra packages
+  # Install extra packages
   #
-  apt-get -y --no-install-recommends install locales ${BASE_EXTRA_PACKAGES}; \
-  locale-gen en_US.UTF-8; \
+  apt-get -y --no-install-recommends install ${EXTRA_PACKAGES}; \
   apt clean ;\
   rm -rf /var/lib/apt/lists/*; \

@@ -5,9 +5,10 @@ steps:
     force: False
     base: ubuntu:{{ubuntu_tag}}
     env:
-      - ROCM_VERSION={{rocm_version}}
       - AMDGPU_VERSION={{amd_gpu_version}}
-      - BASE_EXTRA_PACKAGES="{{base_extra_packages | join(' ')}}"
+      - ROCM_VERSION={{rocm_version}}
+      - EXTRA_LOCALES="{{extra_locales | join(' ')}}"
+      - EXTRA_PACKAGES="{{extra_packages | join(' ')}}"
   - name: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}
     base: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}
     template: libfabric/Ubuntu_Rocm_Slingshot

@@ -4,15 +4,27 @@
 amd_gpu_version: "6.4.4"
 rocm_version: "6.4.4"
 ubuntu_tag: "noble-20251001"
-base_extra_packages:
+extra_locales:
+  - cs_CZ.UTF-8
+  - da_DK.UTF-8
+  - en_US.UTF-8
+  - et_EE.UTF-8
+  - fi_FI.UTF-8
+  - nb_NO.UTF-8
+  - nn_NO.UTF-8
+  - pl_PL.UTF-8
+extra_packages:
   - file
   - git
   - less
+  - nano
   - neovim
   - python3-dev
   - python3-packaging
   - python3-pip
   - python3-venv
+  - screen
+  - tmux
   - wget
 
 #
