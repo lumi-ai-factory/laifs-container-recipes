@@ -1,5 +1,9 @@
-ubuntu_tag: "noble-20251001"
 #
+#  ubuntu-rocm
+#
+amd_gpu_version: "6.4.4"
+rocm_version: "6.4.4"
+ubuntu_tag: "noble-20251001"
 base_extra_packages:
   - file
   - git
@@ -10,18 +14,12 @@ base_extra_packages:
   - python3-pip
   - python3-venv
   - wget
+
 #
-amd_gpu_version: "6.4.4"
-rocm_version: "6.4.4"
-#
-xpmem_clone_url: "https://github.com/hpc/xpmem"
-xpmem_git_commit: "3bcab55"
-xpmem_version: "0.1-git3bcab55"
-xpmem_kernel_base_src: "linux-headers-5.15.0-160_5.15.0-160.170_all.deb"
-xpmem_kernel_generic_src: "linux-headers-5.15.0-160-generic_5.15.0-160.170_amd64.deb"
-xpmem_kernel_id: "linux-headers-5.15.0-160-generic"
+# ubuntu-rocm-libfabric
 #
 cassini_headers_version: "12.0.1"
+#
 cxi_headers_version: "0.1git-3233be5b1"
 cxi_headers_clone_url: "https://github.com/HewlettPackard/shs-cxi-driver"
 cxi_headers_git_commit: "3233be5b1"
@@ -34,35 +32,52 @@ libfabric_git_commit: "e9cf535a"
 libfabric_version: "2.1git-e9cf535a"
 libfabric_clone_url: "https://github.com/ofiwg/libfabric"
 #
+xpmem_clone_url: "https://github.com/hpc/xpmem"
+xpmem_git_commit: "3bcab55"
+xpmem_version: "0.1-git3bcab55"
+xpmem_kernel_base_src: "linux-headers-5.15.0-160_5.15.0-160.170_all.deb"
+xpmem_kernel_generic_src: "linux-headers-5.15.0-160-generic_5.15.0-160.170_amd64.deb"
+xpmem_kernel_id: "linux-headers-5.15.0-160-generic"
+
+#
+# ubuntu-rocm-libfabric-mpich
+#
+aws_ofi_rccl_commit: "6dae1b0"
+aws_ofi_rccl_version: "1.4.0-1"
+#
 mpich_version: "4.3.2"
+#
 osu_version: "7.5.1"
 #
-aws_ofi_rccl_version: "1.4.0-1"
-aws_ofi_rccl_commit: "6dae1b0"
-#
 rccl_tests_git_commit: "33cc4df" # Latest commit at the time
-rccl_tests_version: "0.1git-33cc4df"
 rccl_tests_gpu_archs: "gfx90a"
+rccl_tests_version: "0.1git-33cc4df"
+
+#
+# ubuntu-rocm-libfabric-mpich-torch
 #
 torch_version: "2.8.0"
 torch_url: "https://download.pytorch.org/whl/rocm6.4/torch-2.8.0%2Brocm6.4-cp312-cp312-manylinux_2_28_x86_64.whl"
 torchaudio_url: "https://download.pytorch.org/whl/rocm6.4/torchaudio-2.8.0%2Brocm6.4-cp312-cp312-manylinux_2_28_x86_64.whl"
 torchvision_url: "https://download.pytorch.org/whl/rocm6.4/torchvision-0.23.0%2Brocm6.4-cp312-cp312-manylinux_2_28_x86_64.whl"
 pytorch_triton_url: "https://download.pytorch.org/whl/pytorch_triton_rocm-3.4.0-cp312-cp312-linux_x86_64.whl"
+
 #
-multi_image_gpu_arch: "gfx90a"
+# ubuntu-rocm-libfabric-mpich-torch-multi
+#
+apex_git_commit: "3f26640" # Latest from branch release/1.8.0 (this branch is specifically for Pytorch 2.8)
+apex_git_repo: "https://github.com/ROCm/apex"
+#
+bitsandbytes_commit: "tags/0.48.1"
+bitsandbytes_repo_url: "https://github.com/bitsandbytes-foundation/bitsandbytes"
+#
+causal_conv1d_commit: "22a4577" # Latest commit 2025-10-30
+causal_conv1d_repo: "https://github.com/Dao-AILab/causal-conv1d"
 #
 flash_attention_repo_commit: "465cb97" # Latest commit from the main_perf branch before AITER integration
 flash_attention_repo_url: "https://github.com/ROCm/flash-attention"
 #
-causal_conv1d_repo: "https://github.com/Dao-AILab/causal-conv1d"
-causal_conv1d_commit: "22a4577" # Latest commit 2025-10-30
-#
-apex_git_repo: "https://github.com/ROCm/apex"
-apex_git_commit: "3f26640" # Latest from branch release/1.8.0 (this branch is specifically for Pytorch 2.8)
-#
-bitsandbytes_commit: "tags/0.48.1"
-bitsandbytes_repo_url: "https://github.com/bitsandbytes-foundation/bitsandbytes"
+multi_image_gpu_arch: "gfx90a"
 #
 vllm_commit: "tags/v0.11.0"
 #
@@ -120,4 +135,3 @@ extra_pip_packages:
   # vLLM build
   - jinja2
   - setuptools_scm
-#
