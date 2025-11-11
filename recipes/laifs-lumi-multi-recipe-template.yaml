@@ -7,6 +7,7 @@ steps:
     env:
       - ROCM_VERSION={{rocm_version}}
       - AMDGPU_VERSION={{amd_gpu_version}}
+      - BASE_EXTRA_PACKAGES="{{base_extra_packages | join(' ')}}"
   - name: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}
     base: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}
     template: libfabric/Ubuntu_Rocm_Slingshot
