@@ -6,32 +6,35 @@ ARG AMDGPU_VERSION
 ARG BASE_IMAGE
 ARG BASE_IMAGE_TAG
 ARG ROCM_VERSION
+ARG BASE_EXTRA_PACKAGES
 
-RUN /usr/bin/echo -e 'Package: *\nPin: release o=repo.radeon.com\nPin-Priority: 800\n' > /etc/apt/preferences.d/rocm-pin-prio-800 \
-  && apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates curl libnuma-dev gnupg \
-  && curl -sL https://repo.radeon.com/rocm/rocm.gpg.key | apt-key add - \
-  && printf "deb [arch=amd64] https://repo.radeon.com/rocm/apt/${ROCM_VERSION}/ noble main\n" | tee --append /etc/apt/sources.list.d/rocm.list \
-  && printf "deb [arch=amd64] https://repo.radeon.com/amdgpu/${AMDGPU_VERSION}/ubuntu noble main\n" | tee /etc/apt/sources.list.d/amdgpu.list \
-  && apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-      amdgpu-dkms \
-      build-essential \
-      file \
-      git \
-      kmod \
-      less \
-      libelf1 \
-      locales \
-      neovim \
-      python3-dev \
-      python3-packaging \
-      python3-pip \
-      python3-venv \
-      rocm-dev$ROCM_VERSION \
-      rocm-libs$ROCM_VERSION \
-      sudo \
-      wget \
-  && echo /opt/rocm/lib > /etc/ld.so.conf.d/rocm-30.conf \
-  && ldconfig \
-  && apt-get clean  \
-  && rm -rf /var/lib/apt/lists/* \
-  && locale-gen en_US.UTF-8
+RUN set -ue; \
+  #
+  # Add ROCm repository
+  #
+  export DEBIAN_FRONTEND=noninteractive; \
+  apt-get update; \
+  apt-get install -y --no-install-recommends ca-certificates curl gnupg; \
+  #
+  /usr/bin/echo -e 'Package: *\nPin: release o=repo.radeon.com\nPin-Priority: 800\n' > /etc/apt/preferences.d/rocm-pin-prio-800; \
+  #
+  curl -sL https://repo.radeon.com/rocm/rocm.gpg.key | apt-key add -; \
+  #
+  printf "deb [arch=amd64] https://repo.radeon.com/rocm/apt/${ROCM_VERSION}/ noble main\n" | tee --append /etc/apt/sources.list.d/rocm.list; \
+  printf "deb [arch=amd64] https://repo.radeon.com/amdgpu/${AMDGPU_VERSION}/ubuntu noble main\n" | tee /etc/apt/sources.list.d/amdgpu.list; \
+  #
+  # Install ROCm packages
+  #
+  apt-get update; \
+  apt-get install -y --no-install-recommends build-essential kmod libelf1 libnuma-dev zstd; \
+  apt-get install -y --no-install-recommends amdgpu-dkms rocm-dev$ROCM_VERSION rocm-libs$ROCM_VERSION; \
+  #
+  echo /opt/rocm/lib > /etc/ld.so.conf.d/rocm-30.conf; \
+  ldconfig; \
+  #
+  # Install locales and extra packages
+  #
+  apt-get -y --no-install-recommends install locales ${BASE_EXTRA_PACKAGES}; \
+  locale-gen en_US.UTF-8; \
+  apt clean ;\
+  rm -rf /var/lib/apt/lists/*; \
