@@ -16,6 +16,7 @@ extra_locales:
 extra_packages:
   - file
   - git
+  - jq
   - less
   - nano
   - neovim
@@ -69,10 +70,13 @@ rccl_tests_version: "0.1git-33cc4df"
 # ubuntu-rocm-libfabric-mpich-torch
 #
 torch_version: "2.8.0"
+#
+pytorch_triton_url: "https://download.pytorch.org/whl/pytorch_triton_rocm-3.4.0-cp312-cp312-linux_x86_64.whl"
 torch_url: "https://download.pytorch.org/whl/rocm6.4/torch-2.8.0%2Brocm6.4-cp312-cp312-manylinux_2_28_x86_64.whl"
 torchaudio_url: "https://download.pytorch.org/whl/rocm6.4/torchaudio-2.8.0%2Brocm6.4-cp312-cp312-manylinux_2_28_x86_64.whl"
 torchvision_url: "https://download.pytorch.org/whl/rocm6.4/torchvision-0.23.0%2Brocm6.4-cp312-cp312-manylinux_2_28_x86_64.whl"
-pytorch_triton_url: "https://download.pytorch.org/whl/pytorch_triton_rocm-3.4.0-cp312-cp312-linux_x86_64.whl"
+xformers_url: "https://download.pytorch.org/whl/rocm6.4/xformers-0.0.32.post2-cp39-abi3-manylinux_2_28_x86_64.whl"
+#
 
 #
 # ubuntu-rocm-libfabric-mpich-torch-multi
@@ -80,20 +84,22 @@ pytorch_triton_url: "https://download.pytorch.org/whl/pytorch_triton_rocm-3.4.0-
 apex_git_commit: "3f26640" # Latest from branch release/1.8.0 (this branch is specifically for Pytorch 2.8)
 apex_git_repo: "https://github.com/ROCm/apex"
 #
-bitsandbytes_commit: "tags/0.48.1"
+bitsandbytes_commit: "7e16503" # 7e16503 is commit id for tags/0.48.1
 bitsandbytes_repo_url: "https://github.com/bitsandbytes-foundation/bitsandbytes"
 #
 causal_conv1d_commit: "22a4577" # Latest commit 2025-10-30
 causal_conv1d_repo: "https://github.com/Dao-AILab/causal-conv1d"
+#
+deepspeed_version: "0.18.2"
 #
 flash_attention_repo_commit: "465cb97" # Latest commit from the main_perf branch before AITER integration
 flash_attention_repo_url: "https://github.com/ROCm/flash-attention"
 #
 multi_image_gpu_arch: "gfx90a"
 #
-vllm_commit: "tags/v0.11.0"
+vllm_commit: "b8b302c" #  b8b302c is for commit id "tags/v0.11.0"
 #
-xformers_pip_url: "https://download.pytorch.org/whl/rocm6.4"
+wretag_url: "git+https://github.com/viahlgre/wretag.git@0da1af0"
 #
 extra_apt_packages:
   - cmake

@@ -53,13 +53,15 @@ steps:
   - name: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}-mpich-{{mpich_version}}-torch-{{torch_version}}
     base: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}-mpich-{{mpich_version}}
     template: torch/Venv_Torch
-    force: False
+    force: True
     env:
       - TORCH_VERSION={{torch_version}}
-      - TORCH_URL={{torch_url}}
-      - TORCHVISION_URL={{torchvision_url}}
-      - TORCHAUDIO_URL={{torchaudio_url}}
+      #
       - PYTORCH_TRITON_URL={{pytorch_triton_url}}
+      - TORCHAUDIO_URL={{torchaudio_url}}
+      - TORCHVISION_URL={{torchvision_url}}
+      - TORCH_URL={{torch_url}}
+      - XFORMERS_URL={{xformers_url}}
   - name: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}-mpich-{{mpich_version}}-torch-{{torch_version}}-multi
     base: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}-mpich-{{mpich_version}}-torch-{{torch_version}}
     template: multi/Rocm_Multipurpose
@@ -74,6 +76,8 @@ steps:
       - CAUSAL_CONV1D_REPO={{causal_conv1d_repo}}
       - CAUSAL_CONV1D_COMMIT={{causal_conv1d_commit}}
       #
+      - DEEPSPEED_VERSION={{deepspeed_version}}
+      #
       - EXTRA_APT_PACKAGES="{{extra_apt_packages | join(' ')}}"
       - EXTRA_PIP_PACKAGES="{{extra_pip_packages | join(' ')}}"
       #
@@ -84,7 +88,8 @@ steps:
       #
       - VLLM_COMMIT={{vllm_commit}}
       #
-      - XFORMERS_PIP_URL={{xformers_pip_url}}
+      - WRETAG_URL={{wretag_url}}
+      #
     export:
       name: "laifs-lumi-multi"
       def: |
