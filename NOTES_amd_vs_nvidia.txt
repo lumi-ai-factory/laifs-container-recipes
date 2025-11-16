@@ -1,0 +1,37 @@
+
+amdgpu-dkms ---> nvidia equivalent?
+
+NVIDIA uses the nvidia-container-cli and related tools to support GPU access in
+containers, which serves a similar purpose to AMD's DKMS for kernel driver
+management and provides the necessary infrastructure for container runtimes
+like Docker and Podman. While AMD-dkms is a kernel module build tool, NVIDIA's
+solution focuses on a user-space command-line interface that configures
+the container's environment to use the NVIDIA driver and libraries on the host system. 
+
+How NVIDIA's solution works
+
+nvidia-container-cli: This tool is the core component. It's maintained by NVIDIA
+and provides a way to configure containers for GPU operation, including the ability
+to select specific GPUs or devices.
+
+Host driver and libraries: A correctly installed NVIDIA driver and the CUDA toolkit
+must be present on the host system. The nvidia-container-cli then leverages these
+to make the GPU accessible inside the container.
+
+Container runtime integration: The nvidia-container-cli is integrated with container 
+runtimes like Docker and Podman. You would typically use a flag like --gpus all or
+podman run --gpus all to enable GPU access, which invokes the necessary container
+runtime hooks and the nvidia-container-cli.
+
+Functionality: This setup allows containers to access GPU features for compute,
+graphics, and display functionality. It is designed to be compatible with standard
+container tools and can be configured to provide different classes of GPU capability. 
+
+How it differs from AMD-dkms
+amd-dkms: This is a tool used to automatically build the necessary kernel modules
+for AMD GPUs using the Debian-German Package System. It focuses on the low-level
+kernel integration, ensuring the driver is compatible with the running kernel.
+
+NVIDIA's approach: NVIDIA's method for containers focuses on the user-space tools
+that connect a containerized application to the already-built NVIDIA driver on the host,
+rather than the driver-building process itself. 

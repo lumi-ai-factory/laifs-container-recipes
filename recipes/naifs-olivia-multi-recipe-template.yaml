@@ -1,0 +1,76 @@
+name: naifs-olivia-multi-recipe
+steps:
+  - name: ubuntu-{{ubuntu_tag}}-cuda-{{cuda_version}}
+    template: cuda/Ubuntu2404_CUDA
+    force: False
+    base: ubuntu:{{ubuntu_tag}}
+    env:
+      #- ROCM_VERSION={{rocm_version}}
+      #- AMDGPU_VERSION={{amd_gpu_version}}
+      - CUDA_VERSION={{cuda_version}} # TODO: check env var for cuda compiling
+  - name: ubuntu-{{ubuntu_tag}}-cuda-{{cuda_version}}-libfabric-{{libfabric_version}}
+    base: ubuntu-{{ubuntu_tag}}-cuda-{{cuda_version}}
+    #template: libfabric/Ubuntu_Rocm_Slingshot
+    template: libfabric/Ubuntu_CUDA_Slingshot
+    force: False
+    env:
+      - XPMEM_CLONE_URL={{xpmem_clone_url}}
+      - XPMEM_GIT_COMMIT={{xpmem_git_commit}}
+      - XPMEM_VERSION={{xpmem_version}}
+      - XPMEM_KERNEL_BASE_SRC={{xpmem_kernel_base_src}}
+      - XPMEM_KERNEL_GENERIC_SRC={{xpmem_kernel_generic_src}}
+      - XPMEM_KERNEL_ID={{xpmem_kernel_id}}
+      #
+      - CASSINI_HEADERS_VERSION={{cassini_headers_version}}
+      #
+      - CXI_HEADERS_VERSION={{cxi_headers_version}}
+      - CXI_HEADERS_CLONE_URL={{cxi_headers_clone_url}}
+      - CXI_HEADERS_GIT_COMMIT={{cxi_headers_git_commit}}
+      #
+      - LIBCXI_VERSION={{libcxi_version}}
+      - LIBCXI_CLONE_URL={{libcxi_clone_url}}
+      - LIBCXI_GIT_COMMIT={{libcxi_git_commit}}
+      #
+      - LIBFABRIC_VERSION={{libfabric_version}}
+      - LIBFABRIC_CLONE_URL={{libfabric_clone_url}}
+      - LIBFABRIC_GIT_COMMIT={{libfabric_git_commit}}
+    export:
+      name: "naifs-olivia-libfabric-{{libfabric_version}}"
+  - name: ubuntu-{{ubuntu_tag}}-cuda-{{cuda_version}}-libfabric-{{libfabric_version}}-mpich-{{mpich_version}}
+    base: ubuntu-{{ubuntu_tag}}-cuda-{{cuda_version}}-libfabric-{{libfabric_version}}
+    #template: mpich/Ubuntu_Rocm_Slingshot
+    template: mpich/Ubuntu_CUDA_Slinghsot
+    force: False
+    env:
+      - MPICH_VERSION={{mpich_version}}
+      - OSU_VERSION={{osu_version}}
+      - AWS_OFI_RCCL_VERSION={{aws_ofi_nccl_version}}
+      - AWS_OFI_RCCL_COMMIT={{aws_ofi_nccl_commit}}
+    export:
+      name: "naifs-olivia-mpich-{{mpich_version}}"
+  - name: ubuntu-{{ubuntu_tag}}-cuda-{{cuda_version}}-libfabric-{{libfabric_version}}-mpich-{{mpich_version}}-torch-{{torch_version}}
+    base: ubuntu-{{ubuntu_tag}}-cuda-{{cuda_version}}-libfabric-{{libfabric_version}}-mpich-{{mpich_version}}
+    template: torch/Venv_Torch
+    force: False
+    env:
+      - TORCH_VERSION={{torch_version}}
+      - TORCH_URL={{torch_url}}
+      - TORCHVISION_URL={{torchvision_url}}
+      - TORCHAUDIO_URL={{torchaudio_url}}
+      - PYTORCH_TRITON_URL={{pytorch_triton_url}}
+  - name: ubuntu-{{ubuntu_tag}}-cuda-{{cuda_version}}-libfabric-{{libfabric_version}}-mpich-{{mpich_version}}-torch-{{torch_version}}-multi
+    base: ubuntu-{{ubuntu_tag}}-cuda-{{cuda_version}}-libfabric-{{libfabric_version}}-mpich-{{mpich_version}}-torch-{{torch_version}}
+    #template: multi/Rocm_Multipurpose
+    template: multi/CUDA_Multipurpose
+    force: False
+    env:
+      - FLASH_ATTENTION_REPO_COMMIT={{flash_attention_repo_commit}}
+      - FLASH_ATTENTION_REPO_URL={{flash_attention_repo_url}}
+      - FLASH_ATTENTION_GPU_ARCHS={{flash_attention_gpu_archs}}
+      - VLLM_COMMIT={{vllm_commit}}
+      - VLLM_GPU_ARCHS={{vllm_gpu_archs}}
+      - XFORMERS_PIP_URL={{xformers_pip_url}}
+      - EXTRA_APT_PACKAGES=\"{{extra_apt_packages | join(' ')}}\"
+      - EXTRA_PIP_PACKAGES=\"{{extra_pip_packages | join(' ')}}\"
+    export:
+      name: "naifs-olivia-multi"

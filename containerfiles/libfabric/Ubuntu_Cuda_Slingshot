@@ -1,0 +1,160 @@
+@@ BUILD_ARGS @@
+
+FROM $BASE_IMAGE:$BASE_IMAGE_TAG AS builder
+
+ARG CASSINI_HEADERS_VERSION
+ARG CXI_HEADERS_CLONE_URL
+ARG CXI_HEADERS_GIT_COMMIT
+ARG CXI_HEADERS_VERSION
+ARG LIBCXI_CLONE_URL
+ARG LIBCXI_GIT_COMMIT
+ARG LIBCXI_VERSION
+ARG LIBFABRIC_CLONE_URL
+ARG LIBFABRIC_GIT_COMMIT
+ARG LIBFABRIC_VERSION
+ARG XPMEM_CLONE_URL
+ARG XPMEM_GIT_COMMIT
+ARG XPMEM_KERNEL_BASE_SRC
+ARG XPMEM_KERNEL_GENERIC_SRC
+ARG XPMEM_KERNEL_ID
+ARG XPMEM_VERSION
+
+RUN set -ue; \
+    #
+    # Build requisites
+    #
+    # NOTE: had to add apt install curl, numactl, libnuma-dev in the test build - cxi install was failing
+    export DEBIAN_FRONTEND=noninteractive; \
+    apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
+        autoconf \
+        libconfig-dev \
+        libcurl4-openssl-dev \
+        libfuse-dev \
+        libjson-c-dev \
+        libnl-3-dev \
+        libsensors-dev \
+        libtool \
+        libuv1-dev \
+        libyaml-dev \
+        pkg-config \
+        ruby \
+        ruby-dev; \
+    gem install --no-document fpm; \
+    mkdir /debs;
+
+RUN set -ue; \
+    #
+    # XPMEM
+    #
+    TMPROOT=$(mktemp -d); \
+    #
+    XPMEM_KERNEL_PATH=${TMPROOT}/src/kernel/usr/src/${XPMEM_KERNEL_ID}; \
+    #
+    install -d "$TMPROOT/src" "$TMPROOT/src/kernel"  "$TMPROOT/usr"; \
+    cd "$TMPROOT/src"; \
+    wget http://archive.ubuntu.com/ubuntu/pool/main/l/linux/${XPMEM_KERNEL_BASE_SRC}; \
+    wget http://archive.ubuntu.com/ubuntu/pool/main/l/linux/${XPMEM_KERNEL_GENERIC_SRC}; \
+    dpkg-deb -x ${XPMEM_KERNEL_BASE_SRC} kernel/; \
+    dpkg-deb -x ${XPMEM_KERNEL_GENERIC_SRC} kernel/; \
+    #
+    git clone ${XPMEM_CLONE_URL} "$TMPROOT/src/xpmem"; \
+    cd "$TMPROOT/src/xpmem"; \
+    git checkout "${XPMEM_GIT_COMMIT}"; \
+    ./autogen.sh; \
+    ./configure --prefix=/usr --with-kerneldir=${XPMEM_KERNEL_PATH}; \
+    make -j "$(nproc)" DESTDIR="$TMPROOT" install; \
+    #
+    cd /debs; \
+    fpm -s dir -t deb -n xpmem -v "${XPMEM_VERSION}" --description "LUMI-AIF-$(date -u +'%Y%m%d%H%M%S')" --prefix / -C "$TMPROOT" usr/include usr/lib; \
+    dpkg -i "xpmem_${XPMEM_VERSION}_amd64.deb";
+
+RUN set -ue; \
+    #
+    # Cassini headers
+    #
+    # TODO: align with the test build
+    TMPROOT=$(mktemp -d); \
+    CASSINI_HEADERS_TGZ="shs-${CASSINI_HEADERS_VERSION}.tar.gz"; \
+    CASSINI_HEADERS_URL="https://github.com/HewlettPackard/shs-cassini-headers/archive/refs/tags/release/${CASSINI_HEADERS_TGZ}"; \
+    install -d "$TMPROOT/usr/share/cassini-headers" "$TMPROOT/usr/include" "$TMPROOT/src"; \
+    curl -L -o "${TMPROOT}/src/${CASSINI_HEADERS_TGZ}" "${CASSINI_HEADERS_URL}"; \
+    tar --transform='s|shs-cassini-headers-release-shs-[^/]*||' -C "${TMPROOT}/src" -xzf "${TMPROOT}/src/${CASSINI_HEADERS_TGZ}"; \
+    cp "${TMPROOT}/src/share/cassini-headers/csr_defs.json" "$TMPROOT/usr/share/cassini-headers/"; \
+    cp -r "${TMPROOT}"/src/include/* "$TMPROOT/usr/include/"; \
+    cd /debs; \
+    fpm -s dir -t deb -n shs-cassini-headers -v "${CASSINI_HEADERS_VERSION}" --description "NAIF-$(date -u +'%Y%m%d%H%M%S')" --prefix / -C "$TMPROOT" usr/include usr/share/cassini-headers; \
+    rm -rf "$TMPROOT"; \
+    dpkg -i "shs-cassini-headers_${CASSINI_HEADERS_VERSION}_amd64.deb";
+
+RUN set -ue; \
+    #
+    # CXI headers
+    #
+    TMPROOT=$(mktemp -d); \
+    install -d "$TMPROOT/src" "$TMPROOT/usr/include"; \
+    git clone "${CXI_HEADERS_CLONE_URL}" "$TMPROOT/src/shs-cxi-driver"; \
+    cd "$TMPROOT/src/shs-cxi-driver"; \
+    git checkout "${CXI_HEADERS_GIT_COMMIT}"; \
+    cp -r include/* "$TMPROOT/usr/include/"; \
+    cd /debs; \
+    fpm -s dir -t deb -n shs-cxi-driver-dev -v ${CXI_HEADERS_VERSION} --description "NAIF-$(date -u +'%Y%m%d%H%M%S')" --prefix / -C "$TMPROOT" usr/include; \
+    rm -rf "$TMPROOT"; \
+    dpkg -i shs-cxi-driver-dev_${CXI_HEADERS_VERSION}_amd64.deb;
+
+RUN set -ue; \
+    #
+    # Libcxi
+    #
+    TMPROOT=$(mktemp -d); \
+    install -d "$TMPROOT/src" "$TMPROOT/usr"; \
+    git clone ${LIBCXI_CLONE_URL} "$TMPROOT/src/shs-libcxi"; \
+    cd "$TMPROOT/src/shs-libcxi"; \
+    git checkout "${LIBCXI_GIT_COMMIT}"; \
+    ./autogen.sh; \
+    ./configure --with-udevrulesdir=/usr/lib/udev/rules.d --prefix=/usr --with-rocm=/opt/rocm ; \
+    make -j "$(nproc)" DESTDIR="$TMPROOT" install; \
+    cd /debs; \
+    fpm -s dir -t deb -n libcxi -v ${LIBCXI_VERSION} --description "NAIF-$(date -u +'%Y%m%d%H%M%S')" --prefix / -C "$TMPROOT" usr; \
+    rm -rf "$TMPROOT"; \
+    dpkg -i libcxi_${LIBCXI_VERSION}_amd64.deb; # TODO: check arm64
+
+RUN set -ue; \
+    #
+    # Libfabric
+    #
+    TMPROOT=$(mktemp -d); \
+    install -d "$TMPROOT/src" "$TMPROOT/usr"; \
+    git clone ${LIBFABRIC_CLONE_URL} "$TMPROOT/src/libfabric"; \
+    cd "$TMPROOT/src/libfabric"; \
+    git checkout "${LIBFABRIC_GIT_COMMIT}"; \
+    ./autogen.sh; \
+    ./configure LDFLAGS=-Wl,--build-id --prefix=/usr --enable-only --enable-rxm  --enable-rxd --enable-shm --enable-hook_hmem --enable-dmabuf_peer_mem --enable-cxi=/usr --enable-lnx --enable-xpmem=/usr --with-rocr=/opt/rocm ; \
+    make -j "$(nproc)" DESTDIR="$TMPROOT" install; \
+    cd /debs; \
+    fpm -s dir -t deb -n libfabric -v ${LIBFABRIC_VERSION} --description "NAIF-$(date -u +'%Y%m%d%H%M%S')" --prefix / -C "$TMPROOT" usr; \
+    rm -rf "$TMPROOT"; \
+    dpkg -i libfabric_${LIBFABRIC_VERSION}_amd64.deb
+
+FROM $BASE_IMAGE:$BASE_IMAGE_TAG
+
+COPY --from=builder /debs/*.deb /tmp/debs/
+
+RUN set -ue; \
+    apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
+        autoconf \
+        libconfig-dev \
+        libcurl4-openssl-dev \
+        libfuse-dev \
+        libjson-c-dev \
+        libnl-3-dev \
+        libsensors-dev \
+        libtool \
+        libuv1-dev \
+        libyaml-dev \
+        pkg-config \
+        strace; \
+    dpkg -i /tmp/debs/*.deb; \
+    rm -rf /tmp/debs; \
+    ln -s /usr/lib/x86_64-linux-gnu/libcurl.so.4.8.0 /usr/lib64/libcurl.so.4
+
+CMD ["/bin/bash"]
