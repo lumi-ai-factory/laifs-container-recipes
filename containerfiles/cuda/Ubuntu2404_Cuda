@@ -1,0 +1,54 @@
+@@ BUILD_ARGS @@
+
+FROM $BASE_IMAGE:$BASE_IMAGE_TAG
+
+# TODO: trim CUDA Toolkit ---> individual .deb packages, we don't need whole lot!
+# NOTE: remains to be decided by senior NRIS ppl
+# TODO: add <cuda_version> related arguments (figure out naming conventions)
+ARG BASE_IMAGE
+ARG BASE_IMAGE_TAG
+
+# ubuntu basics
+
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+      build-essential \
+      file \
+      git \
+      kmod \
+      less \
+      libelf1 \
+      neovim \
+      python3-dev \
+      python3-packaging \
+      python3-pip \
+      python3-venv \
+      sudo \
+      wget \
+  && apt-get clean  \
+  && rm -rf /var/lib/apt/lists/*;
+
+# CUDA Toolkit
+# TODO: add nvcc path etc to env var PATH: ENV PATH=$PATH:</usr/local/cuda-12.8/bin/
+
+RUN  wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/sbsa/cuda-ubuntu2404.pin \
+  && mv cuda-ubuntu2404.pin /etc/apt/preferences.d/cuda-repository-pin-600 \
+  && wget https://developer.download.nvidia.com/compute/cuda/12.8.0/local_installers/cuda-repo-ubuntu2404-12-8-local_12.8.0-570.86.10-1_arm64.deb \
+  && dpkg -i cuda-repo-ubuntu2404-12-8-local_12.8.0-570.86.10-1_arm64.deb \
+  && cp /var/cuda-repo-ubuntu2404-12-8-local/cuda-*-keyring.gpg /usr/share/keyrings/ \
+  && apt-get update \
+  && apt-get -y install cuda-toolkit-12-8
+
+  # NOTE: CUDA Toolkit most likely contains libraries we don't really need for base
+  #       but for the time being, keeping it ---> TODO: move to individual .deb installations 
+  #       https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/sbsa/
+  # NOTE: for installing CUDA Toolkit, using:
+  # https://developer.nvidia.com/cuda-12-8-0-download-archive?target_os=Linux&target_arch=arm64-sbsa&Compilation=Native&Distribution=Ubuntu&target_version=24.04&target_type=deb_local
+#wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/sbsa/cuda-ubuntu2404.pin
+#sudo mv cuda-ubuntu2404.pin /etc/apt/preferences.d/cuda-repository-pin-600
+#wget https://developer.download.nvidia.com/compute/cuda/12.8.0/local_installers/cuda-repo-ubuntu2404-12-8-local_12.8.0-570.86.10-1_arm64.deb
+#sudo dpkg -i cuda-repo-ubuntu2404-12-8-local_12.8.0-570.86.10-1_arm64.deb
+#sudo cp /var/cuda-repo-ubuntu2404-12-8-local/cuda-*-keyring.gpg /usr/share/keyrings/
+#sudo apt-get update
+#sudo apt-get -y install cuda-toolkit-12-8
+  
+  # linux-headers-6.4.0-150600.23.25_15.0.9-cray_shasta_c # hard-coded! ---> $(uname -r) from Olivia
