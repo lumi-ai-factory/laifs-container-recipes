@@ -124,19 +124,26 @@ export_image() {
     sha256sum "$OCI_FILE" "$SIF_FILE" | log
 }
 
+
 parse_step() {
     local STEP_JSON=$1
     local -n STEP_DATA=$2
 
     STEP_DATA["BASE_IMAGE"]=$(jq -r '.base' <<< "$STEP_JSON")
-    STEP_DATA["FORCE_NEW"]=$(jq -r '.force // "false"' <<< "$STEP_JSON")
     STEP_DATA["IMAGE_NAME"]=$(jq -r '.name' <<< "$STEP_JSON")
+    STEP_DATA["IMAGE_DESCRIPTION"]=$(jq -r '.desc' <<< "$STEP_JSON")
     STEP_DATA["EXPORT_IMAGE_NAME"]=$(jq -r '.export.name // ""' <<< "$STEP_JSON")
     STEP_DATA["EXPORT_SIF_DEF"]=$(jq -r '.export.def // ""' <<< "$STEP_JSON")
     STEP_DATA["IMAGE_TAG"]="$(date +'%Y%m%d_%H%M%S')"
     STEP_DATA["BASE_IMAGE_TAG"]="$(get_image_tag ${STEP_DATA['BASE_IMAGE']})"
     STEP_DATA["BASE_IMAGE"]="$(get_image_name ${STEP_DATA["BASE_IMAGE"]})"
     STEP_DATA["EXISTING_IMAGE"]="$(get_latest_image ${STEP_DATA["IMAGE_NAME"]})"
+
+    if [[ ${LAIFS_CONTAINER_RECIPES_FORCE_BUILD} == "true" ]]; then
+        STEP_DATA["FORCE_NEW"]="true"
+    else
+        STEP_DATA["FORCE_NEW"]=$(jq -r '.force // "false"' <<< "$STEP_JSON")
+    fi
 
     local BASE_ARGS=$(printf "ARG BASE_IMAGE=%s\nARG BASE_IMAGE_TAG=%s" ${STEP_DATA["BASE_IMAGE"]} ${STEP_DATA["BASE_IMAGE_TAG"]})
     local ENV_ARGS=$(jq -r '.env.[]|split("=")|"ARG \(.[0])=\(.[1])"' <<< "$STEP_JSON")
