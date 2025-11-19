@@ -49,3 +49,8 @@ RUN set -ue; \
   apt-get -y --no-install-recommends install ${EXTRA_PACKAGES}; \
   apt clean ;\
   rm -rf /var/lib/apt/lists/*; \
+  #
+  # Add SBOM
+  #
+  apt_json="$(dpkg-query -W -f='${Package}\t${Version}\n' | jq -R -s 'split("\n")[:-1] | map(split("\t") | {name: .[0], version: .[1]})')"; \
+  jq -n --argjson apt "$apt_json"  '{apt: $apt}' > /.sbom.json;

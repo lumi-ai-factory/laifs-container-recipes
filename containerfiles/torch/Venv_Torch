@@ -11,11 +11,20 @@ ARG TORCH_URL
 ARG XFORMERS_URL
 
 RUN set -ue; \
+  #
+  # Create new venv and install Pytorch
+  #
   python3.12 -m venv /opt/venv; \
   . /opt/venv/bin/activate; \
   pip install $PYTORCH_TRITON_URL $TORCHAUDIO_URL $TORCHVISION_URL $TORCH_URL $XFORMERS_URL; \
   pip cache purge; \
-  echo "source /opt/venv/bin/activate" >> ~/.bashrc;
+  echo "source /opt/venv/bin/activate" >> ~/.bashrc; \
+  #
+  # Add SBOM
+  #
+  apt_json="$(dpkg-query -W -f='${Package}\t${Version}\n' | jq -R -s 'split("\n")[:-1] | map(split("\t") | {name: .[0], version: .[1]})')"; \
+  pip_json="$(pip list --format=json)"; \
+  jq -n --argjson apt "$apt_json"  --argjson pip "$pip_json" '{apt: $apt, pip: $pip}' > /.sbom.json;
 
 ENV PATH="/opt/venv/bin:$PATH"
 

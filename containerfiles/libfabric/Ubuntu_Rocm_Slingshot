@@ -143,6 +143,9 @@ FROM $BASE_IMAGE:$BASE_IMAGE_TAG
 COPY --from=builder /debs/*.deb /tmp/debs/
 
 RUN set -ue; \
+    #
+    # Install the built Ubuntu packages and  dependencies
+    #
     apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
         autoconf \
         libconfig-dev \
@@ -158,6 +161,11 @@ RUN set -ue; \
         strace; \
     dpkg -i /tmp/debs/*.deb; \
     rm -rf /tmp/debs; \
-    ln -s /usr/lib/x86_64-linux-gnu/libcurl.so.4.8.0 /usr/lib64/libcurl.so.4
+    ln -s /usr/lib/x86_64-linux-gnu/libcurl.so.4.8.0 /usr/lib64/libcurl.so.4; \
+    #
+    # Add SBOM
+    #
+    apt_json="$(dpkg-query -W -f='${Package}\t${Version}\n' | jq -R -s 'split("\n")[:-1] | map(split("\t") | {name: .[0], version: .[1]})')"; \
+    jq -n --argjson apt "$apt_json"  '{apt: $apt}' > /.sbom.json;
 
 CMD ["/bin/bash"]

@@ -38,7 +38,7 @@ RUN set -ue; \
   #
   # revisit:
   #
-  #   Even with the various GPU arch options set, we still get these type of complaints from 
+  #   Even with the various GPU arch options set, we still get these type of complaints from
   #   various HIP build steps: "GPU_TARGETS was not set, and system GPU detection was unsuccsesful"
   #   This is reverted at the last RUN step at the bottom of this file. Lets get rid ot this later.
   #
@@ -181,6 +181,7 @@ RUN set -ue; \
   test -f /opt/rocm/lib/llvm/bin/amdgpu-arch.really || { echo "error: amdgpu-arch.really is missing"; false; }; \
   rm /opt/rocm/lib/llvm/bin/amdgpu-arch; \
   mv /opt/rocm/lib/llvm/bin/amdgpu-arch.really /opt/rocm/lib/llvm/bin/amdgpu-arch; \
+  # Add SBOM
   apt_json="$(dpkg-query -W -f='${Package}\t${Version}\n' | jq -R -s 'split("\n")[:-1] | map(split("\t") | {name: .[0], version: .[1]})')"; \
   pip_json="$(pip list --format=json)"; \
   jq -n --argjson apt "$apt_json"  --argjson pip "$pip_json" '{apt: $apt, pip: $pip}' > /.sbom.json;

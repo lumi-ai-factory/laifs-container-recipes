@@ -99,7 +99,7 @@ RUN set -ue; \
     TMPROOT=$(mktemp -d); \
     git clone "${RCCL_TESTS_REPO}" "$TMPROOT/rccl-tests"; \
     cd  "$TMPROOT/rccl-tests"; \
-    git checkout "${RCCL_TESTS_GIT_COMMIT}"; \
+    git checkout "${RCCL_TESTS_COMMIT}"; \
     make -j $(nproc) MPI=1 GPU_TARGETS="${RCCL_TESTS_GPU_ARCHS}"; \
     install -d "${TMPROOT}/libexec/rccl-tests"; \
     cp build/*_perf "${TMPROOT}/libexec/rccl-tests"; \
@@ -119,8 +119,16 @@ FROM $BASE_IMAGE:$BASE_IMAGE_TAG
 COPY --from=builder /debs/*.deb /tmp/debs/
 
 RUN set -ue; \
+    #
+    # Install all built Ubuntu packages
+    #
     dpkg -i /tmp/debs/*.deb; \
-    rm -rf /tmp/debs;
+    rm -rf /tmp/debs; \
+    #
+    # Add SBOM
+    #
+    apt_json="$(dpkg-query -W -f='${Package}\t${Version}\n' | jq -R -s 'split("\n")[:-1] | map(split("\t") | {name: .[0], version: .[1]})')"; \
+    jq -n --argjson apt "$apt_json"  '{apt: $apt}' > /.sbom.json;
 
 ENV MPIR_CVAR_CH4_OFI_ENABLE_HMEM=1
 ENV MPIR_CVAR_CH4_OFI_ENABLE_MR_HMEM=1
