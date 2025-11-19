@@ -2,7 +2,9 @@
 
 FROM $BASE_IMAGE:$BASE_IMAGE_TAG AS builder
 
+ARG CASSINI_HEADERS_SOURCE
 ARG CASSINI_HEADERS_VERSION
+
 ARG CXI_HEADERS_CLONE_URL
 ARG CXI_HEADERS_GIT_COMMIT
 ARG CXI_HEADERS_VERSION
@@ -76,7 +78,7 @@ RUN set -ue; \
     #
     TMPROOT=$(mktemp -d); \
     CASSINI_HEADERS_TGZ="shs-${CASSINI_HEADERS_VERSION}.tar.gz"; \
-    CASSINI_HEADERS_URL="https://github.com/HewlettPackard/shs-cassini-headers/archive/refs/tags/release/${CASSINI_HEADERS_TGZ}"; \
+    CASSINI_HEADERS_URL="${CASSINI_HEADERS_SOURCE}/archive/refs/tags/release/${CASSINI_HEADERS_TGZ}"; \
     install -d "$TMPROOT/usr/share/cassini-headers" "$TMPROOT/usr/include" "$TMPROOT/src"; \
     curl -L -o "${TMPROOT}/src/${CASSINI_HEADERS_TGZ}" "${CASSINI_HEADERS_URL}"; \
     tar --transform='s|shs-cassini-headers-release-shs-[^/]*||' -C "${TMPROOT}/src" -xzf "${TMPROOT}/src/${CASSINI_HEADERS_TGZ}"; \

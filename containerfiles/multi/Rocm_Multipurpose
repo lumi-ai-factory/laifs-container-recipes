@@ -25,6 +25,7 @@ ARG FLASH_ATTENTION_REPO_URL
 ARG MULTI_IMAGE_GPU_ARCH
 
 ARG VLLM_COMMIT
+ARG VLLM_REPO
 
 ARG WRETAG_URL
 
@@ -133,7 +134,7 @@ RUN set -ue; \
 #
 RUN set -ue; \
   . /opt/venv/bin/activate; \
-  git clone https://github.com/vllm-project/vllm.git /opt/src/vllm; \
+  git clone ${VLLM_REPO} /opt/src/vllm; \
   cd /opt/rocm/share/amd_smi; \
   pip install --no-cache-dir .; \
   cd /opt/src/vllm; \

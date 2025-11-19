@@ -3,13 +3,21 @@
 FROM $BASE_IMAGE:$BASE_IMAGE_TAG AS builder
 
 ARG AWS_OFI_RCCL_COMMIT
+ARG AWS_OFI_RCCL_REPO
 ARG AWS_OFI_RCCL_VERSION
+
 ARG BASE_IMAGE
 ARG BASE_IMAGE_TAG
+
+ARG MPICH_SOURCE
 ARG MPICH_VERSION
+
+ARG OSU_SOURCE
 ARG OSU_VERSION
-ARG RCCL_TESTS_GIT_COMMIT
+
+ARG RCCL_TESTS_COMMIT
 ARG RCCL_TESTS_GPU_ARCHS
+ARG RCCL_TESTS_REPO
 ARG RCCL_TESTS_VERSION
 
 
@@ -32,7 +40,7 @@ RUN set -ue; \
 RUN set -ue; \
   TMPROOT=$(mktemp -d); \
   MPICH_TGZ="mpich-${MPICH_VERSION}.tar.gz"; \
-  MPICH_URL="http://www.mpich.org/static/downloads/${MPICH_VERSION}/${MPICH_TGZ}"; \
+  MPICH_URL="${MPICH_SOURCE}/${MPICH_VERSION}/${MPICH_TGZ}"; \
   install -d "$TMPROOT/usr" "$TMPROOT/src"; \
   curl -L -o "${TMPROOT}/src/${MPICH_TGZ}" "${MPICH_URL}"; \
   tar -C "${TMPROOT}/src" -xf "${TMPROOT}/src/${MPICH_TGZ}" --no-same-owner; \
@@ -52,7 +60,7 @@ RUN set -ue; \
 RUN set -ue; \
     TMPROOT=$(mktemp -d); \
     OSU_TGZ="osu-micro-benchmarks-${OSU_VERSION}.tar.gz"; \
-    OSU_URL="https://mvapich.cse.ohio-state.edu/download/mvapich/${OSU_TGZ}"; \
+    OSU_URL="${OSU_SOURCE}/${OSU_TGZ}"; \
     install -d "$TMPROOT/libexec" "$TMPROOT/src"; \
     curl -L -o "${TMPROOT}/src/${OSU_TGZ}" "${OSU_URL}"; \
     tar -C "${TMPROOT}/src" -xf "${TMPROOT}/src/${OSU_TGZ}" --no-same-owner; \
@@ -71,7 +79,7 @@ RUN set -ue; \
 
 RUN set -ue; \
     TMPROOT=$(mktemp -d); \
-    git clone https://github.com/ROCm/aws-ofi-rccl "$TMPROOT/aws-ofi-rccl"; \
+    git clone "${AWS_OFI_RCCL_REPO}" "$TMPROOT/aws-ofi-rccl"; \
     cd  "$TMPROOT/aws-ofi-rccl"; \
     git checkout "${AWS_OFI_RCCL_COMMIT}"; \
     ./autogen.sh; \
@@ -89,7 +97,7 @@ RUN set -ue; \
 
 RUN set -ue; \
     TMPROOT=$(mktemp -d); \
-    git clone "https://github.com/ROCm/rccl-tests" "$TMPROOT/rccl-tests"; \
+    git clone "${RCCL_TESTS_REPO}" "$TMPROOT/rccl-tests"; \
     cd  "$TMPROOT/rccl-tests"; \
     git checkout "${RCCL_TESTS_GIT_COMMIT}"; \
     make -j $(nproc) MPI=1 GPU_TARGETS="${RCCL_TESTS_GPU_ARCHS}"; \

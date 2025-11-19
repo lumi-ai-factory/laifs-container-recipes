@@ -1,16 +1,78 @@
 name: laifs-lumi-multi-recipe
+desc: >
+  This collection of container images is developed by the
+  [LUMI AI Factory](https://lumi-ai-factory.eu/) and is specifically
+  designed for use on the LUMI supercomputer. The images are structured
+  in layers, with each successive image building upon the previous one,
+  resulting in a fully featured ML/AI environment based on PyTorch.
+
+  The images are built using open-source recipes available in the
+  [laifs-container-recipes](https://github.com/lumi-ai-factory/laifs-container-recipes)
+  GitHub repository. All build artifacts—including container files,
+  build logs, and the resulting images—are publicly accessible.
+
+  The images can be used directly on LUMI, they can be adapted by user for
+  their custom needs, or deployed in other systems.
+
+  For transparency and ease of access, all intermediate images are published
+  to Docker Hub, and the final container files are made available directly
+  on LUMI as Apptainer/Singularity images under `/appl/local/laifs/containers`.
+
 steps:
   - name: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}
+    base: ubuntu:{{ubuntu_tag}}
+    desc: >
+      **Overview**
+      This is a base image building on {{ubuntu_release}} upstream image with
+      ROCm software from AMD's official Ubuntu repositories installed on top
+      of it. The image also adds a few commonly used extra Ubuntu packages.
+
+      **Details**
+      Upstream Ubuntu tag: {{ubuntu_tag}}
+      AMD ROCm repository: {{rocm_repo}}
+      AMD ROCm release: {{rocm_version}}
+      Extra Ubuntu packages:
+        {% for pkg in extra_packages -%}
+        - {{pkg}}
+        {% endfor %}
+
     template: rocm/Ubuntu2404_Rocm6
     force: False
-    base: ubuntu:{{ubuntu_tag}}
     env:
-      - AMDGPU_VERSION={{amd_gpu_version}}
+      - AMDGPU_REPO={{amdgpu_repo}}
+      - AMDGPU_VERSION={{amdgpu_version}}
+      - ROCM_REPO={{rocm_repo}}
       - ROCM_VERSION={{rocm_version}}
       - EXTRA_LOCALES="{{extra_locales | join(' ')}}"
       - EXTRA_PACKAGES="{{extra_packages | join(' ')}}"
+
   - name: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}
     base: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}
+    desc: >
+      **Overview**
+      This image builds on top of ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}} and adds
+      locally built Ubuntu packages to enable xpmem and libfabric functionality for
+      HPE's Slingshot network. It serves as a starting point for adding MPI capability
+      in images built on top of it.
+
+      **Details**
+      Base image: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}
+      Components:
+        - xpmem:
+          Version: {{xpmem_version}}
+          Source: {{xpmem_clone_url}} (commit: {{xpmem_git_commit}})
+        - Cassini headers:
+          Version: {{cassini_headers_version}}
+          Source: {{cassini_headers_source}} (release tgz for {{cassini_headers_version}})
+        - CXI headers:
+          Version: {{cxi_headers_version}}
+          Source: {{cxi_headers_clone_url}} (commit: {{cxi_headers_git_commit}})
+        - libcxi:
+          Version: {{libcxi_version}}
+          Source: {{libcxi_clone_url}} (commit: {{libcxi_git_commit}})
+        - Libfabric:
+          Version: {{libfabric_version}}
+          Source: {{libfabric_clone_url}} (commit: {{libfabric_git_commit}})
     template: libfabric/Ubuntu_Rocm_Slingshot
     force: False
     env:
@@ -21,6 +83,7 @@ steps:
       - XPMEM_KERNEL_GENERIC_SRC={{xpmem_kernel_generic_src}}
       - XPMEM_KERNEL_ID={{xpmem_kernel_id}}
       #
+      - CASSINI_HEADERS_SOURCE={{cassini_headers_source}}
       - CASSINI_HEADERS_VERSION={{cassini_headers_version}}
       #
       - CXI_HEADERS_VERSION={{cxi_headers_version}}
@@ -36,22 +99,69 @@ steps:
       - LIBFABRIC_GIT_COMMIT={{libfabric_git_commit}}
     export:
       name: "laifs-lumi-libfabric-{{libfabric_version}}"
+
   - name: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}-mpich-{{mpich_version}}
     base: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}
+    desc: >
+      **Overview**
+      This image builds on top of ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}
+      and adds MPI with GPU support based on MPICH. It also adds the AWS-OFI-RCCL plugin to enable RCCL
+      communication over the interconnect network. Rccl-tests and the OSU micro-benchmarks suite
+      enables performance and functionality validation.
+
+      **Details**
+      Upstream base image: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}
+      MPI implementation: MPICH {{mpich_version}}
+      Components:
+        - MPICH:
+          Version: {{mpich_version}}
+          Source: {{mpich_source}}
+        - AWS-OFI-RCCL plugin:
+          Version: {{aws_ofi_rccl_version}}
+          Source: {{aws_ofi_rccl_repo}} (commit: {{aws_ofi_rccl_commit}})
+        - RCCL tests:
+          Version: {{rccl_tests_version}}
+          Source: {{rccl_tests_repo}} (commit: {{rccl_tests_commit}})
+          GPU architectures: {{rccl_tests_gpu_archs}}
+        - OSU micro-benchmarks:
+          Version: {{osu_version}}
+          Source: {{osu_source}}
     template: mpich/Ubuntu_Rocm_Slingshot
     force: False
     env:
-      - MPICH_VERSION={{mpich_version}}
-      - OSU_VERSION={{osu_version}}
-      - AWS_OFI_RCCL_VERSION={{aws_ofi_rccl_version}}
       - AWS_OFI_RCCL_COMMIT={{aws_ofi_rccl_commit}}
-      - RCCL_TESTS_GIT_COMMIT={{rccl_tests_git_commit}}
+      - AWS_OFI_RCCL_REPO={{aws_ofi_rccl_repo}}
+      - AWS_OFI_RCCL_VERSION={{aws_ofi_rccl_version}}
+      #
+      - MPICH_SOURCE={{mpich_source}}
+      - MPICH_VERSION={{mpich_version}}
+      #
+      - OSU_SOURCE={{osu_source}}
+      - OSU_VERSION={{osu_version}}
+      #
+      - RCCL_TESTS_COMMIT={{rccl_tests_commit}}
       - RCCL_TESTS_GPU_ARCHS={{rccl_tests_gpu_archs}}
+      - RCCL_TESTS_REPO={{rccl_tests_repo}}
       - RCCL_TESTS_VERSION={{rccl_tests_version}}
     export:
       name: "laifs-lumi-mpich-{{mpich_version}}"
+
   - name: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}-mpich-{{mpich_version}}-torch-{{torch_version}}
     base: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}-mpich-{{mpich_version}}
+    desc: >
+      **Overview**
+      This image builds on top of ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}-mpich-{{mpich_version}}
+      and adds PyTorch with GPU support, along with few related packages from PyTorch's upstream repositories.
+
+      **Details**
+      Upstream base image: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}-mpich-{{mpich_version}}
+      PyTorch version: {{torch_version}}
+      PyTorch packages and sources:
+        - PyTorch: {{torch_url}}
+        - TorchVision: {{torchvision_url}}
+        - TorchAudio: {{torchaudio_url}}
+        - PyTorch Triton: {{pytorch_triton_url}}
+        - xFormers: {{xformers_url}}
     template: torch/Venv_Torch
     force: True
     env:
@@ -62,8 +172,33 @@ steps:
       - TORCHVISION_URL={{torchvision_url}}
       - TORCH_URL={{torch_url}}
       - XFORMERS_URL={{xformers_url}}
+
   - name: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}-mpich-{{mpich_version}}-torch-{{torch_version}}-multi
     base: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}-mpich-{{mpich_version}}-torch-{{torch_version}}
+    desc: >
+      **Overview**
+      This is a multipurpose ML/AI image building on ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}-mpich-{{mpich_version}}-torch-{{torch_version}}.
+      It includes a comprehensive selection of tools and libraries for machine learning and AI workloads and is optmized to run on LUMI.
+
+      **Details**
+      Upstream base image: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}-mpich-{{mpich_version}}-torch-{{torch_version}}
+      GPU architectures: {{multi_image_gpu_arch}}
+      Components:
+        - Apex:
+          Source: {{apex_git_repo}} (commit: {{apex_git_commit}})
+        - bitsandbytes:
+          Source: {{bitsandbytes_repo_url}} (commit: {{bitsandbytes_commit}})
+        - Causal Conv1D:
+          Source: {{causal_conv1d_repo}} (commit: {{causal_conv1d_commit}})
+        - DeepSpeed:
+          Version: {{deepspeed_version}}
+        - Flash Attention:
+          Source: {{flash_attention_repo_url}} (commit: {{flash_attention_repo_commit}})
+        - vLLM:
+          Commit: {{vllm_commit}}
+      Additional packages:
+        - APT: {{extra_apt_packages | join(', ')}}
+        - pip: {{extra_pip_packages | join(', ')}}
     template: multi/Rocm_Multipurpose
     force: False
     env:
@@ -87,6 +222,7 @@ steps:
       - MULTI_IMAGE_GPU_ARCH={{multi_image_gpu_arch}}
       #
       - VLLM_COMMIT={{vllm_commit}}
+      - VLLM_REPO={{vllm_repo}}
       #
       - WRETAG_URL={{wretag_url}}
       #

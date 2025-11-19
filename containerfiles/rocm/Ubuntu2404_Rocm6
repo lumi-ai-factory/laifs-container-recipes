@@ -5,7 +5,10 @@ FROM $BASE_IMAGE:$BASE_IMAGE_TAG
 ARG BASE_IMAGE
 ARG BASE_IMAGE_TAG
 
+ARG AMDGPU_REPO
 ARG AMDGPU_VERSION
+
+ARG ROCM_REPO
 ARG ROCM_VERSION
 
 ARG EXTRA_LOCALES
@@ -27,10 +30,10 @@ RUN set -ue; \
   #
   /usr/bin/echo -e 'Package: *\nPin: release o=repo.radeon.com\nPin-Priority: 800\n' > /etc/apt/preferences.d/rocm-pin-prio-800; \
   #
-  curl -sL https://repo.radeon.com/rocm/rocm.gpg.key | apt-key add -; \
+  curl -sL ${ROCM_REPO}/rocm.gpg.key | apt-key add -; \
   #
-  printf "deb [arch=amd64] https://repo.radeon.com/rocm/apt/${ROCM_VERSION}/ noble main\n" | tee --append /etc/apt/sources.list.d/rocm.list; \
-  printf "deb [arch=amd64] https://repo.radeon.com/amdgpu/${AMDGPU_VERSION}/ubuntu noble main\n" | tee /etc/apt/sources.list.d/amdgpu.list; \
+  printf "deb [arch=amd64] ${ROCM_REPO}/apt/${ROCM_VERSION}/ noble main\n" | tee --append /etc/apt/sources.list.d/rocm.list; \
+  printf "deb [arch=amd64] ${AMDGPU_REPO}/${AMDGPU_VERSION}/ubuntu noble main\n" | tee /etc/apt/sources.list.d/amdgpu.list; \
   #
   # Install ROCm packages
   #
