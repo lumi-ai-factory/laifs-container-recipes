@@ -105,6 +105,7 @@ flash_attention_repo_url: "https://github.com/ROCm/flash-attention"
 #
 multi_image_gpu_arch: "gfx90a"
 #
+vllm_version: "v0.11.0" #  revisit: find a better way to keep these in sync
 vllm_commit: "b8b302c" #  b8b302c is for commit id "tags/v0.11.0"
 vllm_repo: "https://github.com/vllm-project/vllm"
 #
