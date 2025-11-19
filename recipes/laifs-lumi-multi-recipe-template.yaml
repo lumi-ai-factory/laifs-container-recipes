@@ -43,8 +43,8 @@ steps:
     env:
       - MPICH_VERSION={{mpich_version}}
       - OSU_VERSION={{osu_version}}
-      - AWS_OFI_NCCL_VERSION={{aws_ofi_nccl_version}}
-      - AWS_OFI_NCCL_COMMIT={{aws_ofi_nccl_commit}}
+      - AWS_OFI_RCCL_VERSION={{aws_ofi_rccl_version}}
+      - AWS_OFI_RCCL_COMMIT={{aws_ofi_rccl_commit}}
       - RCCL_TESTS_GIT_COMMIT={{rccl_tests_git_commit}}
       - RCCL_TESTS_GPU_ARCHS={{rccl_tests_gpu_archs}}
       - RCCL_TESTS_VERSION={{rccl_tests_version}}

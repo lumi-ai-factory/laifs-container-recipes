@@ -55,8 +55,8 @@ xpmem_kernel_id: "linux-headers-5.15.0-160-generic"
 #
 # ubuntu-rocm-libfabric-mpich
 #
-aws_ofi_nccl_commit: "790ea4a" # commit 790ea4a matches tag v1.17.2
-aws_ofi_nccl_version: "1.17.2"
+aws_ofi_rccl_commit: "6dae1b0"
+aws_ofi_rccl_version: "1.4.0-1"
 #
 mpich_version: "4.3.2"
 #

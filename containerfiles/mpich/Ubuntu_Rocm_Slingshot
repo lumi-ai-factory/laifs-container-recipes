@@ -2,8 +2,8 @@
 
 FROM $BASE_IMAGE:$BASE_IMAGE_TAG AS builder
 
-ARG AWS_OFI_NCCL_COMMIT
-ARG AWS_OFI_NCCL_VERSION
+ARG AWS_OFI_RCCL_COMMIT
+ARG AWS_OFI_RCCL_VERSION
 ARG BASE_IMAGE
 ARG BASE_IMAGE_TAG
 ARG MPICH_VERSION
@@ -71,16 +71,16 @@ RUN set -ue; \
 
 RUN set -ue; \
     TMPROOT=$(mktemp -d); \
-    git clone https://github.com/aws/aws-ofi-nccl "$TMPROOT/aws-ofi-nccl"; \
-    cd  "$TMPROOT/aws-ofi-nccl"; \
-    git checkout "${AWS_OFI_NCCL_COMMIT}"; \
+    git clone https://github.com/ROCm/aws-ofi-rccl "$TMPROOT/aws-ofi-rccl"; \
+    cd  "$TMPROOT/aws-ofi-rccl"; \
+    git checkout "${AWS_OFI_RCCL_COMMIT}"; \
     ./autogen.sh; \
-    ./configure --with-libfabric=/usr --with-rocm=/opt/rocm --with-mpi=/usr --prefix=/usr; \
+    ./configure --with-libfabric=/usr --enable-trace --disable-tests --prefix=/usr; \
     make -j $(nproc) DESTDIR="$TMPROOT" install; \
     cd /debs; \
-    fpm -s dir -t deb -n aws-ofi-nccl -v "${AWS_OFI_NCCL_VERSION}" --description "LUMI-AIF-$(date -u +'%Y%m%d%H%M%S')" --prefix / -C "$TMPROOT"  usr/lib; \
+    fpm -s dir -t deb -n aws-ofi-rccl -v "${AWS_OFI_RCCL_VERSION}" --description "LUMI-AIF-$(date -u +'%Y%m%d%H%M%S')" --prefix / -C "$TMPROOT"  usr/lib; \
     rm -rf "$TMPROOT"; \
-    dpkg -i "aws-ofi-nccl_${AWS_OFI_NCCL_VERSION}_amd64.deb";
+    dpkg -i "aws-ofi-rccl_${AWS_OFI_RCCL_VERSION}_amd64.deb";
 
 
 #
