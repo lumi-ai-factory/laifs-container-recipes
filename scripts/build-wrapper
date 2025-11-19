@@ -40,7 +40,10 @@ main() {
 
     # Log git status
     echo "$(date +'%Y%m%d %H:%M:%S'): git working dir status:" | tee -a $build_log
-    git status | tee -a $build_log
+    echo "Git commit: $(git rev-parse --short HEAD)" | tee -a $build_log
+    echo "Modified files: $(git status --porcelain)" | tee -a $build_log
+    echo "Git diff:" | tee -a $build_log
+    git diff | tee -a $build_log
 
     # Build container image from recipe
     echo "$(date +'%Y%m%d %H:%M:%S'): starting build" | tee -a $build_log
