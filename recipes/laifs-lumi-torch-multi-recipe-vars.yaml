@@ -145,6 +145,9 @@ extra_pip_packages:
   - sentencepiece
   - tensorboard
   - ultralytics
+  # Training and fine-tuning
+  - trl
+  - peft
   # DeepSpeed OPS build
   - impi-devel
   - oneccl-devel
