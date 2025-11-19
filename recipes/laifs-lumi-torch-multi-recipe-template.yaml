@@ -1,4 +1,4 @@
-name: laifs-lumi-multi-recipe
+name: laifs-lumi-torch-multi
 desc: >
   This collection of container images is developed by the
   [LUMI AI Factory](https://lumi-ai-factory.eu/) and is specifically
@@ -227,7 +227,7 @@ steps:
       - WRETAG_URL={{wretag_url}}
       #
     export:
-      name: "laifs-lumi-multi"
+      name: "laifs-lumi-torch-multi"
       def: |
         %runscript
         if [ "${ROCR_USE_SLURM_LOCALID}" = 1 ] && [ -n "${SLURM_LOCALID}" ]; then
