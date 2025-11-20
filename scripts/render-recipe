@@ -1,0 +1,90 @@
+#!/usr/bin/env python3
+
+from io import StringIO
+from pathlib import Path
+from ruamel.yaml import YAML
+
+import argparse
+import hashlib
+import jinja2
+
+yaml = YAML()
+yaml.preserve_quotes = True
+
+def render_template_with_vars(template_file, variable_files):
+
+    context = {}
+    for variable_file in variable_files:
+        with open(variable_file, 'r') as yaml_file:
+            data = yaml.load(yaml_file) or {}
+            context.update(data)
+
+    template_loader = jinja2.FileSystemLoader(searchpath='./')
+    template_env = jinja2.Environment(loader=template_loader)
+    template = template_env.get_template(template_file)
+
+    return template.render(context)
+
+
+def get_parent_lineage(data, parent_name):
+    for step in data.get("steps", []):
+        if step.get("name") == parent_name:
+            return step.get("cf_lineage", "")
+    return None
+
+
+def add_containerfile_content(recipe, containerfile_root="containerfiles"):
+
+    data = yaml.load(recipe)
+
+    root = Path(containerfile_root)
+
+    for step in data.get("steps", []):
+        template_name = step["template"]
+        template_path = root / template_name
+        template_text = template_path.read_text()
+
+        build_args_text = f"ARG BASE_IMAGE={step['base']}\n"
+        build_args_text += "\n".join(
+            f"ARG {line}" for line in step.get("env", [])
+        )
+
+        containerfile_filled = template_text.replace("@@ BUILD_ARGS @@", build_args_text)
+        containerfile_fingerprint = hashlib.sha1(containerfile_filled.encode()).hexdigest()
+
+        parent_lineage = get_parent_lineage(data, step['base']) 
+        containerfile_lineage = (
+                f"{containerfile_fingerprint}"
+                if parent_lineage == None
+                else f"{parent_lineage},{containerfile_fingerprint}"
+        )
+
+        step["cf_hash"] = containerfile_fingerprint
+        step["cf_lineage"] = containerfile_lineage
+        step["cf_text"] = containerfile_filled
+
+
+    buf = StringIO()
+    yaml.dump(data, buf)
+
+    return buf.getvalue()
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='Render a container recipe template, variables file and Containerfiles into a build recipe.'
+    )
+    parser.add_argument('template_file', type=str, help='path to the Jinja2 recipe template file')
+    parser.add_argument('variable_files', type=str, nargs='+', help='list of paths to YAML files containing variables')
+
+    args = parser.parse_args()
+
+    rendered_template = render_template_with_vars(args.template_file, args.variable_files)
+    complete_recipe = add_containerfile_content(rendered_template)
+
+    print(complete_recipe)
+
+
+if __name__ == "__main__":
+    main()
+

@@ -169,6 +169,22 @@ steps:
       Base image: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}-mpich-{{mpich_version}}-torch-{{torch_version}}
       GPU architectures: {{multi_image_gpu_arch}}
       Components:
+        - {{ubuntu_release}} (from https://hub.docker.com/layers/library/ubuntu/{{ubuntu_tag}})
+        - AMD ROCm {{rocm_version}} (from {{rocm_repo}})
+        - xpmem (from {{xpmem_clone_url}} commit {{xpmem_git_commit}})
+        - Cassini headers (from {{cassini_headers_source}} release tgz for {{cassini_headers_version}})
+        - CXI headers (from {{cxi_headers_clone_url}} commit {{cxi_headers_git_commit}})
+        - libcxi (from {{libcxi_clone_url}} commit {{libcxi_git_commit}})
+        - Libfabric {{libfabric_version}} (from {{libfabric_clone_url}} commit {{libfabric_git_commit}})
+        - MPICH {{mpich_version}} (from {{mpich_source}} release tgz for {{mpich_version}})
+        - AWS-OFI-RCCL {{aws_ofi_rccl_version}} (from {{aws_ofi_rccl_repo}} commit {{aws_ofi_rccl_commit}})
+        - RCCL (from {{rccl_tests_repo}} commit {{rccl_tests_commit}})
+        - OSU micro-benchmarks {{osu_version}} (from {{osu_source}} release tgz for {{osu_version}})
+        - PyTorch {{torch_version}} (from {{torch_url}})
+        - TorchVision (from {{torchvision_url}})
+        - TorchAudio (from {{torchaudio_url}})
+        - PyTorch Triton (from {{pytorch_triton_url}})
+        - xFormers (from {{xformers_url}})
         - Apex (from {{apex_git_repo}} commit {{apex_git_commit}})
         - bitsandbytes (from {{bitsandbytes_repo_url}} commit {{bitsandbytes_commit}})
         - Causal Conv1D (from {{causal_conv1d_repo}} commit {{causal_conv1d_commit}})
