@@ -140,14 +140,16 @@ extra_pip_packages:
   - jupyter
   - llmcompressor
   - matplotlib
-  - pytorch_lightning
   - mpi4py
   - numba
   - numpy
   - pandas
+  - peft
+  - pytorch_lightning
   - scipy
   - sentencepiece
   - tensorboard
+  - trl
   - ultralytics
   # DeepSpeed OPS build
   - impi-devel
