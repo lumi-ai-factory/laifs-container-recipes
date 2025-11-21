@@ -9,8 +9,15 @@ main() {
     VARS=$2
 
     # Define build vars
-    TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-    NAME=$(scripts/j2render $TEMPLATE $VARS | yq . | jq -r '.name')
+    START_EPOCH=$(date +%s)
+    TIMESTAMP=$(date -d @${START_EPOCH} +"%Y%m%d_%H%M%S")
+    # One idea for build tag is epoch in hex, but not sure yet if it is
+    # just unnecessary mental acrobatics.
+    #
+    # BUILD_TAG=$(printf "%x" ${START_EPOCH})
+    #
+    BUILD_TAG=$TIMESTAMP
+    NAME=$(scripts/render-recipe $TEMPLATE $VARS | yq . | jq -r '.name')
 
     # Define build paths
     build_dir="builds/$NAME-${TIMESTAMP}"
@@ -21,6 +28,7 @@ main() {
     mkdir $build_dir
 
     # Log recipe template
+    echo "$(date +'%Y%m%d %H:%M:%S') starting build with tag $BUILD_TAG" | tee -a $build_log
     echo "$(date +'%Y%m%d %H:%M:%S') generating build recipe from template" | tee -a $build_log
     echo "$(date +'%Y%m%d %H:%M:%S') template $TEMPLATE:" | tee -a $build_log
     cat $TEMPLATE | tee -a $build_log
@@ -32,7 +40,7 @@ main() {
     echo | tee -a $build_log
 
     # Generate build recipe
-    scripts/j2render $TEMPLATE $VARS | tee $recipe_file
+    scripts/render-recipe $TEMPLATE $VARS | tee $recipe_file
 
     # Log generated recipe
     echo "$(date +'%Y%m%d %H:%M:%S'): generated recipe $recipe_file:" | tee -a $build_log
@@ -47,7 +55,7 @@ main() {
 
     # Build container image from recipe
     echo "$(date +'%Y%m%d %H:%M:%S'): starting build" | tee -a $build_log
-    scripts/build-images build $recipe_file $build_dir | tee -a $build_log
+    scripts/build-images build $recipe_file ${BUILD_TAG} $build_dir | tee -a $build_log
     echo "$(date +'%Y%m%d %H:%M:%S'): build completed" | tee -a $build_log
 }
 

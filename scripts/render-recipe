@@ -44,7 +44,14 @@ def add_containerfile_content(recipe, containerfile_root="containerfiles"):
         template_path = root / template_name
         template_text = template_path.read_text()
 
-        build_args_text = f"ARG BASE_IMAGE={step['base']}\n"
+        # This should only be the case for first-in-chain images, where their
+        # base image points to external image such as ubuntu:noble-123456
+        if ":" in step['base']:
+            image, tag = step['base'].split(":", 1)
+            build_args_text = f"ARG BASE_IMAGE={image}\n" + f"ARG BASE_IMAGE_TAG={tag}\n"
+        else:
+            build_args_text = f"ARG BASE_IMAGE={step['base']}\n"
+
         build_args_text += "\n".join(
             f"ARG {line}" for line in step.get("env", [])
         )

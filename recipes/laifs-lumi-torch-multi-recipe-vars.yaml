@@ -3,10 +3,13 @@
 #
 amdgpu_repo: "https://repo.radeon.com/amdgpu"
 amdgpu_version: "6.4.4"
+#
 rocm_repo: "https://repo.radeon.com/rocm"
 rocm_version: "6.4.4"
+#
 ubuntu_release: "Ubuntu 24.04 LTS"
 ubuntu_tag: "noble-20251013"
+#
 extra_locales:
   - cs_CZ.UTF-8
   - da_DK.UTF-8

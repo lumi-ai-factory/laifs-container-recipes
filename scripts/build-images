@@ -10,7 +10,7 @@ log() {
 }
 
 usage() {
-    echo "Usage build-images <build|dump|commands> <recipe file> [<target directory>]"
+    echo "Usage build-images <build|dump|commands> <recipe file> <build tag> <target directory>"
     exit 1
 }
 
@@ -48,44 +48,48 @@ get_existing_images() {
     podman images --format json | jq -r -c '.[] | select(.Names != null and .Names != []) | .Names[]'
 }
 
-get_latest_tag_for_image() {
-    local IMAGE_NAME=$1
 
-    grep -o -P "${IMAGE_NAME}:\d{8}_\d{6}" <<< "$(get_existing_images) " | sort -n | tail -1 | cut -d ':' -f2
-}
-
-get_latest_image() {
-    # If tags exist for an image, return the latest one.
-    # Otherwise return empty string.
+get_latest_image_by_lineage() {
+    # If image(s) with given name and lineage exists, return the name of the latest one.
     #
     local IMAGE_NAME=$1
-    local LATEST_TAG=$(get_latest_tag_for_image "$IMAGE_NAME")
+    local IMAGE_LINEAGE=$2
+    local TAG_PATTERN=":[0-9]{8}_[0-9]{6}$"
+    local JQ_COMMAND='
+        [.[]
+          | select(
+              (.Names[]? | test("/"+$name+$pattern))
+              and
+              (.Labels["cf_lineage"] == $lineage)
+            )
+        ]
+        | (max_by(.Created)?
+           | .Names // []
+           | sort
+           | map(select(test($pattern)))
+           | last // empty)
+    '
+
+    podman images --format json | jq -r --arg name "$IMAGE_NAME" --arg lineage "$IMAGE_LINEAGE" --arg pattern "$TAG_PATTERN" "$JQ_COMMAND"
 
     if [[ -n "$LATEST_TAG" ]]; then
         echo "${IMAGE_NAME}:${LATEST_TAG}"
-    else
-        echo ""
     fi
 }
 
+
 get_image_tag() {
-    # If the given image string has tag, return that, otherwise return the latest tag
-    # from existing images using get_latest_tag_for_image.
+    # If the given image string has tag part, print it.
     #
     local IMAGE="$1"
 
     if [[ "$IMAGE" == *:* ]]; then
         echo "${IMAGE#*:}"
-        return 0
     fi
-
-    local LATEST_TAG=$(get_latest_tag_for_image "$IMAGE")
-
-    echo "$LATEST_TAG"
 }
 
 get_image_name() {
-    # Print image name without tag
+    # Print image name without tag.
     #
     local IMAGE="$1"
 
@@ -129,15 +133,74 @@ parse_step() {
     local STEP_JSON=$1
     local -n STEP_DATA=$2
 
-    STEP_DATA["BASE_IMAGE"]=$(jq -r '.base' <<< "$STEP_JSON")
     STEP_DATA["IMAGE_NAME"]=$(jq -r '.name' <<< "$STEP_JSON")
+    STEP_DATA["IMAGE_TAG"]="${BUILD_TAG}"
     STEP_DATA["IMAGE_DESCRIPTION"]=$(jq -r '.desc' <<< "$STEP_JSON")
+
     STEP_DATA["EXPORT_IMAGE_NAME"]=$(jq -r '.export.name // ""' <<< "$STEP_JSON")
     STEP_DATA["EXPORT_SIF_DEF"]=$(jq -r '.export.def // ""' <<< "$STEP_JSON")
-    STEP_DATA["IMAGE_TAG"]="$(date +'%Y%m%d_%H%M%S')"
-    STEP_DATA["BASE_IMAGE_TAG"]="$(get_image_tag ${STEP_DATA['BASE_IMAGE']})"
-    STEP_DATA["BASE_IMAGE"]="$(get_image_name ${STEP_DATA["BASE_IMAGE"]})"
-    STEP_DATA["EXISTING_IMAGE"]="$(get_latest_image ${STEP_DATA["IMAGE_NAME"]})"
+
+    # The first image in the chain of images we build differs from all
+    # other images in that it has its base image fetched externally and
+    # not built locally. To make the builds as deterministic as possible,
+    # for now lets require the tag to be pre-determined, i.e. part of the
+    # rendered recipe. This also makes the tag be part of the cf_hash and
+    # cf_lineage fields. The value of cf_hash is the sha1 checksum of the
+    # rendered Containerfile used to build the image. The cf_lineage is
+    # comma separated list of Containerfile hashes of part images and our
+    # own hash. For the 'first-in-the-chain' images the cf_hash includes
+    # the base image tag (as it's pre-determined), but for all other images
+    # the tag is determined at build time. This means that for these images
+    # the cf_hash is the sha1 of the final Containerfile content without
+    # the line specifying the BASE_IMAGE_TAG. The 'first-in-the-chain'
+    # images also have another speciality, which is that their cf_lineage
+    # and cf_hash are the same as there's no parent Containerfile for them.
+
+    STEP_DATA["BASE_IMAGE"]=$(jq -r '.base' <<< "$STEP_JSON")
+    STEP_DATA["CF_HASH"]=$(jq -r '.cf_hash' <<< "$STEP_JSON")
+    STEP_DATA["CF_LINEAGE"]=$(jq -r '.cf_lineage' <<< "$STEP_JSON")
+    STEP_DATA["CF_TEMPLATE"]=$(jq -r '.template' <<< "$STEP_JSON")
+    STEP_DATA["CF_NAME"]=$(printf "%s-%s.Containerfile" ${STEP_DATA["IMAGE_NAME"]} ${STEP_DATA["IMAGE_TAG"]})
+
+    # revisit: cleanup needed, this looks messy
+    #
+    # Let's figure out if we are dealing with a first-in-the-chain image
+    if [[ "${STEP_DATA['CF_HASH']}" == "${STEP_DATA['CF_LINEAGE']}" ]]; then
+        STEP_DATA["FIRST_IN_CHAIN"]=1
+
+        # We have a external upstream parent such as "ubuntu:abc", then
+        # the tag is included in the cf_text and cf_hash.
+        STEP_DATA["BASE_IMAGE_TAG"]="$(get_image_tag ${STEP_DATA['BASE_IMAGE']})"
+        STEP_DATA["BASE_IMAGE"]="$(get_image_name ${STEP_DATA["BASE_IMAGE"]})"
+        # No need to add the base image tag here
+        STEP_DATA["CF_CONTENT"]=$(jq -r '.cf_text' <<< "$STEP_JSON")
+    else
+        STEP_DATA["FIRST_IN_CHAIN"]=0
+        # Deleting everything after the last comma gives us the parent cf_lineage.
+        STEP_DATA["CF_PARENT"]=$(sed 's/,[^,]*$//' <<< "${STEP_DATA['CF_LINEAGE']}")
+
+        local EXISTING_PARENT="$(get_latest_image_by_lineage ${STEP_DATA["IMAGE_NAME"]} ${STEP_DATA['CF_PARENT']})"
+
+        if [[ -n "$EXISTING_PARENT" ]]; then
+            # We may or may not be using this exact image. To be sure, we would need to peek at the previous steps.
+            # however, this is an issue only with the "commands" and "dump" options, as whether we build it or not,
+            # at this stage, we will get the correct parent with the "build" as the latest would be one we built.
+            STEP_DATA["BASE_IMAGE_TAG"]="$(get_image_tag ${EXISTING_PARENT})"
+        else
+            # It doesn't exist, it will be built and it will have the BUILD_TAG as its tag.
+            STEP_DATA["BASE_IMAGE_TAG"]="${BUILD_TAG}"
+        fi
+
+        local CF_HEADER="# Start of dynamically injected content"
+        local CF_EXTRA="ARG BASE_IMAGE_TAG=${STEP_DATA["BASE_IMAGE_TAG"]}"
+        local CF_FOOTER="# End of dynamically injected content"
+        local CF_TEXT=$(jq -r '.cf_text' <<< "$STEP_JSON")
+
+        STEP_DATA["CF_CONTENT"]="$CF_HEADER"$'\n'"$CF_EXTRA"$'\n'"$CF_FOOTER"$'\n'"$CF_TEXT"
+
+    fi
+
+    STEP_DATA["EXISTING_IMAGE"]="$(get_latest_image_by_lineage ${STEP_DATA["IMAGE_NAME"]} ${STEP_DATA['CF_LINEAGE']})"
 
     if [[ ${LAIFS_CONTAINER_RECIPES_FORCE_BUILD} == "true" ]]; then
         STEP_DATA["FORCE_NEW"]="true"
@@ -145,13 +208,8 @@ parse_step() {
         STEP_DATA["FORCE_NEW"]=$(jq -r '.force // "false"' <<< "$STEP_JSON")
     fi
 
-    local BASE_ARGS=$(printf "ARG BASE_IMAGE=%s\nARG BASE_IMAGE_TAG=%s" ${STEP_DATA["BASE_IMAGE"]} ${STEP_DATA["BASE_IMAGE_TAG"]})
     local ENV_ARGS=$(jq -r '.env.[]|split("=")|"ARG \(.[0])=\(.[1])"' <<< "$STEP_JSON")
     local BUILD_ARGS=$(printf "%s\n%s" "$BASE_ARGS" "$ENV_ARGS")
-
-    STEP_DATA["CF_TEMPLATE"]=$(jq -r '.template' <<< "$STEP_JSON")
-    STEP_DATA["CF_NAME"]=$(printf "%s-%s.Containerfile" ${STEP_DATA["IMAGE_NAME"]} ${STEP_DATA["IMAGE_TAG"]})
-    STEP_DATA["CF_CONTENT"]=$(awk -v pat='^@@ BUILD_ARGS @@$' -v rep="$BUILD_ARGS" '{gsub(pat, rep)}1' containerfiles/${STEP_DATA["CF_TEMPLATE"]})
 
     if [[ -n "${STEP_DATA['EXISTING_IMAGE']}" && "${STEP_DATA["FORCE_NEW"]}" != "true" ]]; then
         STEP_DATA["SKIP_BUILD"]="true"
@@ -162,6 +220,7 @@ parse_step() {
     local BUILD_COMMAND=(
         podman build -f "$BUILD_DIR/${STEP_DATA['CF_NAME']}"
         --cgroup-manager cgroupfs
+        --label cf_lineage="${STEP_DATA['CF_LINEAGE']}" 
         -t "${STEP_DATA['IMAGE_NAME']}:${STEP_DATA['IMAGE_TAG']}"
         -t "${STEP_DATA['IMAGE_NAME']}:latest"
     )
@@ -279,7 +338,7 @@ main() {
     fi
 
     # If invalid number of arguments provided, print usage instructions
-    if [ "$#" -ne 2 ] && [ "$#" -ne 3 ]; then
+    if [ "$#" -ne 2 ] && [ "$#" -ne 4 ]; then
         usage
     fi
 
@@ -297,8 +356,9 @@ main() {
     fi
 
     # Ensure build directory exists, if provided
-    if [ "$#" -eq 3 ]; then
-        BUILD_DIR=$3
+    if [ "$#" -eq 4 ]; then
+    BUILD_TAG=$3
+        BUILD_DIR=$4
         if [ ! -d "$BUILD_DIR" ]; then
             echo "Error: Target directory '$BUILD_DIR' does not exist."
             usage
