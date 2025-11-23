@@ -36,7 +36,15 @@ RUN  wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/sb
   && dpkg -i cuda-repo-ubuntu2404-12-8-local_12.8.0-570.86.10-1_arm64.deb \
   && cp /var/cuda-repo-ubuntu2404-12-8-local/cuda-*-keyring.gpg /usr/share/keyrings/ \
   && apt-get update \
-  && apt-get -y install cuda-toolkit-12-8
+  && apt-get -y install cuda-toolkit-12-8 \
+  && echo /usr/local/cuda-12.8/lib64 > /etc/ld.so.conf.d/libcudart_static.a \
+  && ldconfig \
+  && apt-get clean  \
+  && rm -rf /var/lib/apt/lists/*
+
+  # NOTE: /etc/apt/preferences.d/cuda-repository-pin-600 (on compute node, running apptainer wo kernel driver installed by us)
+  # /etc/apt/sources.list.d/cuda-ubuntu2404-12-8-local.list
+  # /etc/apt/sources.list.d/ ---> shouldn't there be one for nvidia as well?
 
   # NOTE: CUDA Toolkit most likely contains libraries we don't really need for base
   #       but for the time being, keeping it ---> TODO: move to individual .deb installations 

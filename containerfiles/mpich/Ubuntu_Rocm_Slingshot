@@ -70,7 +70,7 @@ RUN set -ue; \
     cd /debs; \
     fpm -s dir -t deb -n osu-micro-benchmarks -v "${OSU_VERSION}" --description "LUMI-AIF-$(date -u +'%Y%m%d%H%M%S')" --prefix / -C "$TMPROOT"  usr/libexec; \
     rm -rf "$TMPROOT"; \
-    dpkg -i "osu-micro-benchmarks_${OSU_VERSION}_amd64.deb"
+    dpkg -i "osu-micro-benchmarks_${OSU_VERSION}_amd64.deb";
 
 
 #
