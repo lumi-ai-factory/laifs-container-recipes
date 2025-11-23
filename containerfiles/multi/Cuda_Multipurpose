@@ -24,7 +24,7 @@ RUN set -ue; \
 
 
 # Compile and install Flash Attention
-
+# Q: Order of instalaltion, Flash Attention and xFormers before vLLM?
 RUN set -ue; \
   . /opt/venv/bin/activate; \
   mkdir /opt/src; \
@@ -47,7 +47,7 @@ RUN set -ue; \
 RUN set -ue; \
   . /opt/venv/bin/activate; \
   git clone https://github.com/vllm-project/vllm.git /opt/src/vllm; \
-  cd /opt/rocm/share/amd_smi; \
+  cd /opt/rocm/share/amd_smi; \ # ---> find location of nvidia-smi! 
   python3 -m pip install .; \
   cd /opt/src/vllm; \
   git fetch --tags; \

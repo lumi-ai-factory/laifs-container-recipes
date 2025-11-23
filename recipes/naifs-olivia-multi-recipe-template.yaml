@@ -1,17 +1,17 @@
 name: naifs-olivia-multi-recipe
 steps:
   - name: ubuntu-{{ubuntu_tag}}-cuda-{{cuda_version}}
-    template: cuda/Ubuntu2404_CUDA
+    template: cuda/Ubuntu2404_Cuda
     force: False
     base: ubuntu:{{ubuntu_tag}}
     env:
       #- ROCM_VERSION={{rocm_version}}
       #- AMDGPU_VERSION={{amd_gpu_version}}
-      - CUDA_VERSION={{cuda_version}} # TODO: check env var for cuda compiling
+      - CUDA_VERSION={{cuda_version}}
   - name: ubuntu-{{ubuntu_tag}}-cuda-{{cuda_version}}-libfabric-{{libfabric_version}}
     base: ubuntu-{{ubuntu_tag}}-cuda-{{cuda_version}}
     #template: libfabric/Ubuntu_Rocm_Slingshot
-    template: libfabric/Ubuntu_CUDA_Slingshot
+    template: libfabric/Ubuntu_Cuda_Slingshot
     force: False
     env:
       - XPMEM_CLONE_URL={{xpmem_clone_url}}
@@ -61,7 +61,7 @@ steps:
   - name: ubuntu-{{ubuntu_tag}}-cuda-{{cuda_version}}-libfabric-{{libfabric_version}}-mpich-{{mpich_version}}-torch-{{torch_version}}-multi
     base: ubuntu-{{ubuntu_tag}}-cuda-{{cuda_version}}-libfabric-{{libfabric_version}}-mpich-{{mpich_version}}-torch-{{torch_version}}
     #template: multi/Rocm_Multipurpose
-    template: multi/CUDA_Multipurpose
+    template: multi/Cuda_Multipurpose
     force: False
     env:
       - FLASH_ATTENTION_REPO_COMMIT={{flash_attention_repo_commit}}

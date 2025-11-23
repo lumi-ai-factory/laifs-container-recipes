@@ -161,6 +161,17 @@ aws_ofi_nccl_commit: "9a68289"
 #torchvision_url: "https://download.pytorch.org/whl/rocm6.4/torchvision-0.23.0%2Brocm6.4-cp312-cp312-manylinux_2_28_x86_64.whl"
 #pytorch_triton_url: "https://download.pytorch.org/whl/pytorch_triton_rocm-3.4.0-cp312-cp312-linux_x86_64.whl"
 # ------------------
+# NOTE: cu128 wheel for aarch64 does not contain torch 2.8.0 so using cu129 wheel
+#       This is relevant only for testing as I'm using cuda 12.8 for testing
+# NOTE: during step-by-step testing following WORKED WELL:
+# PP 1: running base+cuda+libfabric+mpich container on Olivia's accel node with 20G (8-16GB should be sufficient)
+# PP 2: installing from pytorch wheel cu129 (see comment above)
+# PP 3: pytorch-triton install with simple `pip3 install pytorch-triton´ - should align with installed pytorch
+# SUGGESTION: use pytorch's wheel for specific cuda version and specific cuda driver version,
+#             the remaining torch-related packages should be picked up by the system
+# NOTE: step-by-step worked well as:
+# pip3.12 install torch==2.8.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu129; \
+# pip3 install pytorch-triton; \
 torch_version: "2.8.0"
 torch_url: "https://download.pytorch.org/whl/cu129/torch-2.8.0+cu129-cp312-cp312-manylinux_2_28_aarch64.whl"
 torchaudio_url: "https://download.pytorch.org/whl/cu129/torch-2.8.0+cu129-cp312-cp312-manylinux_2_28_aarch64.whl"
@@ -169,10 +180,13 @@ pytorch_triton_url: "https://download.pytorch.org/whl/cu129"
 #
 # Olivia
 # ======
-# TODO: check repos for NVIDIA
-flash_attention_repo_commit: "465cb97"
-flash_attention_repo_url: "https://github.com/ROCm/flash-attention"
-flash_attention_gpu_archs: "gfx90a"
+# Has to be installation from source because of aarch64.
+# TODO: figure out all the tweaks to make it work on aarch64!!!i
+# ---> use the same commit; build with BUILD_TARGET "cuda", FLASH_ATTN_CUDA_ARCHS ?,
+#      CUDA_HOME ?
+#flash_attention_repo_commit: "465cb97"
+#flash_attention_repo_url: "https://github.com/ROCm/flash-attention"
+#flash_attention_gpu_archs: "gfx90a"
 #
 # Olivia
 # ======
@@ -198,7 +212,9 @@ extra_apt_packages:
   # Ultralytics dependencies
   - ffmpeg
   - libglib2.0-dev
-  - libopencv-dev
+  - libopenciv-dev
+# Q: add ccache to speed up vLLM builds? 
+#    or we just assume it is this one that succeeds?
 #
 extra_pip_packages:
   - accelerate

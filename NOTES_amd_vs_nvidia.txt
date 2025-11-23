@@ -1,4 +1,4 @@
-
+====================================
 amdgpu-dkms ---> nvidia equivalent?
 
 NVIDIA uses the nvidia-container-cli and related tools to support GPU access in
@@ -35,3 +35,81 @@ kernel integration, ensuring the driver is compatible with the running kernel.
 NVIDIA's approach: NVIDIA's method for containers focuses on the user-space tools
 that connect a containerized application to the already-built NVIDIA driver on the host,
 rather than the driver-building process itself. 
+
+
+========================
+Q: kernel hacking needed!!!??? ---> match cuda lib versions to nvidia kernel drivers
+(from Olivia compute node)
+Apptainer> lsmod | grep nvidia
+nvidia_drm            262144  0
+nvidia_modeset       1703936  1 nvidia_drm
+nvidia_uvm           3473408  4
+nvidia              10289152  80 nvidia_uvm,gdrdrv,nvidia_modeset
+video                 262144  1 nvidia_modeset
+nvidia_cspmu          196608  0
+
+
+/usr/src/linux-6.4.0-150600.23.25_15.0.9/ ----> for linux-headers
+
+
+(useful https://www.stephendiehl.com/posts/setup_gh200_tutorial/)
+
+The GH200 performs optimally with a 64K kernel page size. Nvidia provides specialized
+kernel packages for Ubuntu systems. First, remove the existing kernel packages and
+install the Nvidia 64K kernel ------> assume equivalent has been done on this 6.4. cray shasta kernel
+> Checked on compute node:
+dragana@gpu-1-74:/cluster/work/projects/nn9997k/dragana> getconf PAGE_SIZE
+65536
+
+sudo DEBIAN_FRONTEND=noninteractive apt purge linux-image-$(uname -r) \
+    linux-headers-$(uname -r) linux-modules-$(uname -r) -y
+sudo apt update
+sudo apt install linux-nvidia-64k-hwe-24.04 -y
+sudo reboot now (---> can we reboot within RUN command in the Dockerfile?)
+
+check if it went well:
+uname -r
+linux-nvidia-64k-hwe-24.04-555.42.06
+
+apt-get update
+
+The GH200 requires specific NVIDIA drivers and MLNX_OFED driver.
+Install these packages. Order is extremely important here!
+
+apt-get install -y mlnx-fw-updater mlnx-ofed-all
+apt-get install -y cuda-drivers-555 nvidia-kernel-open-555 linux-tools-$(uname -r)
+apt-get install -y cuda-toolkit nvidia-container-toolkit
+
+etc. (useful https://www.stephendiehl.com/posts/setup_gh200_tutorial/)
+
+...
+Q: on compute node:
+> Apptainer> uname -r
+6.4.0-150600.23.25_15.0.9-cray_shasta_c_64k ---> optimised - yes: ...xxx_64k, and checked PAGE_SIZE
+
+I assume that the one on the compute node would match cuda-12.8 libraries because this
+cuda version was amond those loadable as modules
+
+/lib/modules/6.4.0-150600.23.25_15.0.9-cray_shasta_c_64k/updates/ -----> can't see mlnx-ofa_kernel
+
+=========================================================================================================
+https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#post-installation-actions%5B/url%5D
+
+GRACE only arm64 systems (sbsa):
+(distro) Ubuntu 24.04.x LTS, (os version) (x ≤ 3), (kernel) 6.8.0-1031-nvidia-64k, (default gcc) 13.2.0, (glibc) 2.39
+
+We do have 6.4.0-....._shasta_c_64k kernel sp I assume it contains all the things necessary
+
+==================
+MLNX-OFED drivers
+- moved to DOCA-OFED
+- these might be needed ---> double-check what they are really for
+- useful link: https://developer.nvidia.com/doca-downloads?deployment_platform=Host-Server&deployment_package=DOCA-Host&target_os=Linux&Architecture=arm64-sbsa&Profile=doca-ofed&Distribution=Ubuntu&version=24.04&installer_type=deb_local
+
+
+===============
+Flash Attention
+- compatible with the NVIDIA GH200 Grace Hopper Superchip
+- ARM-based CPU connected to a Hopper architecture GPU which is supported by Flash Attention, but!:
+requires specific setup steps and compilation from source due to its unique ARM64 architecture
+TODO: what are the specific setup steps???
