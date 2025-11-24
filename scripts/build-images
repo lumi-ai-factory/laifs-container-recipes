@@ -10,7 +10,7 @@ log() {
 }
 
 usage() {
-    echo "Usage build-images <build|dump|commands> <recipe file> <build tag> <target directory>"
+    echo "Usage build-images <build|dump|commands> <recipe file> <target directory>"
     exit 1
 }
 
@@ -134,7 +134,7 @@ parse_step() {
     local -n STEP_DATA=$2
 
     STEP_DATA["IMAGE_NAME"]=$(jq -r '.name' <<< "$STEP_JSON")
-    STEP_DATA["IMAGE_TAG"]="${BUILD_TAG}"
+    STEP_DATA["IMAGE_TAG"]=${BUILD_TAG}
     STEP_DATA["IMAGE_DESCRIPTION"]=$(jq -r '.desc' <<< "$STEP_JSON")
 
     STEP_DATA["EXPORT_IMAGE_NAME"]=$(jq -r '.export.name // ""' <<< "$STEP_JSON")
@@ -187,8 +187,8 @@ parse_step() {
             # at this stage, we will get the correct parent with the "build" as the latest would be one we built.
             STEP_DATA["BASE_IMAGE_TAG"]="$(get_image_tag ${EXISTING_PARENT})"
         else
-            # It doesn't exist, it will be built and it will have the BUILD_TAG as its tag.
-            STEP_DATA["BASE_IMAGE_TAG"]="${BUILD_TAG}"
+            # It doesn't exist, it will be built and it will have the tag of the ongoing build
+            STEP_DATA["BASE_IMAGE_TAG"]=${BUILD_TAG}
         fi
 
         local CF_HEADER="# Start of dynamically injected content"
@@ -290,12 +290,17 @@ build_images() {
     #
     echo "Building images from recipe $(yq . $RECIPE_FILE | jq -r '.name') at $RECIPE_FILE"
 
+    BUILD_TAG=$(yq . $RECIPE_FILE | jq -r '.tag')
+
     yq -c . $RECIPE_FILE | jq -c '.steps.[]' | while IFS= read -r step; do
         build_image "${step}"
     done
 }
 
 dump_recipe() {
+
+    BUILD_TAG=$(yq . $RECIPE_FILE | jq -r '.tag')
+
     # Print internal representation of each step of a recipe
     echo -e "Recipe $(yq . $RECIPE_FILE | jq -r '.name') from file $RECIPE_FILE:\n"
 
@@ -318,6 +323,9 @@ dump_recipe() {
 }
 
 show_commands() {
+
+    BUILD_TAG=$(yq . $RECIPE_FILE | jq -r '.tag')
+
     # Perform a dry run based on generated recipe
     yq -c . $RECIPE_FILE | jq -c '.steps.[]' | while IFS= read -r step_json; do
         declare -A step_data
@@ -338,7 +346,7 @@ main() {
     fi
 
     # If invalid number of arguments provided, print usage instructions
-    if [ "$#" -ne 2 ] && [ "$#" -ne 4 ]; then
+    if [ "$#" -ne 2 ] && [ "$#" -ne 3 ]; then
         usage
     fi
 
@@ -356,9 +364,8 @@ main() {
     fi
 
     # Ensure build directory exists, if provided
-    if [ "$#" -eq 4 ]; then
-    BUILD_TAG=$3
-        BUILD_DIR=$4
+    if [ "$#" -eq 3 ]; then
+        BUILD_DIR=$3
         if [ ! -d "$BUILD_DIR" ]; then
             echo "Error: Target directory '$BUILD_DIR' does not exist."
             usage

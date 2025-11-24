@@ -7,7 +7,7 @@ amdgpu_version: "6.4.4"
 rocm_repo: "https://repo.radeon.com/rocm"
 rocm_version: "6.4.4"
 #
-ubuntu_release: "Ubuntu 24.04 LTS"
+ubuntu_release: "24.04"
 ubuntu_tag: "noble-20251013"
 #
 extra_locales:
@@ -37,6 +37,7 @@ extra_packages:
 #
 # ubuntu-rocm-libfabric
 #
+#
 cassini_headers_source: "https://github.com/HewlettPackard/shs-cassini-headers"
 cassini_headers_version: "12.0.1"
 #
@@ -49,7 +50,7 @@ libcxi_clone_url: "https://github.com/HewlettPackard/shs-libcxi"
 libcxi_git_commit: "ebd57a9ca"
 #
 libfabric_git_commit: "e9cf535a"
-libfabric_version: "2.1git-e9cf535a"
+libfabric_version: "2.1.git-e9cf535a"
 libfabric_clone_url: "https://github.com/ofiwg/libfabric"
 #
 xpmem_clone_url: "https://github.com/hpc/xpmem"

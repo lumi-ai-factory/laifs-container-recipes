@@ -1,4 +1,16 @@
-name: laifs-lumi-torch-multi
+{% macro ubuntu_id() -%}{{- 'u' ~ ubuntu_release.split('.')[0] -}}{%- endmacro %}
+{% macro rocm_id() -%}{{- 'r' ~ rocm_version.split('.')[0] ~ rocm_version.split('.')[1] -}}{%- endmacro %}
+{% macro libfabric_id() -%}{{- 'f' ~ libfabric_version.split('.')[0] ~ libfabric_version.split('.')[1] -}}{%- endmacro %}
+{% macro mpich_id() -%}{{- 'm' ~ mpich_version.split('.')[0] ~ mpich_version.split('.')[1] -}}{%- endmacro %}
+{% macro torch_id() -%}{{- 't' ~ torch_version.split('.')[0] ~ torch_version.split('.')[1] -}}{%- endmacro %}
+
+{% set software_digest = ubuntu_id() ~ rocm_id() ~ libfabric_id() ~ mpich_id() ~ torch_id() %}
+{% set recipe_base_name = 'laifs-lumi-multitorch' %}
+{% set recipe_name = recipe_base_name ~ '-' ~ software_digest %}
+
+name: "{{ recipe_name }}"
+tag: "{{ build_tag }}"
+
 desc: >
   This collection of container images is developed by the
   [LUMI AI Factory](https://lumi-ai-factory.eu/) and is specifically designed for
@@ -18,13 +30,25 @@ desc: >
   `/appl/local/laifs/containers`. The generated Containerfiles and other
   artifacts are made available as as a GitHub releases.
 
-steps:
+  The container release name `{{ recipe_name }}-{{ build_tag }}`
+  consists of multiple parts and for this image it encodes the following information:
+    - `laifs`: Producer of the image (LUMI AI Factory Services)
+    - `lumi`: The system image is primarily targeted for (LUMI)
+    - `multitorch`: Image type (A multipurpose Pytorch image)
+    - `{{software_digest}}`: Major software versions digest
+      - `{{ubuntu_id()}}`: Digest for Ubuntu {{ubuntu_release}} LTS
+      - `{{rocm_id()}}`: Digest for ROCm {{rocm_version}}
+      - `{{libfabric_id()}}`: Digest for Libfabric {{libfabric_version}}
+      - `{{mpich_id()}}`: Digest for MPICH {{mpich_version}}
+      - `{{torch_id()}}`: Digest for Pytorch {{torch_version}}
+    - `{{build_tag}}`: Timestamp based build tag
 
-  - name: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}
+steps:
+  - name: {{recipe_name}}-rocm-{{rocm_version}}
     base: ubuntu:{{ubuntu_tag}}
     desc: >
       **Overview**
-      This is a base image building on {{ubuntu_release}} upstream image with ROCm
+      This is a base image building on Ubuntu {{ubuntu_release}}LTS upstream image with ROCm
       software from AMD's official Ubuntu repositories installed on top of it. The
       image also adds a few commonly used extra Ubuntu packages and enables man pages.
 
@@ -46,8 +70,8 @@ steps:
       - EXTRA_LOCALES="{{extra_locales | join(' ')}}"
       - EXTRA_PACKAGES="{{extra_packages | join(' ')}}"
 
-  - name: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}
-    base: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}
+  - name: {{recipe_name}}-libfabric-{{libfabric_version}}
+    base: {{recipe_name}}-rocm-{{rocm_version}}
     desc: >
       **Overview**
       This image builds on top of its base image by adding locally built Ubuntu
@@ -57,7 +81,7 @@ steps:
       custom MPI stacks.
 
       **Details**
-      Base image: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}
+      Base image: {{recipe_name}}-rocm-{{rocm_version}}
       Components:
         - xpmem (from {{xpmem_clone_url}} commit {{xpmem_git_commit}})
         - Cassini headers (from {{cassini_headers_source}} release tgz for {{cassini_headers_version}})
@@ -89,10 +113,10 @@ steps:
       - LIBFABRIC_CLONE_URL={{libfabric_clone_url}}
       - LIBFABRIC_GIT_COMMIT={{libfabric_git_commit}}
     export:
-      name: "laifs-lumi-libfabric-{{libfabric_version}}"
+      name: {{recipe_name}}-libfabric-{{libfabric_version}}
 
-  - name: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}-mpich-{{mpich_version}}
-    base: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}
+  - name: {{recipe_name}}-mpich-{{mpich_version}}
+    base: {{recipe_name}}-libfabric-{{libfabric_version}}
     desc: >
       **Overview**
       This image builds on top of its base image by adding an MPI library with GPU
@@ -102,7 +126,7 @@ steps:
       functionality validation.
 
       **Details**
-      Base image: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}
+      Base image: {{recipe_name}}-libfabric-{{libfabric_version}}
       MPI implementation: MPICH {{mpich_version}}
       Components:
         - MPICH {{mpich_version}} (from {{mpich_source}} release tgz for {{mpich_version}})
@@ -127,17 +151,17 @@ steps:
       - RCCL_TESTS_REPO={{rccl_tests_repo}}
       - RCCL_TESTS_VERSION={{rccl_tests_version}}
     export:
-      name: "laifs-lumi-mpich-{{mpich_version}}"
+      name: {{recipe_name}}-mpich-{{mpich_version}}
 
-  - name: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}-mpich-{{mpich_version}}-torch-{{torch_version}}
-    base: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}-mpich-{{mpich_version}}
+  - name: {{recipe_name}}-torch-{{torch_version}}
+    base: {{recipe_name}}-mpich-{{mpich_version}}
     desc: >
       **Overview**
       This image builds on top of its base image by adding PyTorch for AMD GPUs and
       ROCm, along with few related packages from PyTorch's upstream repositories.
 
       **Details**
-      Base image: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}-mpich-{{mpich_version}}
+      Base image: {{recipe_name}}-mpich-{{mpich_version}}
       PyTorch version: {{torch_version}}
       PyTorch packages and sources:
         - PyTorch: {{torch_url}}
@@ -156,8 +180,8 @@ steps:
       - TORCH_URL={{torch_url}}
       - XFORMERS_URL={{xformers_url}}
 
-  - name: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}-mpich-{{mpich_version}}-torch-{{torch_version}}-multi
-    base: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}-mpich-{{mpich_version}}-torch-{{torch_version}}
+  - name: {{recipe_name}}-multi
+    base: {{recipe_name}}-torch-{{torch_version}}
     desc: >
       **Overview**
       This is a multipurpose ML/AI image that builds on its base image by adding a
@@ -166,7 +190,7 @@ steps:
       systems with MI250x GPUs and Slingshot interconnect.
 
       **Details**
-      Base image: ubuntu-{{ubuntu_tag}}-rocm-{{rocm_version}}-libfabric-{{libfabric_version}}-mpich-{{mpich_version}}-torch-{{torch_version}}
+      Base image: {{recipe_name}}-torch-{{torch_version}}
       GPU architectures: {{multi_image_gpu_arch}}
       Components:
         - {{ubuntu_release}} (from https://hub.docker.com/layers/library/ubuntu/{{ubuntu_tag}})
@@ -227,7 +251,7 @@ steps:
       - WRETAG_URL={{wretag_url}}
       #
     export:
-      name: "laifs-lumi-torch-multi"
+      name: {{recipe_name}}-multi
       def: |
         %runscript
         if [ "${ROCR_USE_SLURM_LOCALID}" = 1 ] && [ -n "${SLURM_LOCALID}" ]; then

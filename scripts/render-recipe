@@ -11,13 +11,12 @@ import jinja2
 yaml = YAML()
 yaml.preserve_quotes = True
 
-def render_template_with_vars(template_file, variable_files):
+def render_template_with_vars(build_tag, template_file, variable_file):
 
-    context = {}
-    for variable_file in variable_files:
-        with open(variable_file, 'r') as yaml_file:
-            data = yaml.load(yaml_file) or {}
-            context.update(data)
+    context = {"build_tag": f"{build_tag}"}
+    with open(variable_file, 'r') as yaml_file:
+        data = yaml.load(yaml_file) or {}
+        context.update(data)
 
     template_loader = jinja2.FileSystemLoader(searchpath='./')
     template_env = jinja2.Environment(loader=template_loader)
@@ -81,13 +80,14 @@ def main():
     parser = argparse.ArgumentParser(
         description='Render a container recipe template, variables file and Containerfiles into a build recipe.'
     )
+    parser.add_argument('build_tag', type=str, help='build tag')
     parser.add_argument('template_file', type=str, help='path to the Jinja2 recipe template file')
-    parser.add_argument('variable_files', type=str, nargs='+', help='list of paths to YAML files containing variables')
+    parser.add_argument('variable_file', type=str, help='path to YAML file containing variables')
 
     args = parser.parse_args()
 
-    rendered_template = render_template_with_vars(args.template_file, args.variable_files)
-    complete_recipe = add_containerfile_content(rendered_template)
+    rendered_template = render_template_with_vars(args.build_tag, args.template_file, args.variable_file)
+    complete_recipe = add_containerfile_content(rendered_template.lstrip('\n'))
 
     print(complete_recipe)
 

@@ -17,7 +17,7 @@ main() {
     # BUILD_TAG=$(printf "%x" ${START_EPOCH})
     #
     BUILD_TAG=$TIMESTAMP
-    NAME=$(scripts/render-recipe $TEMPLATE $VARS | yq . | jq -r '.name')
+    NAME=$(scripts/render-recipe $BUILD_TAG $TEMPLATE $VARS | yq . | jq -r '.name')
 
     # Define build paths
     build_dir="builds/$NAME-${TIMESTAMP}"
@@ -40,7 +40,7 @@ main() {
     echo | tee -a $build_log
 
     # Generate build recipe
-    scripts/render-recipe $TEMPLATE $VARS | tee $recipe_file
+    scripts/render-recipe $BUILD_TAG $TEMPLATE $VARS | tee $recipe_file
 
     # Log generated recipe
     echo "$(date +'%Y%m%d %H:%M:%S'): generated recipe $recipe_file:" | tee -a $build_log
@@ -55,7 +55,7 @@ main() {
 
     # Build container image from recipe
     echo "$(date +'%Y%m%d %H:%M:%S'): starting build" | tee -a $build_log
-    scripts/build-images build $recipe_file ${BUILD_TAG} $build_dir | tee -a $build_log
+    scripts/build-images build $recipe_file  $build_dir | tee -a $build_log
     echo "$(date +'%Y%m%d %H:%M:%S'): build completed" | tee -a $build_log
 }
 
