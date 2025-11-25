@@ -1,10 +1,10 @@
-{% macro ubuntu_id() -%}{{- 'u' ~ ubuntu_release.split('.')[0] -}}{%- endmacro %}
-{% macro rocm_id() -%}{{- 'r' ~ rocm_version.split('.')[0] ~ rocm_version.split('.')[1] -}}{%- endmacro %}
-{% macro libfabric_id() -%}{{- 'f' ~ libfabric_version.split('.')[0] ~ libfabric_version.split('.')[1] -}}{%- endmacro %}
-{% macro mpich_id() -%}{{- 'm' ~ mpich_version.split('.')[0] ~ mpich_version.split('.')[1] -}}{%- endmacro %}
-{% macro torch_id() -%}{{- 't' ~ torch_version.split('.')[0] ~ torch_version.split('.')[1] -}}{%- endmacro %}
+{% set ubuntu_id = 'u' ~ ubuntu_release.split('.')[0] %}
+{% set rocm_id = 'r' ~ rocm_version.split('.')[0] ~ rocm_version.split('.')[1] %}
+{% set libfabric_id = 'f' ~ libfabric_version.split('.')[0] ~ libfabric_version.split('.')[1] %}
+{% set mpich_id = 'm' ~ mpich_version.split('.')[0] ~ mpich_version.split('.')[1] %}
+{% set torch_id = 't' ~ torch_version.split('.')[0] ~ torch_version.split('.')[1] %}
 
-{% set software_digest = ubuntu_id() ~ rocm_id() ~ libfabric_id() ~ mpich_id() ~ torch_id() %}
+{% set software_digest = ubuntu_id ~ rocm_id ~ libfabric_id ~ mpich_id ~ torch_id %}
 {% set recipe_base_name = 'laifs-lumi-multitorch' %}
 {% set recipe_name = recipe_base_name ~ '-' ~ software_digest %}
 
@@ -13,35 +13,44 @@ tag: "{{ build_tag }}"
 
 desc: >
   This collection of container images is developed by the
-  [LUMI AI Factory](https://lumi-ai-factory.eu/) and is specifically designed for
-  use on the LUMI supercomputer. The images, built with this recipe, build on top
-  of each other, with each successive image adding to the functionality of
-  the previous one, finally resulting in a fully featured ML/AI container based
-  on PyTorch.
-
-  The images are built using recipes available in the LUMI AI Factory
+  [LUMI AI Factory](https://lumi-ai-factory.eu/) and is specifically designed
+  for use on the LUMI supercomputer. The images are built incrementally using
+  recipes available in the LUMI AI Factory
   [GitHub repository](https://github.com/lumi-ai-factory/laifs-container-recipes).
-  All build artifacts, including container files, build logs, and the resulting
-  images are publicly available for customization and for use in other similar
-  systems.
+  Each image builds on the previous one, adding new functionality, finally
+  resulting in a fully featured PyTorch based ML/AI container.
 
-  All intermediate images are published to Docker Hub, and the final container
-  images are made available on LUMI as Apptainer/Singularity sif files under
-  `/appl/local/laifs/containers`. The generated Containerfiles and other
-  artifacts are made available as as a GitHub releases.
+  All build artifacts, including container files, build logs, and the resulting
+  images, are publicly available. This allows for customization and reuse on
+  other similar systems. Intermediate images are published to Docker Hub, while
+  the final container images are provided on LUMI as Apptainer/Singularity sif
+  files under `/appl/local/laifs/containers`. The generated Containerfiles and
+  other artifacts are also released as GitHub releases.
 
   The container release name `{{ recipe_name }}-{{ build_tag }}`
-  consists of multiple parts and for this image it encodes the following information:
-    - `laifs`: Producer of the image (LUMI AI Factory Services)
-    - `lumi`: The system image is primarily targeted for (LUMI)
-    - `multitorch`: Image type (A multipurpose Pytorch image)
-    - `{{software_digest}}`: Major software versions digest
-      - `{{ubuntu_id()}}`: Digest for Ubuntu {{ubuntu_release}} LTS
-      - `{{rocm_id()}}`: Digest for ROCm {{rocm_version}}
-      - `{{libfabric_id()}}`: Digest for Libfabric {{libfabric_version}}
-      - `{{mpich_id()}}`: Digest for MPICH {{mpich_version}}
-      - `{{torch_id()}}`: Digest for Pytorch {{torch_version}}
-    - `{{build_tag}}`: Timestamp based build tag
+  encodes the following information for this image:
+    - laifs: Producer of the image (LUMI AI Factory Services)
+    - lumi: The primary target system for the image (LUMI)
+    - multitorch: Image type (a multipurpose PyTorch image)
+    - {{software_digest}}: Major software versions digest, which includes:
+      - {{ubuntu_id}}: Digest for Ubuntu {{ubuntu_release}} LTS
+      - {{rocm_id}}: Digest for ROCm {{rocm_version}}
+      - {{libfabric_id}}: Digest for Libfabric {{libfabric_version}}
+      - {{mpich_id}}: Digest for MPICH {{mpich_version}}
+      - {{torch_id}}: Digest for PyTorch {{torch_version}}
+    - {{build_tag}}: Timestamp-based build tag
+
+  This release includes five separate images, each building on the previous one:
+    - {{recipe_name}}-rocm-{{rocm_version}}: Ubuntu base image with ROCm added
+    - {{recipe_name}}-libfabric-{{libfabric_version}}: ROCm image with libfabric added
+    - {{recipe_name}}-mpich-{{mpich_version}}: libfabric image with MPICH added
+    - {{recipe_name}}-torch-{{torch_version}}: MPICH image with PyTorch added
+    - {{recipe_name}}-multi: MPICH image with additional AI and ML libraries
+
+  Documentation for each image is provided in the image-name.md Markdown file.
+  The Software Bill of Materials is available in the image-name.json file.
+  Containerfiles and build logs for each image can be found in the
+  image-name.Containerfile and image-name.log files, respectively.
 
 steps:
   - name: {{recipe_name}}-rocm-{{rocm_version}}
