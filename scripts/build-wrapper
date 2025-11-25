@@ -7,6 +7,7 @@ main() {
     # Get build args
     TEMPLATE=$1
     VARS=$2
+    README_J2="${3:-}"
 
     # Define build vars
     START_EPOCH=$(date +%s)
@@ -41,6 +42,11 @@ main() {
 
     # Generate build recipe
     scripts/render-recipe $BUILD_TAG $TEMPLATE $VARS | tee $recipe_file
+
+    if [[ -n "$README_J2" ]]; then
+        readme_file="$build_dir/$NAME-${TIMESTAMP}.md"
+	scripts/j2render "$README_J2" "$recipe_file"  | tee "$readme_file"
+    fi
 
     # Log generated recipe
     echo "$(date +'%Y%m%d %H:%M:%S'): generated recipe $recipe_file:" | tee -a $build_log

@@ -33,10 +33,8 @@ extra_packages:
   - screen
   - tmux
   - wget
-
 #
 # ubuntu-rocm-libfabric
-#
 #
 cassini_headers_source: "https://github.com/HewlettPackard/shs-cassini-headers"
 cassini_headers_version: "12.0.1"
@@ -88,7 +86,6 @@ torch_url: "https://download.pytorch.org/whl/rocm6.4/torch-2.8.0%2Brocm6.4-cp312
 torchaudio_url: "https://download.pytorch.org/whl/rocm6.4/torchaudio-2.8.0%2Brocm6.4-cp312-cp312-manylinux_2_28_x86_64.whl"
 torchvision_url: "https://download.pytorch.org/whl/rocm6.4/torchvision-0.23.0%2Brocm6.4-cp312-cp312-manylinux_2_28_x86_64.whl"
 xformers_url: "https://download.pytorch.org/whl/rocm6.4/xformers-0.0.32.post2-cp39-abi3-manylinux_2_28_x86_64.whl"
-#
 
 #
 # ubuntu-rocm-libfabric-mpich-torch-multi
@@ -132,7 +129,6 @@ extra_apt_packages:
   - libsqlite3-dev
   - libsuitesparse-dev
   - sqlite3
-#
 extra_pip_packages:
   - accelerate
   - datasets

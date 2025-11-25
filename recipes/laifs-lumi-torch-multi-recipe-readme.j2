@@ -1,0 +1,16 @@
+# Image collection {{ name }} release {{ tag }}
+
+## Overview
+
+{{ desc }}
+## Included Images
+
+The next sections describe each included image in detail. For
+convenience, this documentation is also available separately for
+each image in the per image Markdown (`.md`) files.
+
+{%- for step in steps %}
+### Image {{ step.name }}:{{build_tag}}
+
+{{ step.desc }}
+{%- endfor %}
