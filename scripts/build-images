@@ -3,9 +3,9 @@
 log() {
     # Write command to log file. If no args are entered, open an input stream.
     if [ $# -gt 0 ]; then
-        printf "%s: %s\n" "$(date +'%Y%m%d %H:%M:%S')" "$@" | tee -a "$LOG_FILE"
+        printf "%s: %s\n" "$(date +'%Y%m%d %H:%M:%S')" "$@" >> "$LOG_FILE"
     else
-        tee -a "$LOG_FILE"
+        cat >> "$LOG_FILE"
     fi
 }
 
@@ -119,13 +119,13 @@ export_image() {
     local SIF_COMMAND="singularity build ${SIF_FILE} ${DEF_FILE}"
 
     log "*** Exporting image with command $OCI_COMMAND"
-    ${OCI_COMMAND[@]} | log
+    ${OCI_COMMAND[@]} 2>&1 | sed -e 's/^/    /' | log
 
     log "*** Creating sif file with command $SIF_COMMAND"
-    ${SIF_COMMAND[@]} | log
+    ${SIF_COMMAND[@]} 2>&1 | sed -e 's/^/    /' | log
 
     log "*** Image checksums:"
-    sha256sum "$OCI_FILE" "$SIF_FILE" | log
+    sha256sum "$OCI_FILE" "$SIF_FILE" | sed -e 's/^/    /' | log
 }
 
 
@@ -220,7 +220,7 @@ parse_step() {
     local BUILD_COMMAND=(
         podman build -f "$BUILD_DIR/${STEP_DATA['CF_NAME']}"
         --cgroup-manager cgroupfs
-        --label cf_lineage="${STEP_DATA['CF_LINEAGE']}" 
+        --label cf_lineage="${STEP_DATA['CF_LINEAGE']}"
         -t "${STEP_DATA['IMAGE_NAME']}:${STEP_DATA['IMAGE_TAG']}"
         -t "${STEP_DATA['IMAGE_NAME']}:latest"
     )
@@ -237,6 +237,9 @@ build_image() {
 
     LOG_FILE=$(printf "${BUILD_DIR}/%s-%s.log" "${STEP['IMAGE_NAME']}" "${STEP['IMAGE_TAG']}")
 
+    echo "Build image ${STEP['IMAGE_NAME']}:${STEP['IMAGE_TAG']} started at $(date)"
+    echo "Logging to $LOG_FILE"
+
     if [[ ${STEP['SKIP_BUILD']} == "true" ]]; then
         log "Skipping build for ${STEP['IMAGE_NAME']}. Using existing image ${STEP['EXISTING_IMAGE']}:"
         podman image inspect ${STEP['EXISTING_IMAGE']} | log
@@ -249,40 +252,35 @@ build_image() {
 
     #check_var RECIPE BASE_IMAGE BUILD_ENV CONTAINERFILE FORCE_NEW IMAGE_NAME
 
-    log "*** Build started $(date)"
-    log "*** Building image: ${STEP['IMAGE_NAME']}:${STEP['IMAGE_TAG']}"
-    log "*** Using Containerfile template: ${STEP['CF_TEMPLATE']}"
-    log "*** Creating Containerfile: ${STEP['CF_NAME']}"
-
     echo "${STEP['CF_CONTENT']}" > "${BUILD_DIR}/${STEP['CF_NAME']}"
 
-    log "*** Containerfile content:"
-    cat "${BUILD_DIR}/${STEP['CF_NAME']}" | log
-
-    log  "*** Base image: ${STEP['BASE_IMAGE']}:${STEP['BASE_IMAGE_TAG']}"
-    log  "*** Base image information:"
-    podman image inspect ${STEP['BASE_IMAGE']}:${STEP['BASE_IMAGE_TAG']}| log
-
-    log "*** Starting build command: ${STEP['BUILD_COMMAND']}"
+    log "*** Building image ${STEP['IMAGE_NAME']}:${STEP['IMAGE_TAG']} started"
+    log "*** Containerfile sha256 sum $(sha256sum "${BUILD_DIR}/${STEP['CF_NAME']}")"
+    log "*** Base image: ${STEP['BASE_IMAGE']}:${STEP['BASE_IMAGE_TAG']}"
+    log "*** Running build command: ${STEP['BUILD_COMMAND']}"
 
     eval "${STEP['BUILD_COMMAND']}" 2>&1 | log
 
     if [[ $? != 0 ]]; then
-        # revisit: this never hits, even if the build command fails. podman always returns 0?
-        fail "Build failed for ${STEP['IMAGE_NAME']}:${STEP['IMAGE_TAG']}"
+        fail "Build of ${STEP['IMAGE_NAME']}:${STEP['IMAGE_TAG']} seems to have failed."
     fi
-    # revisit: also check the image was actually created
+
+    image_id=$(podman image inspect "${STEP['IMAGE_NAME']}:${STEP['IMAGE_TAG']}" | jq -r 'first|.Id')
+
+    if [[ $? != 0 ]] || [[ -z "$image_id" ]]; then
+        fail "Building image ${STEP['IMAGE_NAME']}:${STEP['IMAGE_TAG']} failed. Could not detemine id for the produced image."
+    fi
 
     log "*** Image info:"
-    podman image inspect ${STEP['IMAGE_NAME']}:${STEP['IMAGE_TAG']}| log
+    podman image inspect $image_id| sed -e 's/^/    /' | log
 
     if [[ -n "${STEP['EXPORT_IMAGE_NAME']}" ]]; then
         export_image "${STEP['IMAGE_NAME']}" "${STEP['IMAGE_TAG']}" "${STEP['EXPORT_IMAGE_NAME']}" "${STEP['EXPORT_SIF_DEF']}"
     fi
 
-    log "*** Build completed $(date)"
+    log "*** Building image ${STEP['IMAGE_NAME']}:${STEP['IMAGE_TAG']} completed at $(date)"
 
-    printf "\n\n\n"
+    echo "Building ${STEP['IMAGE_NAME']}:${STEP['IMAGE_TAG']} completed at $(date)"
 }
 
 build_images() {
