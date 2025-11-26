@@ -3,6 +3,10 @@ name: Podman and GitHub integration test
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+  packages: read
+
 jobs:
   podman_gh_test:
     runs-on: self-hosted
