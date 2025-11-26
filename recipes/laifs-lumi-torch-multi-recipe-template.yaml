@@ -108,6 +108,8 @@ steps:
       - ROCM_VERSION={{rocm_version}}
       - EXTRA_LOCALES="{{extra_locales | join(' ')}}"
       - EXTRA_PACKAGES="{{extra_packages | join(' ')}}"
+    post: |
+      podman run -it --rm {{recipe_name}}-rocm-{{rocm_version}}:{{build_tag}} cat /.sbom.json > builds/{{recipe_name}}-{{build_tag}}/{{recipe_name}}-rocm-{{rocm_version}}-{{build_tag}}.json
 
   - name: {{recipe_name}}-libfabric-{{libfabric_version}}
     base: {{recipe_name}}-rocm-{{rocm_version}}
@@ -153,6 +155,8 @@ steps:
       - LIBFABRIC_GIT_COMMIT={{libfabric_git_commit}}
     export:
       name: {{recipe_name}}-libfabric-{{libfabric_version}}
+    post: |
+      podman run -it --rm {{recipe_name}}-libfabric-{{libfabric_version}}:{{build_tag}} cat /.sbom.json > builds/{{recipe_name}}-{{build_tag}}/{{recipe_name}}-libfabric-{{libfabric_version}}-{{build_tag}}.json
 
   - name: {{recipe_name}}-mpich-{{mpich_version}}
     base: {{recipe_name}}-libfabric-{{libfabric_version}}
@@ -191,6 +195,8 @@ steps:
       - RCCL_TESTS_VERSION={{rccl_tests_version}}
     export:
       name: {{recipe_name}}-mpich-{{mpich_version}}
+    post: |
+      podman run -it --rm {{recipe_name}}-mpich-{{mpich_version}}:{{build_tag}} cat /.sbom.json > builds/{{recipe_name}}-{{build_tag}}/{{recipe_name}}-mpich-{{mpich_version}}-{{build_tag}}.json
 
   - name: {{recipe_name}}-torch-{{torch_version}}
     base: {{recipe_name}}-mpich-{{mpich_version}}
@@ -218,6 +224,8 @@ steps:
       - TORCHVISION_URL={{torchvision_url}}
       - TORCH_URL={{torch_url}}
       - XFORMERS_URL={{xformers_url}}
+    post: |
+      podman run -it --rm {{recipe_name}}-torch-{{torch_version}}:{{build_tag}} cat /.sbom.json > builds/{{recipe_name}}-{{build_tag}}/{{recipe_name}}-torch-{{torch_version}}-{{build_tag}}.json
 
   - name: {{recipe_name}}-multi
     base: {{recipe_name}}-torch-{{torch_version}}
@@ -283,3 +291,5 @@ steps:
             export ROCR_VISIBLE_DEVICES="$SLURM_LOCALID"
         fi
         exec "$@"
+    post: |
+      podman run -it --rm {{recipe_name}}-multi:{{build_tag}} cat /.sbom.json > builds/{{recipe_name}}-{{build_tag}}/{{recipe_name}}-multi-{{build_tag}}.json
