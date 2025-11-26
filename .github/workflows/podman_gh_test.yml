@@ -23,6 +23,8 @@ jobs:
         run: podman images
 
       - name: List containers in GHCR for LAIFS
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "Listing GHCR packages for ${{ github.repository_owner }}"
           gh api \
