@@ -1,8 +1,20 @@
 # Image collection {{ name }} release {{ tag }}
 
+This release is available at:
+  - Github: https://github.com/lumi-ai-factory/laifs-container-recipes/releases/tag/{{digest}}-{{tag}}
+  - On LUMI: `/appl/laifs/containers/{{name}}-{{tag}}`
+  - At Docker Hub as:
+    - lumi-ai-factory/lumi-multitorch:full-{{digest}}-{{tag}}
+    - lumi-ai-factory/lumi-multitorch:pytorch-{{digest}}-{{tag}}
+    - lumi-ai-factory/lumi-multitorch:mpich-{{digest}}-{{tag}}
+    - lumi-ai-factory/lumi-multitorch:libfabric-{{digest}}-{{tag}}
+    - lumi-ai-factory/lumi-multitorch:rocm-{{digest}}-{{tag}}
+
+
 ## Overview
 
 {{ desc }}
+
 ## Included Images
 
 The next sections describe each included image in detail. For
@@ -10,7 +22,8 @@ convenience, this documentation is also available separately for
 each image in the per image Markdown (`.md`) files.
 
 {%- for step in steps %}
-### Image {{ step.name }}:{{build_tag}}
+
+### Image {{ step.name }}:{{tag}}
 
 {{ step.desc }}
 {%- endfor %}

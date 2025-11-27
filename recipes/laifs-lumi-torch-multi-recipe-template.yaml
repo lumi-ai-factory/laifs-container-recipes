@@ -9,6 +9,7 @@
 {%- set recipe_name = recipe_base_name ~ '-' ~ software_digest %}
 
 name: "{{ recipe_name }}"
+digest: "{{ software_digest }}"
 tag: "{{ build_tag }}"
 desc: |
   This collection of container images is developed by the
@@ -24,7 +25,54 @@ desc: |
   other similar systems. Intermediate images are published to Docker Hub, while
   the final container images are provided on LUMI as Apptainer/Singularity `.sif`
   files under `/appl/local/laifs/containers`. The generated Containerfiles and
-  other artifacts are also released as GitHub releases.
+  other artifacts are released as GitHub releases.
+
+  The GitHub release consists of:
+  - A `.yaml` recipe file which defines the build steps, software versions, and
+    includes all required Containerfiles and documentation to reproduce the build
+    of this container image release using the accompanied build scripts.
+  - Containerfiles and Singularity definition files (`.Containerfile`, `.def`) for
+    convenience (this data is embedded in the `.yaml` recipe as well).
+  - This release README file and separate per-image documentation (`.md`).
+  - Build logs (`.log`) and SBOM files (`.json`) for all images for transparency.
+
+  On Docker Hub the images are available with the following tag/naming scheme:
+    - Floating tags for latest version:
+      - `lumi-ai-factory/lumi-multitorch:full` (latest complete full image across all variants)
+      - `lumi-ai-factory/lumi-multitorch:torch` (latest PyTorch build across all variants)
+      - `lumi-ai-factory/lumi-multitorch:mpich` (latest MPICH build across all variants)
+      - `lumi-ai-factory/lumi-multitorch:libfabric` (latest Libfabric build across all variants)
+      - `lumi-ai-factory/lumi-multitorch:rocm` (latest ROCm build across all variants)
+    - Floating tags for latest version with specific versions variant:
+      - `lumi-ai-factory/lumi-multitorch:full-{{software_digest}}-latest` (latest
+        build for this software stack, see the release name information below for details
+        about the software digest part "{{software_digest}}")
+      - The same scheme is also available for the torch, mpich, libfabric and rocm images.
+    - Build-specific tags for reproducibility:
+      - `lumi-ai-factory/lumi-multitorch:full-{{software_digest}}-{{build_tag}}` (specific pinned build of the full image)
+      - `lumi-ai-factory/lumi-multitorch:torch-{{software_digest}}-{{build_tag}}` (specific pinned build of the torch image)
+      - Tags with the same same scheme are also available for the mpich, libfabric and rocm images.
+    - Example Docker Hub pull commands:
+      - `docker pull lumi-ai-factory/lumi-multitorch:full-{{software_digest}}-{{build_tag}}`
+      - `docker pull lumi-ai-factory/lumi-multitorch:mpich-{{software_digest}}-latest`
+      - `docker pull lumi-ai-factory/lumi-multitorch:rocm`
+
+  The images are also available to be used directly on LUMI:
+    - Path to this release on LUMI:
+      - `/appl/local/laifs/containers/laifs-lumi-multitorch-{{software_digest}}-{{build_tag}}/`
+    - Example symlink paths to the images on LUMI:
+      - `/appl/local/laifs/containers/laifs-lumi-multitorch-{{software_digest}}-latest/`
+      - `/appl/local/laifs/containers/laifs-lumi-multitorch-latest/`
+    - Example release dicectory content on LUMI:
+      - `laifs-lumi-multitorch-{{software_digest}}-{{build_tag}}.md`: The main readme file
+      - `laifs-lumi-multitorch-{{software_digest}}-full-{{build_tag}}.sif`: Singularity image for the main image
+      - `laifs-lumi-multitorch-{{software_digest}}-full-{{build_tag}}.md`: Readme file for the main image
+      - `laifs-lumi-multitorch-{{software_digest}}-full-{{build_tag}}.json`: Software Bill of materials for the main image
+      - `laifs-lumi-multitorch-{{software_digest}}-torch-{{build_tag}}.sif`: Singularity image for the torch image
+      - `laifs-lumi-multitorch-{{software_digest}}-torch-{{build_tag}}.md`: Readme file for the torch image
+      - `laifs-lumi-multitorch-{{software_digest}}-torch-{{build_tag}}.json`: Software Bill of materials for the torch image
+      - `...`
+    - Example usage on LUMI: `singularity run ...`
 
   The container release name `{{recipe_name}}-{{build_tag}}`
   encodes the following information for this image:
@@ -40,18 +88,18 @@ desc: |
     - {{build_tag}}: Timestamp-based build tag
 
   This release includes five separate images, each building on the previous one:
-    - `{{recipe_name}}-rocm-{{rocm_version}}`:
-      Ubuntu base image with ROCm added
-    - `{{recipe_name}}-libfabric-{{libfabric_version}}`:
-      ROCm image with libfabric added
-    - `{{recipe_name}}-mpich-{{mpich_version}}`:
-      Libfabric image with MPICH added
-    - `{{recipe_name}}-torch-{{torch_version}}`:
-      MPICH image with PyTorch added
-    - `{{recipe_name}}-multi`:
-      MPICH image with additional AI and ML libraries
+    - `{{recipe_name}}-rocm`:
+      Ubuntu base image with ROCm-{{rocm_version}} added
+    - `{{recipe_name}}-libfabric`:
+      ROCm image with libfabric {{libfabric_version}} added
+    - `{{recipe_name}}-mpich-`:
+      Libfabric image with MPICH {{mpich_version}} added
+    - `{{recipe_name}}-torch`:
+      MPICH image with PyTorch {{torch_version}} added
+    - `{{recipe_name}}-full`:
+      PyTorch image with selection of AI and ML libraries added
 
-  The final image `{{recipe_name}}-multi-{{build_tag}}`
+  The final image `{{recipe_name}}-full-{{build_tag}}`
   contains these key software components:
     - Ubuntu {{ubuntu_release}} LTS (from https://hub.docker.com/layers/library/ubuntu/{{ubuntu_tag}})
     - AMD ROCm {{rocm_version}} (from {{rocm_repo}})
@@ -83,11 +131,11 @@ desc: |
   `<image name>.Containerfile` and `<image name>.log` files, respectively.
 
 steps:
-  - name: {{recipe_name}}-rocm-{{rocm_version}}
+  - name: {{recipe_name}}-rocm
     base: ubuntu:{{ubuntu_tag}}
     desc: |
       **Overview**
-      This is a base image building on Ubuntu {{ubuntu_release}}LTS upstream image with ROCm
+      This is a base image building on Ubuntu {{ubuntu_release}} LTS upstream image with ROCm
       software from AMD's official Ubuntu repositories installed on top of it. The
       image also adds a few commonly used extra Ubuntu packages and enables man pages.
 
@@ -108,11 +156,11 @@ steps:
       - ROCM_VERSION={{rocm_version}}
       - EXTRA_LOCALES="{{extra_locales | join(' ')}}"
       - EXTRA_PACKAGES="{{extra_packages | join(' ')}}"
-    post: |
-      podman run -it --rm {{recipe_name}}-rocm-{{rocm_version}}:{{build_tag}} cat /.sbom.json > builds/{{recipe_name}}-{{build_tag}}/{{recipe_name}}-rocm-{{rocm_version}}-{{build_tag}}.json
+    export:
+      name: {{recipe_name}}-rocm
 
-  - name: {{recipe_name}}-libfabric-{{libfabric_version}}
-    base: {{recipe_name}}-rocm-{{rocm_version}}
+  - name: {{recipe_name}}-libfabric
+    base: {{recipe_name}}-rocm
     desc: |
       **Overview**
       This image builds on top of its base image by adding locally built Ubuntu
@@ -122,7 +170,7 @@ steps:
       custom MPI stacks.
 
       **Details**
-      Base image: {{recipe_name}}-rocm-{{rocm_version}}
+      Base image: {{recipe_name}}-rocm
       Components:
         - xpmem (from {{xpmem_clone_url}} commit {{xpmem_git_commit}})
         - Cassini headers (from {{cassini_headers_source}} release tgz for {{cassini_headers_version}})
@@ -154,12 +202,10 @@ steps:
       - LIBFABRIC_CLONE_URL={{libfabric_clone_url}}
       - LIBFABRIC_GIT_COMMIT={{libfabric_git_commit}}
     export:
-      name: {{recipe_name}}-libfabric-{{libfabric_version}}
-    post: |
-      podman run -it --rm {{recipe_name}}-libfabric-{{libfabric_version}}:{{build_tag}} cat /.sbom.json > builds/{{recipe_name}}-{{build_tag}}/{{recipe_name}}-libfabric-{{libfabric_version}}-{{build_tag}}.json
+      name: {{recipe_name}}-libfabric
 
-  - name: {{recipe_name}}-mpich-{{mpich_version}}
-    base: {{recipe_name}}-libfabric-{{libfabric_version}}
+  - name: {{recipe_name}}-mpich
+    base: {{recipe_name}}-libfabric
     desc: |
       **Overview**
       This image builds on top of its base image by adding an MPI library with GPU
@@ -169,7 +215,7 @@ steps:
       functionality validation.
 
       **Details**
-      Base image: {{recipe_name}}-libfabric-{{libfabric_version}}
+      Base image: {{recipe_name}}-libfabric
       MPI implementation: MPICH {{mpich_version}}
       Components:
         - MPICH {{mpich_version}} (from {{mpich_source}} release tgz for {{mpich_version}})
@@ -194,19 +240,17 @@ steps:
       - RCCL_TESTS_REPO={{rccl_tests_repo}}
       - RCCL_TESTS_VERSION={{rccl_tests_version}}
     export:
-      name: {{recipe_name}}-mpich-{{mpich_version}}
-    post: |
-      podman run -it --rm {{recipe_name}}-mpich-{{mpich_version}}:{{build_tag}} cat /.sbom.json > builds/{{recipe_name}}-{{build_tag}}/{{recipe_name}}-mpich-{{mpich_version}}-{{build_tag}}.json
+      name: {{recipe_name}}-mpich
 
-  - name: {{recipe_name}}-torch-{{torch_version}}
-    base: {{recipe_name}}-mpich-{{mpich_version}}
+  - name: {{recipe_name}}-torch
+    base: {{recipe_name}}-mpich
     desc: |
       **Overview**
       This image builds on top of its base image by adding PyTorch for AMD GPUs and
       ROCm, along with few related packages from PyTorch's upstream repositories.
 
       **Details**
-      Base image: {{recipe_name}}-mpich-{{mpich_version}}
+      Base image: {{recipe_name}}-mpich
       PyTorch version: {{torch_version}}
       PyTorch packages and sources:
         - PyTorch: {{torch_url}}
@@ -224,11 +268,11 @@ steps:
       - TORCHVISION_URL={{torchvision_url}}
       - TORCH_URL={{torch_url}}
       - XFORMERS_URL={{xformers_url}}
-    post: |
-      podman run -it --rm {{recipe_name}}-torch-{{torch_version}}:{{build_tag}} cat /.sbom.json > builds/{{recipe_name}}-{{build_tag}}/{{recipe_name}}-torch-{{torch_version}}-{{build_tag}}.json
+    export:
+      name: {{recipe_name}}-torch
 
-  - name: {{recipe_name}}-multi
-    base: {{recipe_name}}-torch-{{torch_version}}
+  - name: {{recipe_name}}-full
+    base: {{recipe_name}}-torch
     desc: |
       **Overview**
       This is a multipurpose ML/AI image that builds on its base image by adding a
@@ -237,7 +281,7 @@ steps:
       systems with MI250x GPUs and Slingshot interconnect.
 
       **Details**
-      Base image: {{recipe_name}}-torch-{{torch_version}}
+      Base image: {{recipe_name}}-torch
       GPU architectures: {{multi_image_gpu_arch}}
       Components:
         - Apex (from {{apex_git_repo}} commit {{apex_git_commit}})
@@ -284,12 +328,17 @@ steps:
       - WRETAG_URL={{wretag_url}}
       #
     export:
-      name: {{recipe_name}}-multi
+      name: {{recipe_name}}-full
       def: |
         %runscript
         if [ "${ROCR_USE_SLURM_LOCALID}" = 1 ] && [ -n "${SLURM_LOCALID}" ]; then
             export ROCR_VISIBLE_DEVICES="$SLURM_LOCALID"
         fi
         exec "$@"
-    post: |
-      podman run -it --rm {{recipe_name}}-multi:{{build_tag}} cat /.sbom.json > builds/{{recipe_name}}-{{build_tag}}/{{recipe_name}}-multi-{{build_tag}}.json
+post: |
+  podman run -it --rm {{recipe_name}}-full:{{build_tag}} cat /.sbom.json > builds/{{recipe_name}}-{{build_tag}}/{{recipe_name}}-full-{{build_tag}}.json
+  podman run -it --rm {{recipe_name}}-mpich:{{build_tag}} cat /.sbom.json > builds/{{recipe_name}}-{{build_tag}}/{{recipe_name}}-mpich-{{build_tag}}.json
+  podman run -it --rm {{recipe_name}}-rocm-{{rocm_version}}:{{build_tag}} cat /.sbom.json > builds/{{recipe_name}}-{{build_tag}}/{{recipe_name}}-rocm-{{rocm_version}}-{{build_tag}}.json
+  podman run -it --rm {{recipe_name}}-libfabric-{{libfabric}}:{{build_tag}} cat /.sbom.json > builds/{{recipe_name}}-{{build_tag}}/{{recipe_name}}-libfabric-{{libfabric}}-{{build_tag}}.json
+  podman run -it --rm {{recipe_name}}-torch:{{build_tag}} cat /.sbom.json > builds/{{recipe_name}}-{{build_tag}}/{{recipe_name}}-torch-{{build_tag}}.json
+  sha256sum builds/{{recipe_name}}-{{build_tag}}/* > builds/{{recipe_name}}-{{build_tag}}/{{recipe_name}}-full-{{build_tag}}.sha256

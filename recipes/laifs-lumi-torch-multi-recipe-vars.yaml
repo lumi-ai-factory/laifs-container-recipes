@@ -88,7 +88,7 @@ torchvision_url: "https://download.pytorch.org/whl/rocm6.4/torchvision-0.23.0%2B
 xformers_url: "https://download.pytorch.org/whl/rocm6.4/xformers-0.0.32.post2-cp39-abi3-manylinux_2_28_x86_64.whl"
 
 #
-# ubuntu-rocm-libfabric-mpich-torch-multi
+# ubuntu-rocm-libfabric-mpich-torch-full
 #
 apex_git_commit: "3f26640" # Latest from branch release/1.8.0 (this branch is specifically for Pytorch 2.8)
 apex_git_repo: "https://github.com/ROCm/apex"
