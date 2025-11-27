@@ -3,9 +3,7 @@ name: Podman and GitHub integration test
 on:
   workflow_dispatch:
 
-permissions:
-  contents: read
-  packages: read
+permissions: write-all
 
 jobs:
   podman_gh_test:
@@ -18,18 +16,10 @@ jobs:
       - name: Check Podman info
         run: podman info
 
+      - name: List images on runner
+        run: podman images
+
       - name: Login to GHCR
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | \
             podman login ghcr.io -u "${{ github.actor }}" --password-stdin
-
-      - name: List images on runner
-        run: podman images
-
-      - name: List containers in GHCR for LAIFS
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          echo "Listing GHCR packages for ${{ github.repository_owner }}"
-          gh api \
-            /orgs/${{ github.repository_owner }}/packages?package_type=container

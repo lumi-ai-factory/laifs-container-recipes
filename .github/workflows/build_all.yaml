@@ -1,0 +1,28 @@
+name: Build all images
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.12
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run build wrapper
+        run: |
+          scripts/build-wrapper \
+          recipes/laifs-lumi-torch-multi-recipe-template.yaml \
+          recipes/laifs-lumi-torch-multi-recipe-vars.yaml \
+          recipes/laifs-lumi-torch-multi-recipe-readme.j2

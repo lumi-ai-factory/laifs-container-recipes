@@ -6,7 +6,7 @@ Container recipes and scripts for managing LUMI AI Factory container builds.
 
 Render a recipe from template and vars file to stdout:
 ```
-$ scripts/j2render recipes/laifs-lumi-multi-recipe-template.yaml recipes/laifs-lumi-multi-recipe-vars.yaml | head
+$ scripts/j2render recipes/laifs-lumi-torch-multi-recipe-template.yaml recipes/laifs-lumi-torch-multi-recipe-vars.yaml | head
 name: laifs-lumi-multi-recipe
 steps:
   - name: ubuntu-noble-20250925-rocm-6.4.4
@@ -55,7 +55,10 @@ Recipe laifs-lumi-multi-recipe from file builds/laifs-lumi-multi-recipe-20251003
 
 Build full recipe using `build-wrapper`:
 ```
-$ scripts/build-wrapper recipes/laifs-lumi-multi-recipe-template.yaml recipes/laifs-lumi-multi-recipe-vars.yaml
+$ scripts/build-wrapper \
+  recipes/laifs-lumi-torch-multi-recipe-template.yaml \
+  recipes/laifs-lumi-torch-multi-recipe-vars.yaml \
+  recipes/laifs-lumi-torch-multi-recipe-readme.j2
 ```
 
 Build a recipe into selected directory:
