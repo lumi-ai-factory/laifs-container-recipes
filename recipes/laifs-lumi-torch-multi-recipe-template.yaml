@@ -1,85 +1,76 @@
-{%- set ubuntu_id = 'u' ~ ubuntu_release.split('.')[0] %}
-{%- set rocm_id = 'r' ~ rocm_version.split('.')[0] ~ rocm_version.split('.')[1] %}
-{%- set libfabric_id = 'f' ~ libfabric_version.split('.')[0] ~ libfabric_version.split('.')[1] %}
-{%- set mpich_id = 'm' ~ mpich_version.split('.')[0] ~ mpich_version.split('.')[1] %}
-{%- set torch_id = 't' ~ torch_version.split('.')[0] ~ torch_version.split('.')[1] %}
+{#- Derive software digest string for the recipe from variables to keep the digest automatically updated -#}
+{%- set ubuntu_id = 'u' ~ ubuntu_release.split('.')[0] -%}
+{%- set rocm_id = 'r' ~ rocm_version.split('.')[0] ~ rocm_version.split('.')[1] -%}
+{%- set libfabric_id = 'f' ~ libfabric_version.split('.')[0] ~ libfabric_version.split('.')[1] -%}
+{%- set mpich_id = 'm' ~ mpich_version.split('.')[0] ~ mpich_version.split('.')[1] -%}
+{%- set torch_id = 't' ~ torch_version.split('.')[0] ~ torch_version.split('.')[1] -%}
+{%- set software_digest = ubuntu_id ~ rocm_id ~ libfabric_id ~ mpich_id ~ torch_id -%}
 
-{%- set software_digest = ubuntu_id ~ rocm_id ~ libfabric_id ~ mpich_id ~ torch_id %}
-{%- set recipe_base_name = 'laifs-lumi-multitorch' %}
-{%- set recipe_name = recipe_base_name ~ '-' ~ software_digest %}
+{#- Enable rendering the template without build_tag set in the jinja2 context -#}
+{%- set build_tag = build_tag | default('build_tag_placeholder') -%}
 
-name: "{{ recipe_name }}"
-digest: "{{ software_digest }}"
+{#- Enable straight forward recipe name and target registry changes by using variables -#}
+{%- set recipe_base_name = 'lumi-multitorch' -%}
+{%- set recipe_full_name = recipe_base_name ~ '-' ~ software_digest -%}
+{%- set release_id = recipe_base_name ~ '-' ~ software_digest ~ '-' ~ build_tag -%}
+{%- set release_registry = "viahlgre/" ~ recipe_base_name -%}
+
+{%- set release_directory = "/appl/local/laifs/containers/" ~ release_id -%}
+{%- set release_digest_symlink = "/appl/local/laifs/containers/" ~ recipe_base_name ~ '-' ~ software_digest -%}
+{%- set release_latest_symlink = "/appl/local/laifs/containers/" ~ recipe_base_name -%}
+
+{#- Convert image name from for example "mpich" to "lumi-multitorch-mpich-u01r23f45m67t89" -#}
+{%- macro image_digest_name(short_name) -%}
+  {{- recipe_base_name ~ '-' ~ short_name ~ '-' ~ software_digest -}}
+{% endmacro %}
+
+{#- Convert image name from for example "mpich" to "lumi-multitorch-mpich-u01r23f45m67t89-20250204_123456" -#}
+{%- macro image_build_name(short_name) -%}
+  {{- image_digest_name(short_name) ~ '-' ~ build_tag -}}
+{% endmacro %}
+
+{#- Convert short image name such as "mpich" to full registry path + tag of the exact image -#}
+{%- macro image_registry_name(short_name) -%}
+  {{- release_registry ~ ':' ~ short_name ~ '-' ~ software_digest ~ '-' ~ build_tag -}}
+{% endmacro %}
+
+{#- Convert short image name such as "mpich" to registry path for latest image with the our digest -#}
+{%- macro image_registry_digest(short_name) -%}
+  {{- release_registry ~ ':' ~  short_name  ~ '-' ~ software_digest -}}
+{% endmacro %}
+
+{#- Convert short image name such as "mpich" to registry path for latest image this name -#}
+{%- macro image_registry_latest(short_name) -%}
+  {{- release_registry ~ ':' ~  short_name -}}
+{% endmacro %}
+
+name: "{{ recipe_full_name }}"
 tag: "{{ build_tag }}"
+release: "{{ release_id }}"
 desc: |
   This collection of container images is developed by the
-  [LUMI AI Factory](https://lumi-ai-factory.eu/) and is specifically designed
-  for use on the LUMI supercomputer. The images are built incrementally using
-  recipes available in the LUMI AI Factory
+  [LUMI AI Factory](https://lumi-ai-factory.eu/) and is specifically designed for
+  use on the [LUMI supercomputer](https://lumi-supercomputer.eu/). The images are
+  built using recipes available in the LUMI AI Factory
   [GitHub repository](https://github.com/lumi-ai-factory/laifs-container-recipes).
-  Each image builds on the previous one, adding new functionality, finally
-  resulting in a fully featured PyTorch based ML/AI container.
 
-  All build artifacts, including container files, build logs, and the resulting
-  images, are publicly available. This allows for customization and reuse on
-  other similar systems. Intermediate images are published to Docker Hub, while
-  the final container images are provided on LUMI as Apptainer/Singularity `.sif`
-  files under `/appl/local/laifs/containers`. The generated Containerfiles and
-  other artifacts are released as GitHub releases.
+  Each image of the release builds on the previous one by adding new functionality,
+  finally resulting in a fully featured, GPU-enabled and MPI-capable PyTorch-based
+  multipurpose ML/AI container image.
 
-  The GitHub release consists of:
-  - A `.yaml` recipe file which defines the build steps, software versions, and
-    includes all required Containerfiles and documentation to reproduce the build
-    of this container image release using the accompanied build scripts.
-  - Containerfiles and Singularity definition files (`.Containerfile`, `.def`) for
-    convenience (this data is embedded in the `.yaml` recipe as well).
-  - This release README file and separate per-image documentation (`.md`).
-  - Build logs (`.log`) and SBOM files (`.json`) for all images for transparency.
+  All build artifacts, including the full recipe, Containerfiles, build logs, and
+  the resulting images, are publicly available. This transparent approach enables
+  full user customization for special use cases and reusability on other systems.
 
-  On Docker Hub the images are available with the following tag/naming scheme:
-    - Floating tags for latest version:
-      - `lumi-ai-factory/lumi-multitorch:full` (latest complete full image across all variants)
-      - `lumi-ai-factory/lumi-multitorch:torch` (latest PyTorch build across all variants)
-      - `lumi-ai-factory/lumi-multitorch:mpich` (latest MPICH build across all variants)
-      - `lumi-ai-factory/lumi-multitorch:libfabric` (latest Libfabric build across all variants)
-      - `lumi-ai-factory/lumi-multitorch:rocm` (latest ROCm build across all variants)
-    - Floating tags for latest version with specific versions variant:
-      - `lumi-ai-factory/lumi-multitorch:full-{{software_digest}}-latest` (latest
-        build for this software stack, see the release name information below for details
-        about the software digest part "{{software_digest}}")
-      - The same scheme is also available for the torch, mpich, libfabric and rocm images.
-    - Build-specific tags for reproducibility:
-      - `lumi-ai-factory/lumi-multitorch:full-{{software_digest}}-{{build_tag}}` (specific pinned build of the full image)
-      - `lumi-ai-factory/lumi-multitorch:torch-{{software_digest}}-{{build_tag}}` (specific pinned build of the torch image)
-      - Tags with the same same scheme are also available for the mpich, libfabric and rocm images.
-    - Example Docker Hub pull commands:
-      - `docker pull lumi-ai-factory/lumi-multitorch:full-{{software_digest}}-{{build_tag}}`
-      - `docker pull lumi-ai-factory/lumi-multitorch:mpich-{{software_digest}}-latest`
-      - `docker pull lumi-ai-factory/lumi-multitorch:rocm`
+  All images are published to Docker Hub, and ready-to-run Apptainer/Singularity
+  `.sif` versions of the images are available directly on LUMI. The generated
+  Containerfiles and other artifacts are released as public GitHub releases.
 
-  The images are also available to be used directly on LUMI:
-    - Path to this release on LUMI:
-      - `/appl/local/laifs/containers/laifs-lumi-multitorch-{{software_digest}}-{{build_tag}}/`
-    - Example symlink paths to the images on LUMI:
-      - `/appl/local/laifs/containers/laifs-lumi-multitorch-{{software_digest}}-latest/`
-      - `/appl/local/laifs/containers/laifs-lumi-multitorch-latest/`
-    - Example release dicectory content on LUMI:
-      - `laifs-lumi-multitorch-{{software_digest}}-{{build_tag}}.md`: The main readme file
-      - `laifs-lumi-multitorch-{{software_digest}}-full-{{build_tag}}.sif`: Singularity image for the main image
-      - `laifs-lumi-multitorch-{{software_digest}}-full-{{build_tag}}.md`: Readme file for the main image
-      - `laifs-lumi-multitorch-{{software_digest}}-full-{{build_tag}}.json`: Software Bill of materials for the main image
-      - `laifs-lumi-multitorch-{{software_digest}}-torch-{{build_tag}}.sif`: Singularity image for the torch image
-      - `laifs-lumi-multitorch-{{software_digest}}-torch-{{build_tag}}.md`: Readme file for the torch image
-      - `laifs-lumi-multitorch-{{software_digest}}-torch-{{build_tag}}.json`: Software Bill of materials for the torch image
-      - `...`
-    - Example usage on LUMI: `singularity run ...`
-
-  The container release name `{{recipe_name}}-{{build_tag}}`
-  encodes the following information for this image:
-    - laifs: Producer of the image (LUMI AI Factory Services)
-    - lumi: The primary target system for the image (LUMI)
+  The release identifier `{{release_id}}` encodes the
+  following information:
+    - lumi: The primary target system for the images (LUMI)
     - multitorch: Image type (a multipurpose PyTorch image)
-    - {{software_digest}}: Major software versions digest, which includes:
+    - {{software_digest}}: Major software versions digest, consisting of:
       - {{ubuntu_id}}: Digest for Ubuntu {{ubuntu_release}} LTS
       - {{rocm_id}}: Digest for ROCm {{rocm_version}}
       - {{libfabric_id}}: Digest for libfabric {{libfabric_version}}
@@ -87,20 +78,21 @@ desc: |
       - {{torch_id}}: Digest for PyTorch {{torch_version}}
     - {{build_tag}}: Timestamp-based build tag
 
-  This release includes five separate images, each building on the previous one:
-    - `{{recipe_name}}-rocm`:
-      Ubuntu base image with ROCm-{{rocm_version}} added
-    - `{{recipe_name}}-libfabric`:
-      ROCm image with libfabric {{libfabric_version}} added
-    - `{{recipe_name}}-mpich-`:
-      Libfabric image with MPICH {{mpich_version}} added
-    - `{{recipe_name}}-torch`:
-      MPICH image with PyTorch {{torch_version}} added
-    - `{{recipe_name}}-full`:
-      PyTorch image with selection of AI and ML libraries added
+  This release includes five separate images, each building on the previous one,
+  adding new major functionality in the following order:
+    - `{{image_digest_name("rocm")}}`:
+      Starts from Ubuntu base image and adds ROCm {{rocm_version}}
+    - `{{image_digest_name("libfabric")}}`:
+      Adds libfabric {{libfabric_version}} to the ROCm image
+    - `{{image_digest_name("mpich")}}`:
+      Adds MPICH {{mpich_version}} with GPU support to the libfabric image
+    - `{{image_digest_name("torch")}}`:
+      Adds PyTorch {{torch_version}} to the MPICH image
+    - `{{image_digest_name("full")}}`:
+      Adds selection of AI and ML libraries to the PyTorch image
 
-  The final image `{{recipe_name}}-full-{{build_tag}}`
-  contains these key software components:
+  The final image `{{image_build_name("full")}}`
+  includes these key software components:
     - Ubuntu {{ubuntu_release}} LTS (from https://hub.docker.com/layers/library/ubuntu/{{ubuntu_tag}})
     - AMD ROCm {{rocm_version}} (from {{rocm_repo}})
     - Xpmem (from {{xpmem_clone_url}} commit {{xpmem_git_commit}})
@@ -125,13 +117,68 @@ desc: |
     - vLLM {{vllm_version}} (from {{vllm_repo}} commit {{vllm_commit}})
 
   Documentation for each image is provided separately in the `<image name>.md`
-  Markdown files. Simple Software Bill of Materials is available in the
-  `<image name>.json` file, which lists all Ubuntu and PyPI packages in the
-  images. Containerfiles and build logs for each image can be found in the
-  `<image name>.Containerfile` and `<image name>.log` files, respectively.
+  Markdown files, as well as in the next sections of this file. Simple Software
+  Bill of Materials (SBOM) is available in files named `<image name>.json`.
+  These files list all Ubuntu and PyPI packages used in the images.
+  Containerfiles and build logs for each image are  available in files named
+  `<image name>.Containerfile` and `<image name>.log`, respectively.
+
+  The GitHub release for this build consists of:
+  - A `.yaml` recipe file which defines the build steps, software versions, and
+    includes all required Containerfiles and documentation snippets to reproduce
+    the build of this release.
+  - Containerfiles and Singularity definition files (`.Containerfile`, `.def`) for
+    convenience (this data is embedded in the `.yaml` recipe as well).
+  - This release README file and separate per-image documentation (`.md`).
+  - Build logs (`.log`) and SBOM files (`.json`) for all images for transparency.
+
+  The images are available to be used directly on LUMI:
+    - Path to this exact release on LUMI is:
+      `{{release_directory}}`
+    - Latest build with the same software digest as this release is symlinked at:
+      `{{release_digest_symlink}}`
+    - Latest version (over all digests) is symlinked at:
+      `{{release_latest_symlink}}
+    - Example listing of release directory content on LUMI:
+      - `{{recipe_base_name}}-{{software_digest}}-{{build_tag}}.md`: The main readme file
+      - `{{image_build_name("full")}}.sif`: Singularity image for the main image
+      - `{{image_build_name("full")}}.md`: Readme file for the main image
+      - `{{image_build_name("full")}}.json`: Software Bill of materials for the main image
+      - `{{image_build_name("torch")}}.sif`: Singularity image for the torch image
+      - `{{image_build_name("torch")}}.md`: Readme file for the torch image
+      - `{{image_build_name("torch")}}.json`: Software Bill of materials for the torch image
+      - `...`
+    - Illustrative example use on LUMI:
+      ```
+      uan:~> srun --gpus-per-task=2 <other srun args> singularity \
+        run <singularity args> <path to sif image> \
+          python -c 'import torch; print("num gpus:", torch.cuda.device_count()'`
+      [...]
+      num gpus: 2
+      ```
+
+  On Docker Hub the images are available with the following tag/naming scheme:
+    - The exact images from this recipe build:
+      - Image full: `{{image_registry_name("full")}}`
+      - Image torch: `{{image_registry_name("torch")}}`
+      - Image mpich: `{{image_registry_name("mpich")}}`
+      - Image libfabric: `{{image_registry_name("libfabric")}}`
+      - Image rocm: `{{image_registry_name("rocm")}}`
+    - Latest build with specific signifficant software versions (using software digest):
+      - Image full: {{image_registry_digest("full")}}`
+      - Image torch: {{image_registry_digest("torch")}}`
+      - `[...]`
+    - Floating tags for latest version (over any signifficant sofware versions / digests):
+      - `{{image_registry_latest("full")}}`: latest complete full image across all variants
+      - `{{image_registry_latest("torch")}}`: latest complete mpich image across all variant
+      - `[...]`
+    - Example Docker Hub pull commands:
+      - `docker pull {{image_registry_name("full")}}`
+      - `docker pull {{image_registry_digest("torch")}}`
+      - `docker pull {{image_registry_latest("rocm")}}`
 
 steps:
-  - name: {{recipe_name}}-rocm
+  - name: {{image_digest_name("rocm")}}
     base: ubuntu:{{ubuntu_tag}}
     desc: |
       **Overview**
@@ -157,10 +204,10 @@ steps:
       - EXTRA_LOCALES="{{extra_locales | join(' ')}}"
       - EXTRA_PACKAGES="{{extra_packages | join(' ')}}"
     export:
-      name: {{recipe_name}}-rocm
+      name: {{image_digest_name("rocm")}}
 
-  - name: {{recipe_name}}-libfabric
-    base: {{recipe_name}}-rocm
+  - name: {{image_digest_name("libfabric")}}
+    base: {{image_digest_name("rocm")}}
     desc: |
       **Overview**
       This image builds on top of its base image by adding locally built Ubuntu
@@ -170,7 +217,7 @@ steps:
       custom MPI stacks.
 
       **Details**
-      Base image: {{recipe_name}}-rocm
+      Base image: {{image_digest_name("rocm")}}
       Components:
         - xpmem (from {{xpmem_clone_url}} commit {{xpmem_git_commit}})
         - Cassini headers (from {{cassini_headers_source}} release tgz for {{cassini_headers_version}})
@@ -202,10 +249,10 @@ steps:
       - LIBFABRIC_CLONE_URL={{libfabric_clone_url}}
       - LIBFABRIC_GIT_COMMIT={{libfabric_git_commit}}
     export:
-      name: {{recipe_name}}-libfabric
+      name: {{image_digest_name("libfabric")}}
 
-  - name: {{recipe_name}}-mpich
-    base: {{recipe_name}}-libfabric
+  - name: {{image_digest_name("mpich")}}
+    base: {{image_digest_name("libfabric")}}
     desc: |
       **Overview**
       This image builds on top of its base image by adding an MPI library with GPU
@@ -215,7 +262,7 @@ steps:
       functionality validation.
 
       **Details**
-      Base image: {{recipe_name}}-libfabric
+      Base image: {{image_digest_name("libfabric")}}
       MPI implementation: MPICH {{mpich_version}}
       Components:
         - MPICH {{mpich_version}} (from {{mpich_source}} release tgz for {{mpich_version}})
@@ -240,17 +287,17 @@ steps:
       - RCCL_TESTS_REPO={{rccl_tests_repo}}
       - RCCL_TESTS_VERSION={{rccl_tests_version}}
     export:
-      name: {{recipe_name}}-mpich
+      name: {{image_digest_name("mpich")}}
 
-  - name: {{recipe_name}}-torch
-    base: {{recipe_name}}-mpich
+  - name: {{image_digest_name("torch")}}
+    base: {{image_digest_name("mpich")}}
     desc: |
       **Overview**
       This image builds on top of its base image by adding PyTorch for AMD GPUs and
       ROCm, along with few related packages from PyTorch's upstream repositories.
 
       **Details**
-      Base image: {{recipe_name}}-mpich
+      Base image: {{image_digest_name("mpich")}}
       PyTorch version: {{torch_version}}
       PyTorch packages and sources:
         - PyTorch: {{torch_url}}
@@ -269,10 +316,10 @@ steps:
       - TORCH_URL={{torch_url}}
       - XFORMERS_URL={{xformers_url}}
     export:
-      name: {{recipe_name}}-torch
+      name: {{image_digest_name("torch")}}
 
-  - name: {{recipe_name}}-full
-    base: {{recipe_name}}-torch
+  - name: {{image_digest_name("full")}}
+    base: {{image_digest_name("torch")}}
     desc: |
       **Overview**
       This is a multipurpose ML/AI image that builds on its base image by adding a
@@ -281,7 +328,7 @@ steps:
       systems with MI250x GPUs and Slingshot interconnect.
 
       **Details**
-      Base image: {{recipe_name}}-torch
+      Base image: {{image_digest_name("torch")}}
       GPU architectures: {{multi_image_gpu_arch}}
       Components:
         - Apex (from {{apex_git_repo}} commit {{apex_git_commit}})
@@ -328,17 +375,19 @@ steps:
       - WRETAG_URL={{wretag_url}}
       #
     export:
-      name: {{recipe_name}}-full
+      name: {{image_digest_name("full")}}
       def: |
         %runscript
         if [ "${ROCR_USE_SLURM_LOCALID}" = 1 ] && [ -n "${SLURM_LOCALID}" ]; then
             export ROCR_VISIBLE_DEVICES="$SLURM_LOCALID"
         fi
         exec "$@"
-post: |
-  podman run -it --rm {{recipe_name}}-full:{{build_tag}} cat /.sbom.json > builds/{{recipe_name}}-{{build_tag}}/{{recipe_name}}-full-{{build_tag}}.json
-  podman run -it --rm {{recipe_name}}-mpich:{{build_tag}} cat /.sbom.json > builds/{{recipe_name}}-{{build_tag}}/{{recipe_name}}-mpich-{{build_tag}}.json
-  podman run -it --rm {{recipe_name}}-rocm-{{rocm_version}}:{{build_tag}} cat /.sbom.json > builds/{{recipe_name}}-{{build_tag}}/{{recipe_name}}-rocm-{{rocm_version}}-{{build_tag}}.json
-  podman run -it --rm {{recipe_name}}-libfabric-{{libfabric}}:{{build_tag}} cat /.sbom.json > builds/{{recipe_name}}-{{build_tag}}/{{recipe_name}}-libfabric-{{libfabric}}-{{build_tag}}.json
-  podman run -it --rm {{recipe_name}}-torch:{{build_tag}} cat /.sbom.json > builds/{{recipe_name}}-{{build_tag}}/{{recipe_name}}-torch-{{build_tag}}.json
-  sha256sum builds/{{recipe_name}}-{{build_tag}}/* > builds/{{recipe_name}}-{{build_tag}}/{{recipe_name}}-full-{{build_tag}}.sha256
+files: |
+  -name: "builds/{{release_id}}/{{release_id}}-post.sh"
+  -content: |
+    podman run -it --rm {{image_digest_name("full")}}:{{build_tag}} cat /.sbom.json > builds/{{release_id}}/{{image_build_name("full")}}.json
+    podman run -it --rm {{image_digest_name("torch")}}:{{build_tag}} cat /.sbom.json > builds/{{release_id}}/{{image_build_name("torch")}}.json
+    podman run -it --rm {{image_digest_name("libfabric")}}:{{build_tag}} cat /.sbom.json > builds/{{release_id}}/{{image_build_name("libfabric")}}.json
+    podman run -it --rm {{image_digest_name("mpich")}}:{{build_tag}} cat /.sbom.json > builds/{{release_id}}/{{image_build_name("mpich")}}.json
+    podman run -it --rm {{image_digest_name("rocm")}}:{{build_tag}} cat /.sbom.json > builds/{{release_id}}/{{image_build_name("rocm")}}.json
+    sha256sum builds/{{recipe_full_name}}-{{build_tag}}/* > builds/{{recipe_full_name}}-{{build_tag}}/{{recipe_full_name}}-full-{{build_tag}}.sha256
