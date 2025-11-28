@@ -13,7 +13,7 @@
 {%- set recipe_base_name = 'lumi-multitorch' -%}
 {%- set recipe_full_name = recipe_base_name ~ '-' ~ software_digest -%}
 {%- set release_id = recipe_base_name ~ '-' ~ software_digest ~ '-' ~ build_tag -%}
-{%- set release_registry = "viahlgre/" ~ recipe_base_name -%}
+{%- set release_registry = "lumi-ai-factory/" ~ recipe_base_name -%}
 
 {%- set release_directory = "/appl/local/laifs/containers/" ~ release_id -%}
 {%- set release_digest_symlink = "/appl/local/laifs/containers/" ~ recipe_base_name ~ '-' ~ software_digest -%}
