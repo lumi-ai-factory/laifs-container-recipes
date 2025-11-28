@@ -78,8 +78,8 @@ desc: |
       - {{torch_id}}: Digest for PyTorch {{torch_version}}
     - {{build_tag}}: Timestamp-based build tag
 
-  This release includes five separate images, each building on the previous one,
-  adding new major functionality in the following order:
+  This release includes five images, each building on the previous one by adding
+  new major functionality in the following order:
     - `{{image_digest_name("rocm")}}`:
       Starts from Ubuntu base image and adds ROCm {{rocm_version}}
     - `{{image_digest_name("libfabric")}}`:
@@ -91,7 +91,7 @@ desc: |
     - `{{image_digest_name("full")}}`:
       Adds selection of AI and ML libraries to the PyTorch image
 
-  The final image `{{image_build_name("full")}}`
+  The final image, `{{image_build_name("full")}}`,
   includes these key software components:
     - Ubuntu {{ubuntu_release}} LTS (from https://hub.docker.com/layers/library/ubuntu/{{ubuntu_tag}})
     - AMD ROCm {{rocm_version}} (from {{rocm_repo}})
@@ -117,11 +117,19 @@ desc: |
     - vLLM {{vllm_version}} (from {{vllm_repo}} commit {{vllm_commit}})
 
   Documentation for each image is provided separately in the `<image name>.md`
-  Markdown files, as well as in the next sections of this file. Simple Software
-  Bill of Materials (SBOM) is available in files named `<image name>.json`.
-  These files list all Ubuntu and PyPI packages used in the images.
-  Containerfiles and build logs for each image are  available in files named
-  `<image name>.Containerfile` and `<image name>.log`, respectively.
+  Markdown text files, as well as in the next sections of this file. A Software
+  Bill of Materials (SBOM) is available in files named `<image name>.json`.  These
+  files list all Ubuntu and Python packages used in the images.  Containerfiles and
+  build logs for each image are available in files named
+  <image name>.Containerfile` and `<image name>.log`, respectively.
+
+  All software in the images is installed as either Python or Ubuntu packages.
+  Some packages are installed directly from Ubuntu repositories, some from PyPI,
+  and others such as PyTorch and ROCm, are installed from external upstream
+  package repositories (PyTorch project's repository, AMD's ROCm repository).
+  Lastly, the remaining packages are built locally during the container build
+  process and then installed as either Ubuntu or Python packages, resulting in
+  all included software being managed by either Ubuntu or Python package managers.
 
   The GitHub release for this build consists of:
   - A `.yaml` recipe file which defines the build steps, software versions, and
@@ -132,18 +140,18 @@ desc: |
   - This release README file and separate per-image documentation (`.md`).
   - Build logs (`.log`) and SBOM files (`.json`) for all images for transparency.
 
-  The images are available to be used directly on LUMI:
+  The images are available for direct use on LUMI:
     - Path to this exact release on LUMI is:
       `{{release_directory}}`
     - Latest build with the same software digest as this release is symlinked at:
       `{{release_digest_symlink}}`
     - Latest version (over all digests) is symlinked at:
-      `{{release_latest_symlink}}
+      `{{release_latest_symlink}}`
     - Example listing of release directory content on LUMI:
       - `{{recipe_base_name}}-{{software_digest}}-{{build_tag}}.md`: The main readme file
-      - `{{image_build_name("full")}}.sif`: Singularity image for the main image
-      - `{{image_build_name("full")}}.md`: Readme file for the main image
-      - `{{image_build_name("full")}}.json`: Software Bill of materials for the main image
+      - `{{image_build_name("full")}}.sif`: Singularity image for the full image
+      - `{{image_build_name("full")}}.md`: Readme file for the full image
+      - `{{image_build_name("full")}}.json`: Software Bill of materials for the full image
       - `{{image_build_name("torch")}}.sif`: Singularity image for the torch image
       - `{{image_build_name("torch")}}.md`: Readme file for the torch image
       - `{{image_build_name("torch")}}.json`: Software Bill of materials for the torch image
@@ -152,7 +160,7 @@ desc: |
       ```
       uan:~> srun --gpus-per-task=2 <other srun args> singularity \
         run <singularity args> <path to sif image> \
-          python -c 'import torch; print("num gpus:", torch.cuda.device_count()'`
+          python -c 'import torch; print("num gpus:", torch.cuda.device_count())'
       [...]
       num gpus: 2
       ```
@@ -164,13 +172,13 @@ desc: |
       - Image mpich: `{{image_registry_name("mpich")}}`
       - Image libfabric: `{{image_registry_name("libfabric")}}`
       - Image rocm: `{{image_registry_name("rocm")}}`
-    - Latest build with specific signifficant software versions (using software digest):
-      - Image full: {{image_registry_digest("full")}}`
-      - Image torch: {{image_registry_digest("torch")}}`
+    - Latest build with specific significant software versions (using software digest):
+      - Image full: `{{image_registry_digest("full")}}`
+      - Image torch: `{{image_registry_digest("torch")}}`
       - `[...]`
-    - Floating tags for latest version (over any signifficant sofware versions / digests):
+    - Floating tags for latest version (over any significant software versions / digests):
       - `{{image_registry_latest("full")}}`: latest complete full image across all variants
-      - `{{image_registry_latest("torch")}}`: latest complete mpich image across all variant
+      - `{{image_registry_latest("torch")}}`: latest complete torch image across all variants
       - `[...]`
     - Example Docker Hub pull commands:
       - `docker pull {{image_registry_name("full")}}`
