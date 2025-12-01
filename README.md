@@ -10,12 +10,14 @@ This repository provides the infrastructure to build, customize, and release con
 
 ## Overview
 
-This repository contains:
-- **Recipes** for building container images, defined as Jinja2 templates and YAML variable files.
-- **Scripts** to render the recipes, build the images, and to generate documentation.
-- **Containerfile templates** that are filled and embedded into the rendered recipes.
-- **Containerfile variables** that are used to fill the templates to generate the rendered recipes.
-- **Documentation templates** to generate image relese documentation from rendered recipes.
+**This repository contains:**
+
+- **Scripts** to render recipes, build images, and generate documentation.
+- **Recipes** for building container images, defined as Jinja2 templates and YAML variable files:
+  - **Template files** filled using variable files to generate rendered recipes.
+  - **Variable files** used to fill the templates and generate rendered recipes.
+  - **Document templates** to generate image release documentation from rendered recipes.
+- **Containerfile templates** filled and embedded into the rendered recipes.
 
 The workflow is designed to make it easy to update software versions, rebuild images, and generate up-to-date documentation with minimal manual intervention.
 
