@@ -1,0 +1,249 @@
+ubuntu_tag: "noble-20251001"
+#
+# Olivia
+# ======
+# NOTE: Q: all modules from CrayEnv - should be sufficient?
+# NOTE: inspecting CrayEnv module for specific libraries
+# CrayEnv, cuda
+# CUDA/12.1.1
+# CUDA/12.4.0
+# CUDA/12.6.0
+# CUDA/12.8.0
+# CUDA/12.9.1
+# NCCL:
+# NCCL/2.22.3-GCCcore-13.3.0-CUDA-12.6.0
+# NCCL/2.26.6-GCCcore-14.2.0-CUDA-12.8.0
+# NCCL/2.27.7-GCCcore-14.3.0-CUDA-12.9.1
+# NCCL/2.28.3-GCCcore-14.2.0-CUDA-12.8.0
+# NVHPC:
+# NVHPC/23.7-CUDA-12.1.1
+# NVHPC/24.9-CUDA-12.6.0
+# NVHPC/25.3-CUDA-12.8.0
+# OpenMPI: OpenMPI/5.0.3-NVHPC-24.9-CUDA-12.6.0 (requires modules BuildEnv/NeoverseV2, NRIS/GPU)
+# -----------------------
+#amd_gpu_version: "6.4.4"
+#rocm_version: "6.4.4"
+# --------------------
+cuda_version: "12.8.0" # NOTE: keeping only as a note, var not used in testing
+#
+# Olivia
+# ======
+# state: xpmem kernel driver installed on compute nodes
+# CrayEnv, xpmem
+# xpmem/2.11.3-1.3_gdbda01a1eb3d
+# ------------------------------
+#xpmem_clone_url: "https://github.com/hpc/xpmem"
+#xpmem_git_commit: "3bcab55"
+#xpmem_version: "0.1-git3bcab55"
+#pmem_kernel_base_src: "linux-headers-5.15.0-160_5.15.0-160.170_all.deb"
+#xpmem_kernel_generic_src: "linux-headers-5.15.0-160-generic_5.15.0-160.170_amd64.deb"
+#xpmem_kernel_id: "linux-headers-5.15.0-160-generic"
+# --------------------------------------------------
+xpmem_clone_url: "https://github.com/hpc/xpmem"
+xpmem_git_commit: "gdbda01a"
+xpmem_version: "1.3_gdbda01a1eb3d"
+pmem_kernel_base_src: "" # NOTE: linux kernel 6.4 on Olivia's compute nodes ---> headers
+xpmem_kernel_generic_src: ""
+xpmem_kernel_id: ""
+#
+# Olivia
+# ======
+# TODO: check which version matches the kernel on compute nodes (6.4.)
+# TODO: check other modules and installation on the host since kernel driver cxi-driver is present
+# ---------------------------------
+#cassini_headers_version: "12.0.1"
+#cxi_headers_version: "0.1git-3233be5b1"
+#cxi_headers_clone_url: "https://github.com/HewlettPackard/shs-cxi-driver"
+#cxi_headers_git_commit: "3233be5b1"
+# ----------------------------------
+cassini_headers_version: "12.0.1" # build works fine with 12.0.1
+cxi_headers_version: "12.0.1"
+cxi_headers_clone_url: "https://github.com/HewlettPackard/shs-cxi-driver"
+cxi_headers_git_commit: "3233be5b1"
+#
+# Olivia
+# ======
+# TODO: check the version
+# Q: should installation go for cray-libcxi
+# --------------------------
+#libcxi_version: "0.1git-ebd57a9ca"
+#libcxi_clone_url: "https://github.com/HewlettPackard/shs-libcxi"
+#libcxi_git_commit: "ebd57a9ca"
+# ----------------------------
+libcxi_version: "12.0.1" # build works fine with 12.0.1
+#
+# Olivia
+# ======
+# CrayEnv, module spider
+# NOTE: need to load CrayEnv before this module can be loaded 
+# libfabric/1.22.0
+# ----------------
+#libfabric_git_commit: "e9cf535a"
+#libfabric_version: "2.1git-e9cf535a"
+#libfabric_clone_url: "https://github.com/ofiwg/libfabric"
+# --------------------------------------------------------
+libfabric_version: "1.22.0" # TODO: replace with corresponding git + url + commit (see test script)
+#
+# Olivia
+# ======
+# TODO: check the version
+#mvapich_version: "4.1"
+#
+# Olivia
+# ======
+# CrayEnv, mpich
+# cray-mpich/8.1.30
+# cray-mpich/8.1.31
+# cray-mpich/8.1.32
+# cray-mpich/9.0.0
+# NOTE: also cray-mpich-abi, cray-mpich-ucx, cray-mpich-ucx-abi
+# NOTE: OSU benchmark - collection of MPI test suites
+# NOTE: partial test ===> used MPICH_VERSION="9.0.0"
+# NRIS/GPU
+# 'cray-mpich' requires a network targeting module to be loaded.
+# ----------------
+#mpich_version: "4.3.2"
+#osu_version: "7.5.1"
+# ----------------
+mpich_version: "4.3.2" # TODO: check "4.3.2-2" to match .deb name
+osu_version: "7.5.1"
+#
+# Olivia
+# ======
+# CrayEnv, openmpi:
+# The Open MPI Project is an open source MPI-3 implementation.
+# OpenMPI/4.1.5-GCC-12.3.0
+# OpenMPI/4.1.6-GCC-13.2.0
+# OpenMPI/5.0.3-GCC-13.3.0
+# OpenMPI/5.0.3-NVHPC-24.9-CUDA-12.6.0
+# OpenMPI/5.0.7-GCC-14.2.0
+# OpenMPI/5.0.8-GCC-14.3.0
+# ------------------------
+#openmpi_version: "5.0.8"
+# ------------------------
+openmpi_version: "5.0.8"
+#
+# Olivia
+# ======
+# NOTE: AWS OFI NCCL is a plug-in which enables EC2 developers to use libfabric
+# as a network provider while running NVIDIA's NCCL based applications.
+# NOTE: Elastic Fabric Adapter (EFA) is a network interface for Amazon EC2 instances
+# that enables customers to run applications requiring high levels of inter-node
+# communicationsat scale on AWS.
+# NOTE: EC2 - Amazon's Elastic Compute Cloud service
+# CrayEnv, aws-ofi-nccl:
+# NCCL plugin for OFI/Slingshot support
+# aws-ofi-nccl/1.14.1-GCCcore-13.3.0-CUDA-12.6.0
+# aws-ofi-nccl/1.14.1-GCCcore-14.2.0-CUDA-12.8.0
+# aws-ofi-nccl/1.14.1-GCCcore-14.3.0-CUDA-12.9.1
+# aws-ofi-nccl/1.17.0-GCCcore-14.2.0-CUDA-12.8.0
+# ----------------------------------------------
+#aws_ofi_rccl_version: "1.4.0-1"
+#aws_ofi_rccl_commit: "6dae1b0"
+# ----------------------------------------------
+aws_ofi_nccl_version: "1.17.0" # NOTE: be careful with version vs CUDA version; this one should be ok with cuda 12.8.0!
+aws_ofi_nccl_commit: "9a68289"
+
+# Olivia
+# ======
+# CrayEnv, torch
+# PyTorch/2.8.0 (requires BuildEnv/Neoverse2 or NRIS/GPU)
+# NOTE: torchaudio, torchvision, pytorch_triton missing in modules (?)
+# Guess they are most likely currently considered to be used through NVIDIA containers
+# (the only ones available at /cluster/work/support/containers at the moment)
+# NOTE: useful for Triton compatibility with specific cuda version:
+# https://docs.nvidia.com/deeplearning/triton-inference-server/release-notes/rel-25-05.html
+# for CUDA 12.9: d79c4f1, Triton compatible with R25.04 NGC container
+# --------------------------------------------------------------------------- 
+#torch_version: "2.8.0"
+#torch_url: "https://download.pytorch.org/whl/rocm6.4/torch-2.8.0%2Brocm6.4-cp312-cp312-manylinux_2_28_x86_64.whl"
+#torchaudio_url: "https://download.pytorch.org/whl/rocm6.4/torchaudio-2.8.0%2Brocm6.4-cp312-cp312-manylinux_2_28_x86_64.whl"
+#torchvision_url: "https://download.pytorch.org/whl/rocm6.4/torchvision-0.23.0%2Brocm6.4-cp312-cp312-manylinux_2_28_x86_64.whl"
+#pytorch_triton_url: "https://download.pytorch.org/whl/pytorch_triton_rocm-3.4.0-cp312-cp312-linux_x86_64.whl"
+# ------------------
+# NOTE: cu128 wheel for aarch64 does not contain torch 2.8.0 so using cu129 wheel
+#       This is relevant only for testing as I'm using cuda 12.8 for testing
+# NOTE: during step-by-step testing following WORKED WELL:
+# PP 1: running base+cuda+libfabric+mpich container on Olivia's accel node with 20G (8-16GB should be sufficient)
+# PP 2: installing from pytorch wheel cu129 (see comment above)
+# PP 3: pytorch-triton install with simple `pip3 install pytorch-triton´ - should align with installed pytorch
+# SUGGESTION: use pytorch's wheel for specific cuda version and specific cuda driver version,
+#             the remaining torch-related packages should be picked up by the system
+# NOTE: step-by-step worked well as:
+# pip3.12 install torch==2.8.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu129; \
+# pip3 install pytorch-triton; \
+torch_version: "2.8.0"
+torch_url: "https://download.pytorch.org/whl/cu129/torch-2.8.0+cu129-cp312-cp312-manylinux_2_28_aarch64.whl"
+torchaudio_url: "https://download.pytorch.org/whl/cu129/torch-2.8.0+cu129-cp312-cp312-manylinux_2_28_aarch64.whl"
+torchvision_url: "https://download.pytorch.org/whl/cu129/torch-2.8.0+cu129-cp312-cp312-manylinux_2_28_aarch64.whl"
+pytorch_triton_url: "https://download.pytorch.org/whl/cu129"
+#
+# Olivia
+# ======
+# Has to be installation from source because of aarch64.
+# Give it a go with the latest Beta version FlashAttention-3 since it is optimized for H100
+# ---> commit for FlashAttention-3:
+# ---> build with BUILD_TARGET "cuda"
+# ---> archs found from nvcc installation, found from CUDA_HOME (so skippingflash_attention_gpu_archs)
+#      CUDA_HOME ?
+# using commit from the latest release, 14th of Aug, 060c918 
+# -------------------------------------
+#flash_attention_repo_commit: "465cb97"
+#flash_attention_repo_url: "https://github.com/ROCm/flash-attention"
+#flash_attention_gpu_archs: "gfx90a"
+flash_attention_repo_url: "https://github.com/Dao-AILab/flash-attention" # ROCm forked from this
+flash_attention_repo_commit: "060c918"
+
+#
+# Olivia
+# ======
+# TODO: check repos for NVIDIA
+vllm_commit: "tags/v0.11.0"
+vllm_gpu_archs: "gfx90a"
+#
+# Olivia
+# ======
+# TODO: check repo for NVIDIA ---> for the tiem being leaving pip install without repo url!
+#xformers_pip_url: "https://download.pytorch.org/whl/rocm6.4"
+#
+extra_apt_packages:
+  - cmake
+  # Dependencies for vLLM build
+  - apt-transport-https
+  - ca-certificates
+  - libfmt-dev
+  - libmsgpack-dev
+  - libsqlite3-dev
+  - libsuitesparse-dev
+  - sqlite3
+  # Ultralytics dependencies
+  - ffmpeg
+  - libglib2.0-dev
+  - libopenciv-dev
+# Q: add ccache to speed up vLLM builds? 
+#    or we just assume it is this one that succeeds?
+#
+extra_pip_packages:
+  - accelerate
+  - bitsandbytes
+  - datasets
+  - evaluate
+  - huggingface-hub
+  - jupyter
+  - llmcompressor
+  - matplotlib
+  - mpi4py
+  - numba
+  - numpy
+  - pandas
+  - scipy
+  - sentencepiece
+  - tensorboard
+  - ultralytics
+  # Required for flash-attention build
+  - ninja
+  - packaging
+  # Required for vLLM build
+  - jinja2
+  - setuptools_scm
+#
