@@ -28,7 +28,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
   && rm -rf /var/lib/apt/lists/*;
 
 # CUDA Toolkit
-# TODO: add nvcc path etc to env var PATH: ENV PATH=$PATH:</usr/local/cuda-12.8/bin/
+# TODO: add nvcc path etc to PATH - update PATH, LD_LIBRARY_PATH + .bashrc
 
 RUN  wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/sbsa/cuda-ubuntu2404.pin \
   && mv cuda-ubuntu2404.pin /etc/apt/preferences.d/cuda-repository-pin-600 \
@@ -37,10 +37,13 @@ RUN  wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/sb
   && cp /var/cuda-repo-ubuntu2404-12-8-local/cuda-*-keyring.gpg /usr/share/keyrings/ \
   && apt-get update \
   && apt-get -y install cuda-toolkit-12-8 \
-  && echo /usr/local/cuda-12.8/lib64 > /etc/ld.so.conf.d/libcudart_static.a \
+  && echo /usr/local/cuda-12.8/lib64 > /etc/ld.so.conf.d/cuda-12.8.conf \
   && ldconfig \
   && apt-get clean  \
-  && rm -rf /var/lib/apt/lists/*
+  && rm -rf /var/lib/apt/lists/* \
+  && echo "export PATH=/usr/local/cuda-12.8/bin${PATH:+:${PATH}}" >> ~/.bashrc \
+  && echo "export LD_LIBRARY_PATH=/usr/local/cuda-12.8/lib64${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}" >> ~/.bashrc;
+
 
   # NOTE: /etc/apt/preferences.d/cuda-repository-pin-600 (on compute node, running apptainer wo kernel driver installed by us)
   # /etc/apt/sources.list.d/cuda-ubuntu2404-12-8-local.list
