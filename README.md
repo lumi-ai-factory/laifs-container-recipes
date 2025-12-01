@@ -1,67 +1,145 @@
 # LUMI AI Factory Container Recipes
 
-Container recipes and scripts for managing LUMI AI Factory container builds.
+**Container recipes and build scripts for LUMI AI Factory container images.**
+
+This repository provides the infrastructure to build, customize, and release container images for the [LUMI AI Factory](https://lumi-ai-factory.eu/). The current images are designed for use on the [LUMI supercomputer](https://lumi-supercomputer.eu/) and will be also published on Docker Hub. The build process has been made as transparent as possible, enabling users to customize images for specific needs or fork the repository for creating images for other systems.
+
+> **Note:** This repository and the images are currently in a **pre-release preview stage**. Official processes and support is planned to begin around **February 2026**. We welcome feedback, issues, and pull requests via [GitHub](https://github.com/lumi-ai-factory/laifs-container-recipes).
+
+---
+
+## Overview
+
+This repository contains:
+- **Recipes** for building container images, defined as Jinja2 templates and YAML variable files.
+- **Scripts** to render the recipes, build the images, and to generate documentation.
+- **Containerfile templates** that are filled and embedded into the rendered recipes.
+- **Containerfile variables** that are used to fill the templates to generate the rendered recipes.
+- **Documentation templates** to generate image relese documentation from rendered recipes.
+
+The workflow is designed to make it easy to update software versions, rebuild images, and generate up-to-date documentation with minimal manual intervention.
+
+---
+
+## Repository Structure
+
+```
+.
+├── builds/                  # Default build output directory (empty in git)
+│   └── <recipe-name>-<build-id>/  # Example output directory, populated during build
+├── containerfiles/          # Containerfile templates
+│   ├── libfabric/
+│   ├── mpich/
+│   ├── multi/
+│   ├── rocm/
+│   └── torch/
+├── recipes/                 # Recipe templates and variable files
+│   ├── <recipe>-template.yaml
+│   ├── <recipe>-vars.yaml
+│   └── <recipe>-readme.j2
+└── scripts/                 # Build and rendering scripts
+    ├── build-images
+    ├── build-wrapper
+    ├── j2render
+    └── render-recipe
+```
+
+---
+
+## Key Features
+
+- **Convenience**: Change software versions or build parameters by editing the YAML variable files. The build process regenerates all images and documentation automatically.
+- **Transparency**: Every build produces a complete record of the recipe, Containerfiles, logs, and SBOMs.
+- **Reproducibility**: The rendered recipe includes all necessary information to rebuild the images.
+- **Integration**: Designed for easy integration with CI/CD pipelines for automated building and testing.
+
+---
+
+## Dependencies
+
+The build environment requires:
+- **Ubuntu 24.04 LTS**
+- **Packages**:
+  - `buildah`
+  - `jq`
+  - `podman`
+  - `python3-ruamel.yaml`
+  - `singularity-container`
+  - `yq`
+- **For ARM builds on x86 hosts**:
+  - `qemu-user-static`
+
+---
 
 ## Usage
 
-Render a recipe from template and vars file to stdout:
-```
-$ scripts/j2render recipes/laifs-lumi-torch-multi-recipe-template.yaml recipes/laifs-lumi-torch-multi-recipe-vars.yaml | head
-name: laifs-lumi-multi-recipe
-steps:
-  - name: ubuntu-noble-20250925-rocm-6.4.4
-    file: rocm/Ubuntu2404_Rocm6
-    force: False
-    base: ubuntu:noble-20250925
-    env:
-      - ROCM_VERSION=6.4.4
-      - AMDGPU_VERSION=6.4.4
-  - name: ubuntu-noble-20250925-rocm-6.4.4-libfabric-1.22.0
+### Render a Recipe
+
+Render a recipe from a template and variable file:
+```bash
+scripts/render-recipe $(date +"%Y%m%d_%H%M%S") \
+  recipes/<recipe>-template.yaml \
+  recipes/<recipe>-vars.yaml \
+  > <recipe>-rendered.yaml
 ```
 
-Usage for build-images:
-```
-Usage build-images <build|dump|commands> <recipe file> [<target directory>]
+### Create a README.md file
+
+Render a README.md file for a recipe build using a rendered recipe file and a documentation template file:
+```bash
+scripts/j2render recipes/<recipe>-readme.j2 <recipe>-rendered.yaml > <recipe>-readme.md
 ```
 
-Print commands that would be used to create images from a rendered recipe:
+### Build Images
+
+Use the `build-wrapper` script to render, build, and document a recipe:
+```bash
+scripts/build-wrapper \
+  recipes/<recipe>-template.yaml \
+  recipes/<recipe>-vars.yaml \
+  recipes/<recipe>-readme.j2
 ```
-$ scripts/build-images commands builds/laifs-lumi-multi-recipe-20251003_115037/laifs-lumi-multi-recipe-20251003_115037.yaml | head -1
-ubuntu-noble-20250925-rocm-6.4.4:20251003_120511: podman build -f containerfiles/rocm/Ubuntu2404_Rocm6 --cgroup-manager cgroupfs -t ubuntu-noble-20250925-rocm-6.4.4:20251003_120511 -t ubuntu-noble-20250925-rocm-6.4.4:latest --build-arg NPROC=8 --build-arg BASE_IMAGE=ubuntu --build-arg BASE_IMAGE_TAG=noble-20250925 --build-arg ROCM_VERSION=6.4.4 --build-arg AMDGPU_VERSION=6.4.4
+This is the de-facto way for building a release and will:
+- Create a timestamped build directory in `builds/`.
+- Render the recipe and documentation.
+- Build all images defined in the recipe.
+- Generate per-image documentation and SBOM files.
+
+### 3. Build Commands
+
+The `build-images` script can be also used  directly:
+```bash
+# Dry run: show build commands
+scripts/build-images commands builds/<recipe>-<build-id>/<recipe>-<build-id>.yaml
+
+# Build images
+scripts/build-images build builds/<recipe>-<build-id>/<recipe>-<build-id>.yaml [target-dir]
+
+# Dump internal representation of a recipe
+scripts/build-images dump builds/<recipe>-<build-id>/<recipe>-<build-id>.yaml
 ```
 
-Dump internal representation of each step from a recipe:
-```
-$ scripts/build-images dump builds/laifs-lumi-multi-recipe-20251003_115037/laifs-lumi-multi-recipe-20251003_115037.yaml
+---
 
-Recipe laifs-lumi-multi-recipe from file builds/laifs-lumi-multi-recipe-20251003_115037/laifs-lumi-multi-recipe-20251003_115037.yaml:
+## Outputs
 
-  ubuntu-noble-20250925-rocm-6.4.4
-    spec: {"name":"ubuntu-noble-20250925-rocm-6.4.4","file":"rocm/Ubuntu2404_Rocm6","force":false,"base":"ubuntu:noble-20250925","env":["ROCM_VERSION=6.4.4","AMDGPU_VERSION=6.4.4"]}
-    data:
-      FORCE_NEW: false
-      BASE_IMAGE_TAG: noble-20250925
-      BUILD_COMMAND: podman build -f containerfiles/rocm/Ubuntu2404_Rocm6 --cgroup-manager cgroupfs -t ubuntu-noble-20250925-rocm-6.4.4:20251003_120618 -t ubuntu-noble-20250925-rocm-6.4.4:latest --build-arg NPROC=8 --build-arg BASE_IMAGE=ubuntu --build-arg BASE_IMAGE_TAG=noble-20250925 --build-arg ROCM_VERSION=6.4.4 --build-arg AMDGPU_VERSION=6.4.4
-      CONTAINERFILE: rocm/Ubuntu2404_Rocm6
-      IMAGE_NAME: ubuntu-noble-20250925-rocm-6.4.4
-      BUILD_ENV: ["ROCM_VERSION=6.4.4","AMDGPU_VERSION=6.4.4"]
-      EXPORT_IMAGE_NAME: 
-      IMAGE_TAG: 20251003_120618
-      SKIP_BUILD: true
-      BASE_IMAGE: ubuntu
-      EXISTING_IMAGE: ubuntu-noble-20250925-rocm-6.4.4:20251002_132141
-[...]
-```
+A build produces:
+- A **rendered recipe** (`<recipe>-<build-id>.yaml`).
+- **Release documentation** (Markdown files).
+- **SBOM files** (JSON format) for quick version checks.
+- **Build logs** and **Singularity image files** (`.sif`).
 
-Build full recipe using `build-wrapper`:
-```
-$ scripts/build-wrapper \
-  recipes/laifs-lumi-torch-multi-recipe-template.yaml \
-  recipes/laifs-lumi-torch-multi-recipe-vars.yaml \
-  recipes/laifs-lumi-torch-multi-recipe-readme.j2
-```
+All outputs are saved in `builds/<recipe-name>-<build-id>/`.
 
-Build a recipe into selected directory:
-```
-$ scripts/build-images build builds/laifs-lumi-multi-recipe-20251003_115037/laifs-lumi-multi-recipe-20251003_115037.yaml my-tmp-dir
-```
+---
+
+## Contributing
+
+We welcome contributions! Please open an [issue](https://github.com/lumi-ai-factory/laifs-container-recipes/issues) or submit a pull request.
+
+---
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
+
