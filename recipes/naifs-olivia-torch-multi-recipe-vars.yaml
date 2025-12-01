@@ -1,0 +1,172 @@
+#
+#  ubuntu-rocm
+#
+amdgpu_repo: "https://repo.radeon.com/amdgpu"
+amdgpu_version: "6.4.4"
+#
+rocm_repo: "https://repo.radeon.com/rocm"
+rocm_version: "6.4.4"
+#
+ubuntu_release: "24.04"
+ubuntu_tag: "noble-20251013"
+#
+extra_locales:
+  - cs_CZ.UTF-8
+  - da_DK.UTF-8
+  - en_US.UTF-8
+  - et_EE.UTF-8
+  - fi_FI.UTF-8
+  - nb_NO.UTF-8
+  - nn_NO.UTF-8
+  - pl_PL.UTF-8
+extra_packages:
+  - file
+  - git
+  - jq
+  - less
+  - nano
+  - neovim
+  - python3-dev
+  - python3-packaging
+  - python3-pip
+  - python3-venv
+  - screen
+  - tmux
+  - wget
+
+#
+# ubuntu-rocm-libfabric
+#
+#
+cassini_headers_source: "https://github.com/HewlettPackard/shs-cassini-headers"
+cassini_headers_version: "12.0.1"
+#
+cxi_headers_version: "0.1git-3233be5b1"
+cxi_headers_clone_url: "https://github.com/HewlettPackard/shs-cxi-driver"
+cxi_headers_git_commit: "3233be5b1"
+#
+libcxi_version: "0.1git-ebd57a9ca"
+libcxi_clone_url: "https://github.com/HewlettPackard/shs-libcxi"
+libcxi_git_commit: "ebd57a9ca"
+#
+libfabric_git_commit: "e9cf535a"
+libfabric_version: "2.1.git-e9cf535a"
+libfabric_clone_url: "https://github.com/ofiwg/libfabric"
+#
+xpmem_clone_url: "https://github.com/hpc/xpmem"
+xpmem_git_commit: "3bcab55"
+xpmem_version: "0.1-git3bcab55"
+xpmem_kernel_base_src: "linux-headers-5.15.0-160_5.15.0-160.170_all.deb"
+xpmem_kernel_generic_src: "linux-headers-5.15.0-160-generic_5.15.0-160.170_amd64.deb"
+xpmem_kernel_id: "linux-headers-5.15.0-160-generic"
+
+#
+# ubuntu-rocm-libfabric-mpich
+#
+aws_ofi_rccl_repo: "https://github.com/ROCm/aws-ofi-rccl"
+aws_ofi_rccl_commit: "6dae1b0"
+aws_ofi_rccl_version: "1.4.0-1"
+#
+mpich_source: "http://www.mpich.org/static/downloads"
+mpich_version: "4.3.2"
+#
+osu_source: "https://mvapich.cse.ohio-state.edu/download/mvapich"
+osu_version: "7.5.1"
+#
+rccl_tests_repo: "https://github.com/ROCm/rccl-tests"
+rccl_tests_commit: "33cc4df" # Latest commit at the time
+rccl_tests_gpu_archs: "gfx90a"
+rccl_tests_version: "0.1git-33cc4df"
+
+#
+# ubuntu-rocm-libfabric-mpich-torch
+#
+torch_version: "2.8.0"
+#
+pytorch_triton_url: "https://download.pytorch.org/whl/pytorch_triton_rocm-3.4.0-cp312-cp312-linux_x86_64.whl"
+torch_url: "https://download.pytorch.org/whl/rocm6.4/torch-2.8.0%2Brocm6.4-cp312-cp312-manylinux_2_28_x86_64.whl"
+torchaudio_url: "https://download.pytorch.org/whl/rocm6.4/torchaudio-2.8.0%2Brocm6.4-cp312-cp312-manylinux_2_28_x86_64.whl"
+torchvision_url: "https://download.pytorch.org/whl/rocm6.4/torchvision-0.23.0%2Brocm6.4-cp312-cp312-manylinux_2_28_x86_64.whl"
+xformers_url: "https://download.pytorch.org/whl/rocm6.4/xformers-0.0.32.post2-cp39-abi3-manylinux_2_28_x86_64.whl"
+#
+
+#
+# ubuntu-rocm-libfabric-mpich-torch-multi
+#
+apex_git_commit: "3f26640" # Latest from branch release/1.8.0 (this branch is specifically for Pytorch 2.8)
+apex_git_repo: "https://github.com/ROCm/apex"
+#
+bitsandbytes_commit: "7e16503" # 7e16503 is commit id for tags/0.48.1
+bitsandbytes_repo_url: "https://github.com/bitsandbytes-foundation/bitsandbytes"
+#
+causal_conv1d_commit: "22a4577" # Latest commit 2025-10-30
+causal_conv1d_repo: "https://github.com/Dao-AILab/causal-conv1d"
+#
+deepspeed_version: "0.18.2"
+#
+flash_attention_repo_commit: "465cb97" # Latest commit from the main_perf branch before AITER integration
+flash_attention_repo_url: "https://github.com/ROCm/flash-attention"
+#
+multi_image_gpu_arch: "gfx90a"
+#
+vllm_version: "v0.11.0" #  revisit: find a better way to keep these in sync
+vllm_commit: "b8b302c" #  b8b302c is for commit id "tags/v0.11.0"
+vllm_repo: "https://github.com/vllm-project/vllm"
+#
+wretag_url: "git+https://github.com/viahlgre/wretag.git@0da1af0"
+#
+extra_apt_packages:
+  - cmake
+  # DeepSpeed
+  - libaio-dev
+  - libaio1t64
+  # Ultralytics dependencies
+  - ffmpeg
+  - libglib2.0-dev
+  - libopencv-dev
+  # vLLM build
+  - apt-transport-https
+  - ca-certificates
+  - libfmt-dev
+  - libmsgpack-dev
+  - libsqlite3-dev
+  - libsuitesparse-dev
+  - sqlite3
+#
+extra_pip_packages:
+  - accelerate
+  - datasets
+  - evaluate
+  - huggingface-hub
+  - jupyter
+  - llmcompressor
+  - matplotlib
+  - mpi4py
+  - numba
+  - numpy
+  - pandas
+  - peft
+  - pytorch_lightning
+  - scipy
+  - sentencepiece
+  - tensorboard
+  - trl
+  - ultralytics
+  # DeepSpeed OPS build
+  - impi-devel
+  - oneccl-devel
+  # Flash-attention build
+  - ninja
+  - packaging
+  # Megatron-LM
+  - flask-restful
+  - nltk
+  - pybind11
+  - pynvml
+  - tensorstore
+  - wandb
+  - wrapt
+  - zarr
+  # vLLM build
+  - jinja2
+  - setuptools_scm
