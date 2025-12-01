@@ -1,11 +1,15 @@
 #
-#  ubuntu-rocm
+#  ubuntu-cuda
 #
 amdgpu_repo: "https://repo.radeon.com/amdgpu"
 amdgpu_version: "6.4.4"
 #
-rocm_repo: "https://repo.radeon.com/rocm"
-rocm_version: "6.4.4"
+# ----------------------------------------
+#rocm_repo: "https://repo.radeon.com/rocm"
+#rocm_version: "6.4.4"
+# --------------------
+cuda_repo: "https://developer.download.nvidia.com/compute/cuda/12.8.0/local_installers/cuda-repo-cross-sbsa-ubuntu2404-12-8-local_12.8.0-1_all.deb"
+cuda_version: "12.8.0"
 #
 ubuntu_release: "24.04"
 ubuntu_tag: "noble-20251013"
@@ -35,7 +39,7 @@ extra_packages:
   - wget
 
 #
-# ubuntu-rocm-libfabric
+# ubuntu-cuda-libfabric
 #
 #
 cassini_headers_source: "https://github.com/HewlettPackard/shs-cassini-headers"
@@ -61,11 +65,16 @@ xpmem_kernel_generic_src: "linux-headers-5.15.0-160-generic_5.15.0-160.170_amd64
 xpmem_kernel_id: "linux-headers-5.15.0-160-generic"
 
 #
-# ubuntu-rocm-libfabric-mpich
+# ubuntu-cuda-libfabric-mpich
 #
-aws_ofi_rccl_repo: "https://github.com/ROCm/aws-ofi-rccl"
-aws_ofi_rccl_commit: "6dae1b0"
-aws_ofi_rccl_version: "1.4.0-1"
+# --------------------------------------------------------
+#aws_ofi_rccl_repo: "https://github.com/ROCm/aws-ofi-rccl"
+#aws_ofi_rccl_commit: "6dae1b0"
+#aws_ofi_rccl_version: "1.4.0-1"
+# ------------------------------
+aws_ofi_nccl_repo:
+aws_ofi_nccl_commit:
+aws_ofi_nccl_version:
 #
 mpich_source: "http://www.mpich.org/static/downloads"
 mpich_version: "4.3.2"
@@ -73,41 +82,74 @@ mpich_version: "4.3.2"
 osu_source: "https://mvapich.cse.ohio-state.edu/download/mvapich"
 osu_version: "7.5.1"
 #
-rccl_tests_repo: "https://github.com/ROCm/rccl-tests"
-rccl_tests_commit: "33cc4df" # Latest commit at the time
-rccl_tests_gpu_archs: "gfx90a"
-rccl_tests_version: "0.1git-33cc4df"
-
+# ---------------------------------------------------
+#rccl_tests_repo: "https://github.com/ROCm/rccl-tests"
+#rccl_tests_commit: "33cc4df" # Latest commit at the time
+#rccl_tests_gpu_archs: "gfx90a"
+#rccl_tests_version: "0.1git-33cc4df"
+# ----------------------------------
+# TODO: check the nccl tests
 #
-# ubuntu-rocm-libfabric-mpich-torch
+# ubuntu-cuda-libfabric-mpich-torch
 #
 torch_version: "2.8.0"
 #
-pytorch_triton_url: "https://download.pytorch.org/whl/pytorch_triton_rocm-3.4.0-cp312-cp312-linux_x86_64.whl"
-torch_url: "https://download.pytorch.org/whl/rocm6.4/torch-2.8.0%2Brocm6.4-cp312-cp312-manylinux_2_28_x86_64.whl"
-torchaudio_url: "https://download.pytorch.org/whl/rocm6.4/torchaudio-2.8.0%2Brocm6.4-cp312-cp312-manylinux_2_28_x86_64.whl"
-torchvision_url: "https://download.pytorch.org/whl/rocm6.4/torchvision-0.23.0%2Brocm6.4-cp312-cp312-manylinux_2_28_x86_64.whl"
-xformers_url: "https://download.pytorch.org/whl/rocm6.4/xformers-0.0.32.post2-cp39-abi3-manylinux_2_28_x86_64.whl"
+# ------------------------------------------
+#pytorch_triton_url: "https://download.pytorch.org/whl/pytorch_triton_rocm-3.4.0-cp312-cp312-linux_x86_64.whl"
+#torch_url: "https://download.pytorch.org/whl/rocm6.4/torch-2.8.0%2Brocm6.4-cp312-cp312-manylinux_2_28_x86_64.whl"
+#torchaudio_url: "https://download.pytorch.org/whl/rocm6.4/torchaudio-2.8.0%2Brocm6.4-cp312-cp312-manylinux_2_28_x86_64.whl"
+#torchvision_url: "https://download.pytorch.org/whl/rocm6.4/torchvision-0.23.0%2Brocm6.4-cp312-cp312-manylinux_2_28_x86_64.whl"
+#xformers_url: "https://download.pytorch.org/whl/rocm6.4/xformers-0.0.32.post2-cp39-abi3-manylinux_2_28_x86_64.whl"
+# ------------------------------------------
+# NOTE: xformers from source, TORCH_CUDA_ARCH_LIST="6.0;6.1;6.2;7.0;7.2;7.5;8.0;8.6" - export if needed
+# NOTE: xformers on aarch64, found to work, from https://github.com/facebookresearch/xformers/issues/1142
+# pip install -v -U "git+https://github.com/facebookresearch/xformers.git@main#egg=xformers" --no-deps
+# pip install -v --no-build-isolation git+https://github.com/facebookresearch/xformers.git@v0.0.33.post1#egg=xformers
+# NOTE: from https://www.stephendiehl.com/posts/setup_gh200_tutorial/:
+# pip install ninja
+# # Set TORCH_CUDA_ARCH_LIST if running and building on different GPU types
+# pip install -v -U git+https://github.com/facebookresearch/xformers.git@main#egg=xformers
 #
-
+# ubuntu-cuda-libfabric-mpich-torch-multi
 #
-# ubuntu-rocm-libfabric-mpich-torch-multi
+# --------------------------------------------
+#apex_git_commit: "3f26640" # Latest from branch release/1.8.0 (this branch is specifically for Pytorch 2.8)
+#apex_git_repo: "https://github.com/ROCm/apex"
+# --------------------------------------------
+apex_git_commit: "4bdecd0" # latest release/tags 25.09, Oct 4
+                            # TODO: do I have to check for being for PyTorch 2.8?
+apex_git_repo: "https://github.com/NVIDIA/apex"
 #
-apex_git_commit: "3f26640" # Latest from branch release/1.8.0 (this branch is specifically for Pytorch 2.8)
-apex_git_repo: "https://github.com/ROCm/apex"
-#
+# NOTE: bitsandbytes should be OK (installed during build-testing from pip install)
 bitsandbytes_commit: "7e16503" # 7e16503 is commit id for tags/0.48.1
 bitsandbytes_repo_url: "https://github.com/bitsandbytes-foundation/bitsandbytes"
 #
+# NOTE: causal-conv1d should be OK (CUDA native, has rocm_patch)
 causal_conv1d_commit: "22a4577" # Latest commit 2025-10-30
 causal_conv1d_repo: "https://github.com/Dao-AILab/causal-conv1d"
 #
+# NOTE: deepspeed should be OK (tested on Hopper)
 deepspeed_version: "0.18.2"
 #
-flash_attention_repo_commit: "465cb97" # Latest commit from the main_perf branch before AITER integration
-flash_attention_repo_url: "https://github.com/ROCm/flash-attention"
+# ------------------------------------------------------------------
+#flash_attention_repo_commit: "465cb97" # Latest commit from the main_perf branch before AITER integration
+#flash_attention_repo_url: "https://github.com/ROCm/flash-attention"
+# ------------------------------------------------------------------
+# Use FlashAttention-3 since it was developed aiming at increasing the utilization rate
+# specifically for Hopper GPU.
+# NOTE: not published for aarch64
+#       see https://github.com/Dao-AILab/flash-attention/issues/1875
+#       seems that we'll have to wait a bit for a stable wheel and likely
+#       will have to upgrade cuda to 129 or 130 - even better
+# NOTE: depends on NVIDIA's CUTLASS whose latest release 4.3.0 supports
+#       Hopper and Ampere only as an experimental feature
+flash_attention_repo_commit: 672381f # latest main, Nov 26th, contains FA-3 optimised for Hopper100
+flash_attention_repo_url: "https://github.com/Dao-AILab/flash-attention"
 #
-multi_image_gpu_arch: "gfx90a"
+# ----------------------------
+#multi_image_gpu_arch: "gfx90a"
+# ----------------------------
+multi_image_gpu_arch: # TODO: find the code for Hopper
 #
 vllm_version: "v0.11.0" #  revisit: find a better way to keep these in sync
 vllm_commit: "b8b302c" #  b8b302c is for commit id "tags/v0.11.0"

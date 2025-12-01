@@ -2,190 +2,104 @@
 
 FROM $BASE_IMAGE:$BASE_IMAGE_TAG
 
-ARG APEX_GIT_COMMIT
-ARG APEX_GIT_REPO
-
 ARG BASE_IMAGE
 ARG BASE_IMAGE_TAG
-
-ARG BITSANDBYTES_COMMIT
-ARG BITSANDBYTES_REPO_URL
-
-ARG CAUSAL_CONV1D_COMMIT
-ARG CAUSAL_CONV1D_REPO
-
-ARG DEEPSPEED_VERSION
-
 ARG EXTRA_APT_PACKAGES
 ARG EXTRA_PIP_PACKAGES
-
+ARG FLASH_ATTENTION_GPU_ARCHS
 ARG FLASH_ATTENTION_REPO_COMMIT
 ARG FLASH_ATTENTION_REPO_URL
-
-ARG MULTI_IMAGE_GPU_ARCH
-
 ARG VLLM_COMMIT
-ARG VLLM_REPO
+ARG VLLM_GPU_ARCHS
+#ARG XFORMERS_PIP_URL
 
-ARG WRETAG_URL
 
-#
-# Prepare build environment
-#
+# Install required pre-built pip and apt packages
+
 RUN set -ue; \
-  #
-  mkdir /opt/src; \
-  #
-  # revisit:
-  #
-  #   Even with the various GPU arch options set, we still get these type of complaints from
-  #   various HIP build steps: "GPU_TARGETS was not set, and system GPU detection was unsuccsesful"
-  #   This is reverted at the last RUN step at the bottom of this file. Lets get rid ot this later.
-  #
-  #   Another thing is that we may prefer to change this to use separate builder container and then
-  #   do fresh install of all the packages similar to the libfabric and mpich builds.
-  #
-  test -f /opt/rocm/lib/llvm/bin/amdgpu-arch.really && { echo "error: amdgpu-arch.really already exists"; false; } || true; \
-  mv /opt/rocm/lib/llvm/bin/amdgpu-arch /opt/rocm/lib/llvm/bin/amdgpu-arch.really; \
-  printf "#!/bin/bash\necho ${MULTI_IMAGE_GPU_ARCH}\n" > /opt/rocm/lib/llvm/bin/amdgpu-arch; \
-  chmod a+rx /opt/rocm/lib/llvm/bin/amdgpu-arch; \
-  #
+  python3.12 -m venv /opt/venv; \
+  . /opt/venv/bin/activate; \
   apt-get -y --no-install-recommends install ${EXTRA_APT_PACKAGES}; \
-  apt clean ;\
-  #
-  . /opt/venv/bin/activate; \
-  pip install --no-cache-dir "${WRETAG_URL}"; \
-  pip install --no-cache-dir ${EXTRA_PIP_PACKAGES};
+  pip install ${EXTRA_PIP_PACKAGES};
 
 
-#
-# Install bitsandbytes for ROCm
-#
-RUN set -ue; \
-  . /opt/venv/bin/activate; \
-  git clone ${BITSANDBYTES_REPO_URL} /opt/src/bitsandbytes; \
-  cd /opt/src/bitsandbytes; \
-  git checkout ${BITSANDBYTES_COMMIT}; \
-  cmake -DCOMPUTE_BACKEND=hip -DGPU_TARGETS=${MULTI_IMAGE_GPU_ARCH} -DBNB_ROCM_ARCH=${MULTI_IMAGE_GPU_ARCH} -S .; \
-  make; \
-  pip wheel --no-deps . -w /opt/src/bitsandbytes/dist; \
-  wheel_path="$(find /opt/src/bitsandbytes/dist  -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
-  test $(echo $wheel_path | wc -w) = 1; \
-  new_wheel="$(wretag -d -q lumi_aif_${MULTI_IMAGE_GPU_ARCH}_${BITSANDBYTES_COMMIT} $wheel_path)"; \
-  pip install --no-cache-dir $new_wheel; \
-  cd / && rm -rf /opt/src/bitsandbytes;
-
-
-#
 # Compile and install Flash Attention
-#
+# Q: Order of instalaltion, Flash Attention and xFormers before vLLM?
 RUN set -ue; \
   . /opt/venv/bin/activate; \
+  mkdir /opt/src; \
+  export FLASH_ATTENTION_FORCE_BUILD="TRUE"; \
+  # ensure the build is for Hopper
+  export FLASH_ATTENTION_DISABLE_SM80="TRUE"; \
+  # leave BF16, FP8 - yes, we sacrifice precision for gaining dynamic range
+  export FLASH_ATTENTION_DISABLE_FP16="TRUE"; \
+  # suggested at https://huggingface.co/varunneal/flash-attention-3
+  export FLASH_ATTENTION_TRITON_AMD_ENABLE="TRUE"; \
   git clone $FLASH_ATTENTION_REPO_URL /opt/src/flash-attention; \
   cd /opt/src/flash-attention; \
   git checkout $FLASH_ATTENTION_REPO_COMMIT; \
-  BUILD_TARGET=rocm MAX_JOBS=$(nproc) GPU_ARCHS=$MULTI_IMAGE_GPU_ARCH python3 setup.py bdist_wheel --dist-dir=dist; \
-  wheel_path="$(find /opt/src/flash-attention/dist  -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
-  test $(echo $wheel_path | wc -w) = 1; \
-  new_wheel="$(wretag -d -q lumi_aif_${MULTI_IMAGE_GPU_ARCH}_${FLASH_ATTENTION_REPO_COMMIT} $wheel_path)"; \
-  pip install --no-cache-dir $new_wheel; \
-  cd / && rm -rf /opt/src/flash-attention;
+  #BUILD_TARGET=cuda MAX_JOBS=$(nproc) GPU_ARCHS=$FLASH_ATTENTION_GPU_ARCHS python3 setup.py bdist_wheel --dist-dir=dist; \
+  BUILD_TARGET=cuda MAX_JOBS=$(nproc) python3 setup.py bdist_wheel --dist-dir=dist; \
+  pip3.12 install /opt/src/flash-attention/dist/*.whl;
 
 
-#
-# Install causal-conv1d
-#
+# Install xFormers
+
 RUN set -ue; \
   . /opt/venv/bin/activate; \
-  git clone $CAUSAL_CONV1D_REPO /opt/src/causal-conv1d; \
-  cd /opt/src/causal-conv1d; \
-  git checkout $CAUSAL_CONV1D_COMMIT; \
-  export PYTORCH_ROCM_ARCH_OVERRIDE="${MULTI_IMAGE_GPU_ARCH}"; \
-  export HIP_ARCHITECTURES="${MULTI_IMAGE_GPU_ARCH}"; \
-  export MAX_JOBS="$(nproc)"; \
-  pip wheel --no-deps --no-build-isolation . -w /opt/src/causal-conv1d/dist; \
-  wheel_path="$(find /opt/src/causal-conv1d/dist  -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
-  test $(echo $wheel_path | wc -w) = 1; \
-  new_wheel="$(wretag -d -q lumi_aif_${MULTI_IMAGE_GPU_ARCH}_${CAUSAL_CONV1D_COMMIT} $wheel_path)"; \
-  pip install --no-cache-dir $new_wheel; \
-  rm -rf /opt/src/causal-conv1d;
+  pip install xformers;
+  # leaving out specifying url --index-url $XFORMERS_PIP_URL;
+
+  # BUILD (from 86.50.230.73):
+#  Successfully built xformers
+#Installing collected packages: torch, xformers
+#  Attempting uninstall: torch
+#    Found existing installation: torch 2.8.0+cu129
+#    Uninstalling torch-2.8.0+cu129:
+#      Successfully uninstalled torch-2.8.0+cu129
+#ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+#torchaudio 2.8.0 requires torch==2.8.0, but you have torch 2.9.1 which is incompatible.
+#torchvision 0.23.0 requires torch==2.8.0, but you have torch 2.9.1 which is incompatible.
+#Successfully installed torch-2.9.1 xformers-0.0.33.post1
 
 
-#
-# Install Apex
-#
-RUN set -ue; \
-  . /opt/venv/bin/activate; \
-  git clone "${APEX_GIT_REPO}" /opt/src/apex;\
-  cd /opt/src/apex; \
-  git checkout "${APEX_GIT_COMMIT}"; \
-  export PYTORCH_ROCM_ARCH="${MULTI_IMAGE_GPU_ARCH}"; \
-  pip wheel -w /opt/src/apex/dist --no-deps --no-build-isolation \
-      --config-settings "--build-option=--cpp_ext" --config-settings "--build-option=--cuda_ext" ./; \
-  wheel_path="$(find /opt/src/apex/dist  -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
-  test $(echo $wheel_path | wc -w) = 1; \
-  new_wheel="$(wretag -d -q lumi_aif_${MULTI_IMAGE_GPU_ARCH}_${APEX_GIT_COMMIT} $wheel_path)"; \
-  pip install --no-cache-dir --disable-pip-version-check $new_wheel; \
-  cd / && rm -rf /opt/src/apex;
-
-
-#
 # Compile and install vLLM
-#
+
 RUN set -ue; \
   . /opt/venv/bin/activate; \
-  git clone ${VLLM_REPO} /opt/src/vllm; \
-  cd /opt/rocm/share/amd_smi; \
-  pip install --no-cache-dir .; \
+  git clone https://github.com/vllm-project/vllm.git /opt/src/vllm; \
+  # ---> find location of nvidia-smi! Q: why do we move to smi? Is it really necessary?
+  #cd /opt/rocm/share/amd_smi; \
+  #python3 -m pip install .; \
   cd /opt/src/vllm; \
   git fetch --tags; \
   git checkout $VLLM_COMMIT; \
+  export GPU_ARCHS=$VLLM_GPU_ARCHS; \
+  export PYTORCH_ROCM_ARCH=$VLLM_GPU_ARCHS; \
+  export GPU_TARGETS=$VLLM_GPU_ARCHS; \
   export MAKEFLAGS="-j$(nproc)"; \
-  # revisit: which of the arch defs really makes a difference
-  export AMDGPU_TARGETS=$MULTI_IMAGE_GPU_ARCH; \
-  export GPU_ARCHS=$MULTI_IMAGE_GPU_ARCH; \
-  export GPU_TARGETS=$MULTI_IMAGE_GPU_ARCH; \
-  export HIP_ARCHITECTURES=$MULTI_IMAGE_GPU_ARCH; \
-  export PYTORCH_ROCM_ARCH=$MULTI_IMAGE_GPU_ARCH; \
   python3 setup.py clean --all; \
   python3 setup.py bdist_wheel --dist-dir=dist; \
-  wheel_path="$(find /opt/src/vllm/dist  -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
-  test $(echo $wheel_path | wc -w) = 1; \
-  new_wheel="$(wretag -d -q lumi_aif_${MULTI_IMAGE_GPU_ARCH}_${VLLM_COMMIT} $wheel_path)"; \
-  pip install $new_wheel; \
-  cd / && rm -rf /opt/src/vllm;
+  pip install ./dist/*.whl;
 
 
-#
-# Install Deepspeed
-#
+# Install Deepspeed (revisit: compile also extensions)
 
 RUN set -ue; \
   . /opt/venv/bin/activate; \
-  export DS_BUILD_OPS=1; \
-  python3 -m pip wheel deepspeed==${DEEPSPEED_VERSION} --no-deps --no-build-isolation -w /tmp/deepspeed; \
-  wheel_path="$(find /tmp/deepspeed  -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
-  test $(echo $wheel_path | wc -w) = 1; \
-  new_wheel="$(wretag -d -q lumi_aif_dsops $wheel_path)"; \
-  pip install $new_wheel; \
-  cd / && rm -rf /tmp/deepspeed;
-
-
-#
-# Cleanup and finalize
-#
-RUN set -ue; \
-  #
-  rmdir /opt/src; \
-  #
-  test -f /opt/rocm/lib/llvm/bin/amdgpu-arch.really || { echo "error: amdgpu-arch.really is missing"; false; }; \
-  rm /opt/rocm/lib/llvm/bin/amdgpu-arch; \
-  mv /opt/rocm/lib/llvm/bin/amdgpu-arch.really /opt/rocm/lib/llvm/bin/amdgpu-arch; \
-  # Add SBOM
-  apt_json="$(dpkg-query -W -f='${Package}\t${Version}\n' | jq -R -s 'split("\n")[:-1] | map(split("\t") | {name: .[0], version: .[1]})')"; \
-  pip_json="$(pip list --format=json)"; \
-  jq -n --argjson apt "$apt_json"  --argjson pip "$pip_json" '{apt: $apt, pip: $pip}' > /.sbom.json;
-
+  #export DS_BUILD_AIO=1; \
+  #export DS_BUILD_CCL_COMM=1; \
+  #export DS_BUILD_EVOFORMER_ATTN=1; \
+  #export DS_BUILD_FUSED_ADAM=1; \
+  #export DS_BUILD_FUSED_LION=1; \
+  #export DS_BUILD_FUSED_LAMB=1; \
+  #export DS_BUILD_QUANTIZER=1; \
+  #export DS_BUILD_RANDOM_LTD=1; \
+  #export DS_BUILD_SPARSE_ATTN=1; \
+  #export DS_BUILD_TRANSFORMER=1; \
+  #export DS_BUILD_TRANSFORMER_INFERENCE=1; \
+  #export DS_BUILD_STOCHASTIC_TRANSFORMER=1; \
+  python3 -m pip install deepspeed --no-build-isolation;
 
 ENV PATH="/opt/venv/bin:$PATH"
 

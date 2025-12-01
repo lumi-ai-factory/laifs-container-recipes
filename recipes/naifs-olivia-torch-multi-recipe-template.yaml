@@ -1,11 +1,11 @@
 {% set ubuntu_id = 'u' ~ ubuntu_release.split('.')[0] %}
-{% set rocm_id = 'r' ~ rocm_version.split('.')[0] ~ rocm_version.split('.')[1] %}
+{% set cuda_id = 'r' ~ cuda_version.split('.')[0] ~ rocm_version.split('.')[1] %}
 {% set libfabric_id = 'f' ~ libfabric_version.split('.')[0] ~ libfabric_version.split('.')[1] %}
 {% set mpich_id = 'm' ~ mpich_version.split('.')[0] ~ mpich_version.split('.')[1] %}
 {% set torch_id = 't' ~ torch_version.split('.')[0] ~ torch_version.split('.')[1] %}
 
 {% set software_digest = ubuntu_id ~ rocm_id ~ libfabric_id ~ mpich_id ~ torch_id %}
-{% set recipe_base_name = 'laifs-lumi-multitorch' %}
+{% set recipe_base_name = 'naifs-olivia-multitorch' %}
 {% set recipe_name = recipe_base_name ~ '-' ~ software_digest %}
 
 name: "{{ recipe_name }}"
@@ -53,7 +53,7 @@ desc: >
   image-name.Containerfile and image-name.log files, respectively.
 
 steps:
-  - name: {{recipe_name}}-rocm-{{rocm_version}}
+  - name: {{recipe_name}}-cuda-{{cuda_version}}
     base: ubuntu:{{ubuntu_tag}}
     desc: >
       **Overview**
@@ -69,18 +69,18 @@ steps:
         {% for pkg in extra_packages -%}
         - {{pkg}}
         {% endfor %}
-    template: rocm/Ubuntu2404_Rocm6
+    template: cuda/Ubuntu2404_Cuda
     force: False
     env:
-      - AMDGPU_REPO={{amdgpu_repo}}
-      - AMDGPU_VERSION={{amdgpu_version}}
-      - ROCM_REPO={{rocm_repo}}
-      - ROCM_VERSION={{rocm_version}}
+      #- AMDGPU_REPO={{amdgpu_repo}}
+      #- AMDGPU_VERSION={{amdgpu_version}}
+      #- ROCM_REPO={{rocm_repo}}
+      - CUDA_VERSION={{cuda_version}}
       - EXTRA_LOCALES="{{extra_locales | join(' ')}}"
       - EXTRA_PACKAGES="{{extra_packages | join(' ')}}"
 
   - name: {{recipe_name}}-libfabric-{{libfabric_version}}
-    base: {{recipe_name}}-rocm-{{rocm_version}}
+    base: {{recipe_name}}-cuda-{{cuda_version}}
     desc: >
       **Overview**
       This image builds on top of its base image by adding locally built Ubuntu
@@ -97,7 +97,7 @@ steps:
         - CXI headers (from {{cxi_headers_clone_url}} commit {{cxi_headers_git_commit}})
         - libcxi (from {{libcxi_clone_url}} commit {{libcxi_git_commit}})
         - Libfabric {{libfabric_version}} (from {{libfabric_clone_url}} commit {{libfabric_git_commit}})
-    template: libfabric/Ubuntu_Rocm_Slingshot
+    template: libfabric/Ubuntu_Cuda_Slingshot
     force: False
     env:
       - XPMEM_CLONE_URL={{xpmem_clone_url}}
@@ -129,25 +129,26 @@ steps:
     desc: >
       **Overview**
       This image builds on top of its base image by adding an MPI library with GPU
-      support, based on an MPICH build. It also includes the AWS-OFI-RCCL plugin to
-      enable RCCL communication over the interconnect network using libfabric. The
-      rccl-tests and OSU micro-benchmarks suite are included for performance and
+      support, based on an MPICH build. It also includes the AWS-OFI-NCCL plugin to
+      enable NCCL communication over the interconnect network using libfabric. The
+      nccl-tests and OSU micro-benchmarks suite are included for performance and
       functionality validation.
+      ---> TODO: check nccl-tests!
 
       **Details**
       Base image: {{recipe_name}}-libfabric-{{libfabric_version}}
       MPI implementation: MPICH {{mpich_version}}
       Components:
         - MPICH {{mpich_version}} (from {{mpich_source}} release tgz for {{mpich_version}})
-        - AWS-OFI-RCCL {{aws_ofi_rccl_version}} (from {{aws_ofi_rccl_repo}} commit {{aws_ofi_rccl_commit}})
-        - RCCL (from {{rccl_tests_repo}} commit {{rccl_tests_commit}})
+        - AWS-OFI-NCCL {{aws_ofi_nccl_version}} (from {{aws_ofi_nccl_repo}} commit {{aws_ofi_nccl_commit}})
+        - NCCL (from {{nccl_tests_repo}} commit {{nccl_tests_commit}})
         - OSU micro-benchmarks {{osu_version}} (from {{osu_source}} release tgz for {{osu_version}})
-    template: mpich/Ubuntu_Rocm_Slingshot
+    template: mpich/Ubuntu_Cuda_Slingshot
     force: False
     env:
-      - AWS_OFI_RCCL_COMMIT={{aws_ofi_rccl_commit}}
-      - AWS_OFI_RCCL_REPO={{aws_ofi_rccl_repo}}
-      - AWS_OFI_RCCL_VERSION={{aws_ofi_rccl_version}}
+      - AWS_OFI_NCCL_COMMIT={{aws_ofi_nccl_commit}}
+      - AWS_OFI_NCCL_REPO={{aws_ofi_nccl_repo}}
+      - AWS_OFI_NCCL_VERSION={{aws_ofi_nccl_version}}
       #
       - MPICH_SOURCE={{mpich_source}}
       - MPICH_VERSION={{mpich_version}}
@@ -155,10 +156,11 @@ steps:
       - OSU_SOURCE={{osu_source}}
       - OSU_VERSION={{osu_version}}
       #
-      - RCCL_TESTS_COMMIT={{rccl_tests_commit}}
-      - RCCL_TESTS_GPU_ARCHS={{rccl_tests_gpu_archs}}
-      - RCCL_TESTS_REPO={{rccl_tests_repo}}
-      - RCCL_TESTS_VERSION={{rccl_tests_version}}
+      # TODO: double-check for nccl-
+      - NCCL_TESTS_COMMIT={{nccl_tests_commit}}
+      - NCCL_TESTS_GPU_ARCHS={{nccl_tests_gpu_archs}}
+      - NCCL_TESTS_REPO={{nccl_tests_repo}}
+      - NCCL_TESTS_VERSION={{nccl_tests_version}}
     export:
       name: {{recipe_name}}-mpich-{{mpich_version}}
 
@@ -210,8 +212,8 @@ steps:
         - libcxi (from {{libcxi_clone_url}} commit {{libcxi_git_commit}})
         - Libfabric {{libfabric_version}} (from {{libfabric_clone_url}} commit {{libfabric_git_commit}})
         - MPICH {{mpich_version}} (from {{mpich_source}} release tgz for {{mpich_version}})
-        - AWS-OFI-RCCL {{aws_ofi_rccl_version}} (from {{aws_ofi_rccl_repo}} commit {{aws_ofi_rccl_commit}})
-        - RCCL (from {{rccl_tests_repo}} commit {{rccl_tests_commit}})
+        - AWS-OFI-NCCL {{aws_ofi_nccl_version}} (from {{aws_ofi_nccl_repo}} commit {{aws_ofi_nccl_commit}})
+        - NCCL (from {{nccl_tests_repo}} commit {{nccl_tests_commit}})
         - OSU micro-benchmarks {{osu_version}} (from {{osu_source}} release tgz for {{osu_version}})
         - PyTorch {{torch_version}} (from {{torch_url}})
         - TorchVision (from {{torchvision_url}})
@@ -232,7 +234,7 @@ steps:
         {% for pkg in extra_apt_packages  -%}
           - {{pkg}}
         {% endfor %}
-    template: multi/Rocm_Multipurpose
+    template: multi/Cuda_Multipurpose
     force: False
     env:
       - APEX_GIT_REPO={{apex_git_repo}}
@@ -259,7 +261,7 @@ steps:
       #
       - WRETAG_URL={{wretag_url}}
       #
-    export:
+    export: # TODO: check Olivia
       name: {{recipe_name}}-multi
       def: |
         %runscript
