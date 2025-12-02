@@ -5,10 +5,8 @@ from pathlib import Path
 from ruamel.yaml import YAML
 
 import argparse
-import collections
 import hashlib
 import jinja2
-import re
 
 yaml = YAML()
 yaml.preserve_quotes = True
