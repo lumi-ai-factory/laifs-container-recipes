@@ -390,12 +390,14 @@ steps:
             export ROCR_VISIBLE_DEVICES="$SLURM_LOCALID"
         fi
         exec "$@"
-files: |
-  -name: "builds/{{release_id}}/{{release_id}}-post.sh"
-  -content: |
-    podman run -it --rm {{image_digest_name("full")}}:{{build_tag}} cat /.sbom.json > builds/{{release_id}}/{{image_build_name("full")}}.json
-    podman run -it --rm {{image_digest_name("torch")}}:{{build_tag}} cat /.sbom.json > builds/{{release_id}}/{{image_build_name("torch")}}.json
-    podman run -it --rm {{image_digest_name("libfabric")}}:{{build_tag}} cat /.sbom.json > builds/{{release_id}}/{{image_build_name("libfabric")}}.json
-    podman run -it --rm {{image_digest_name("mpich")}}:{{build_tag}} cat /.sbom.json > builds/{{release_id}}/{{image_build_name("mpich")}}.json
-    podman run -it --rm {{image_digest_name("rocm")}}:{{build_tag}} cat /.sbom.json > builds/{{release_id}}/{{image_build_name("rocm")}}.json
-    sha256sum builds/{{recipe_full_name}}-{{build_tag}}/* > builds/{{recipe_full_name}}-{{build_tag}}/{{recipe_full_name}}-full-{{build_tag}}.sha256
+
+files:
+  - name: builds/{{release_id}}/{{release_id}}-post.sh
+    content: |
+      podman run -it --rm {{image_digest_name("full")}}:{{build_tag}} cat /.sbom.json > builds/{{release_id}}/{{image_build_name("full")}}.json
+      podman run -it --rm {{image_digest_name("torch")}}:{{build_tag}} cat /.sbom.json > builds/{{release_id}}/{{image_build_name("torch")}}.json
+      podman run -it --rm {{image_digest_name("libfabric")}}:{{build_tag}} cat /.sbom.json > builds/{{release_id}}/{{image_build_name("libfabric")}}.json
+      podman run -it --rm {{image_digest_name("mpich")}}:{{build_tag}} cat /.sbom.json > builds/{{release_id}}/{{image_build_name("mpich")}}.json
+      podman run -it --rm {{image_digest_name("rocm")}}:{{build_tag}} cat /.sbom.json > builds/{{release_id}}/{{image_build_name("rocm")}}.json
+      sha256sum builds/{{recipe_full_name}}-{{build_tag}}/* > builds/{{recipe_full_name}}-{{build_tag}}/{{recipe_full_name}}-full-{{build_tag}}.sha256
+

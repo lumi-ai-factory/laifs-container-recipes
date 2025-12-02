@@ -5,20 +5,22 @@ from pathlib import Path
 from ruamel.yaml import YAML
 
 import argparse
+import collections
 import hashlib
 import jinja2
+import re
 
 yaml = YAML()
 yaml.preserve_quotes = True
 
-def render_template_with_vars(build_tag, template_file, variable_file):
 
+def render_template_with_vars(build_tag, template_file, data):
+    """Render Jinja2 recipe template with values from YAML variables file
+    """
     context = {"build_tag": f"{build_tag}"}
-    with open(variable_file, 'r') as yaml_file:
-        data = yaml.load(yaml_file) or {}
-        context.update(data)
+    context.update(data)
 
-    template_loader = jinja2.FileSystemLoader(searchpath='./')
+    template_loader = jinja2.FileSystemLoader(searchpath="./")
     template_env = jinja2.Environment(loader=template_loader)
     template = template_env.get_template(template_file)
 
@@ -26,6 +28,8 @@ def render_template_with_vars(build_tag, template_file, variable_file):
 
 
 def get_parent_lineage(data, parent_name):
+    """Get list of preceding Containerfile hashes, if any
+    """
     for step in data.get("steps", []):
         if step.get("name") == parent_name:
             return step.get("cf_lineage", "")
@@ -33,9 +37,9 @@ def get_parent_lineage(data, parent_name):
 
 
 def add_containerfile_content(recipe, containerfile_root="containerfiles"):
-
+    """Render Containerfile templates into recipe
+    """
     data = yaml.load(recipe)
-
     root = Path(containerfile_root)
 
     for step in data.get("steps", []):
@@ -45,30 +49,36 @@ def add_containerfile_content(recipe, containerfile_root="containerfiles"):
 
         # This should only be the case for first-in-chain images, where their
         # base image points to external image such as ubuntu:noble-123456
-        if ":" in step['base']:
-            image, tag = step['base'].split(":", 1)
-            build_args_text = f"ARG BASE_IMAGE={image}\n" + f"ARG BASE_IMAGE_TAG={tag}\n"
+        if ":" in step["base"]:
+            image, tag = step["base"].split(":", 1)
+            build_args_text = (
+                    f"ARG BASE_IMAGE={image}\n"
+                    f"ARG BASE_IMAGE_TAG={tag}\n"
+                    )
         else:
             build_args_text = f"ARG BASE_IMAGE={step['base']}\n"
 
         build_args_text += "\n".join(
-            f"ARG {line}" for line in step.get("env", [])
-        )
+                f"ARG {line}" for line in step.get("env", [])
+                )
 
-        containerfile_filled = template_text.replace("@@ BUILD_ARGS @@", build_args_text)
-        containerfile_fingerprint = hashlib.sha1(containerfile_filled.encode()).hexdigest()
+        containerfile_filled = template_text.replace(
+                "@@ BUILD_ARGS @@", build_args_text
+                )
+        containerfile_fingerprint = hashlib.sha1(
+                containerfile_filled.encode()
+                ).hexdigest()
 
-        parent_lineage = get_parent_lineage(data, step['base']) 
+        parent_lineage = get_parent_lineage(data, step["base"]) 
         containerfile_lineage = (
                 f"{containerfile_fingerprint}"
                 if parent_lineage == None
                 else f"{parent_lineage},{containerfile_fingerprint}"
-        )
+                )
 
         step["cf_hash"] = containerfile_fingerprint
         step["cf_lineage"] = containerfile_lineage
         step["cf_text"] = containerfile_filled
-
 
     buf = StringIO()
     yaml.dump(data, buf)
@@ -76,22 +86,71 @@ def add_containerfile_content(recipe, containerfile_root="containerfiles"):
     return buf.getvalue()
 
 
+def add_readme_content(build_tag, readme_template, recipe_content):
+    recipe_data = yaml.load(recipe_content)
+
+    rendered_readme = render_template_with_vars(
+            build_tag=build_tag,
+            template_file=readme_template,
+            data=yaml.load(recipe_content),
+            )
+
+    recipe_data["files"].append(
+            {"name": recipe_data["release"], "content": rendered_readme}
+            )
+    
+    buf = StringIO()
+    yaml.dump(recipe_data, buf)
+
+    return buf.getvalue()
+
+
 def main():
-    parser = argparse.ArgumentParser(
-        description='Render a container recipe template, variables file and Containerfiles into a build recipe.'
-    )
-    parser.add_argument('build_tag', type=str, help='build tag')
-    parser.add_argument('template_file', type=str, help='path to the Jinja2 recipe template file')
-    parser.add_argument('variable_file', type=str, help='path to YAML file containing variables')
+    parser_desc = (
+            "Render a container recipe template, variables file"
+            " and Containerfiles into a build recipe."
+            )
+    parser = argparse.ArgumentParser(description=parser_desc)
+
+    parser.add_argument("build_tag", type=str, help="build tag")
+    parser.add_argument(
+            "--recipe-template", type=str,
+            help="Path to the Jinja2 recipe template file",
+            )
+    parser.add_argument(
+            "--recipe-variables", type=str,
+            help="Path to YAML file containing values for recipe variables",
+            )
+    parser.add_argument(
+            "--readme-template", type=str,
+            help="Path to the Jinja2 readme template file",
+            )
 
     args = parser.parse_args()
 
-    rendered_template = render_template_with_vars(args.build_tag, args.template_file, args.variable_file)
-    complete_recipe = add_containerfile_content(rendered_template.lstrip('\n'))
+    with open(args.recipe_variables, "r") as yaml_file:
+        data = yaml.load(yaml_file) or {}
+
+    rendered_template = render_template_with_vars(
+            build_tag=args.build_tag,
+            template_file=args.recipe_template,
+            data=data,
+            )
+    recipe_content = add_containerfile_content(
+            rendered_template.lstrip("\n")
+            )
+
+    if args.readme_template:
+        complete_recipe = add_readme_content(
+                build_tag=args.build_tag,
+                readme_template=args.readme_template,
+                recipe_content=recipe_content,
+                )
+    else:
+        complete_recipe = recipe_content
 
     print(complete_recipe)
 
 
 if __name__ == "__main__":
     main()
-
