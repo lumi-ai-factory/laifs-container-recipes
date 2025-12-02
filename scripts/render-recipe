@@ -50,29 +50,29 @@ def add_containerfile_content(recipe, containerfile_root="containerfiles"):
         if ":" in step["base"]:
             image, tag = step["base"].split(":", 1)
             build_args_text = (
-                    f"ARG BASE_IMAGE={image}\n"
-                    f"ARG BASE_IMAGE_TAG={tag}\n"
-                    )
+                f"ARG BASE_IMAGE={image}\n"
+                f"ARG BASE_IMAGE_TAG={tag}\n"
+            )
         else:
             build_args_text = f"ARG BASE_IMAGE={step['base']}\n"
 
         build_args_text += "\n".join(
-                f"ARG {line}" for line in step.get("env", [])
-                )
+            f"ARG {line}" for line in step.get("env", [])
+        )
 
         containerfile_filled = template_text.replace(
-                "@@ BUILD_ARGS @@", build_args_text
-                )
+            "@@ BUILD_ARGS @@", build_args_text
+        )
         containerfile_fingerprint = hashlib.sha1(
-                containerfile_filled.encode()
-                ).hexdigest()
+            containerfile_filled.encode()
+        ).hexdigest()
 
         parent_lineage = get_parent_lineage(data, step["base"]) 
         containerfile_lineage = (
-                f"{containerfile_fingerprint}"
-                if parent_lineage == None
-                else f"{parent_lineage},{containerfile_fingerprint}"
-                )
+            f"{containerfile_fingerprint}"
+            if parent_lineage == None
+            else f"{parent_lineage},{containerfile_fingerprint}"
+        )
 
         step["cf_hash"] = containerfile_fingerprint
         step["cf_lineage"] = containerfile_lineage
@@ -88,15 +88,15 @@ def add_readme_content(build_tag, readme_template, recipe_content):
     recipe_data = yaml.load(recipe_content)
 
     rendered_readme = render_template_with_vars(
-            build_tag=build_tag,
-            template_file=readme_template,
-            data=yaml.load(recipe_content),
-            )
+        build_tag=build_tag,
+        template_file=readme_template,
+        data=yaml.load(recipe_content),
+    )
 
     readme_dict = {
-            "name": f"{recipe_data['release']}.md",
-            "content": rendered_readme,
-            }
+        "name": f"{recipe_data['release']}.md",
+        "content": rendered_readme,
+    }
     recipe_data["files"].append(readme_dict)
     
     buf = StringIO()
@@ -107,24 +107,24 @@ def add_readme_content(build_tag, readme_template, recipe_content):
 
 def main():
     parser_desc = (
-            "Render a container recipe template, variables file"
-            " and Containerfiles into a build recipe."
-            )
+        "Render a container recipe template, variables file"
+        " and Containerfiles into a build recipe."
+    )
     parser = argparse.ArgumentParser(description=parser_desc)
 
     parser.add_argument("build_tag", type=str, help="build tag")
     parser.add_argument(
-            "--recipe-template", type=str,
-            help="Path to the Jinja2 recipe template file",
-            )
+        "--recipe-template", type=str,
+        help="Path to the Jinja2 recipe template file",
+    )
     parser.add_argument(
-            "--recipe-variables", type=str,
-            help="Path to YAML file containing values for recipe variables",
-            )
+        "--recipe-variables", type=str,
+        help="Path to YAML file containing values for recipe variables",
+    )
     parser.add_argument(
-            "--readme-template", type=str,
-            help="Path to the Jinja2 readme template file",
-            )
+        "--readme-template", type=str,
+        help="Path to the Jinja2 readme template file",
+    )
 
     args = parser.parse_args()
 
@@ -132,20 +132,20 @@ def main():
         data = yaml.load(yaml_file) or {}
 
     rendered_template = render_template_with_vars(
-            build_tag=args.build_tag,
-            template_file=args.recipe_template,
-            data=data,
-            )
+        build_tag=args.build_tag,
+        template_file=args.recipe_template,
+        data=data,
+    )
     recipe_content = add_containerfile_content(
-            rendered_template.lstrip("\n")
-            )
+        rendered_template.lstrip("\n")
+    )
 
     if args.readme_template:
         complete_recipe = add_readme_content(
-                build_tag=args.build_tag,
-                readme_template=args.readme_template,
-                recipe_content=recipe_content,
-                )
+            build_tag=args.build_tag,
+            readme_template=args.readme_template,
+            recipe_content=recipe_content,
+        )
     else:
         complete_recipe = recipe_content
 
