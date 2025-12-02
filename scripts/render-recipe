@@ -95,9 +95,11 @@ def add_readme_content(build_tag, readme_template, recipe_content):
             data=yaml.load(recipe_content),
             )
 
-    recipe_data["files"].append(
-            {"name": recipe_data["release"], "content": rendered_readme}
-            )
+    readme_dict = {
+            "name": f"{recipe_data['release']}.md",
+            "content": rendered_readme,
+            }
+    recipe_data["files"].append(readme_dict)
     
     buf = StringIO()
     yaml.dump(recipe_data, buf)
