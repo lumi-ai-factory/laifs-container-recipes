@@ -389,6 +389,9 @@ steps:
         if [ "${ROCR_USE_SLURM_LOCALID}" = 1 ] && [ -n "${SLURM_LOCALID}" ]; then
             export ROCR_VISIBLE_DEVICES="$SLURM_LOCALID"
         fi
+        if [[ -n "$ROCR_VISIBLE_DEVICES" ]] && [[ -z "$HIP_VISIBLE_DEVICES" ]]; then
+            export HIP_VISIBLE_DEVICES="$ROCR_VISIBLE_DEVICES"
+        fi
         exec "$@"
 files: |
   -name: "builds/{{release_id}}/{{release_id}}-post.sh"
