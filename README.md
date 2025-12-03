@@ -2,7 +2,7 @@
 
 **Container recipes and build scripts for LUMI AI Factory container images.**
 
-This repository provides the infrastructure to build, customize, and release container images for the [LUMI AI Factory](https://lumi-ai-factory.eu/). The current images are designed for use on the [LUMI supercomputer](https://lumi-supercomputer.eu/) and will be also published on Docker Hub. The build process has been made as transparent as possible, enabling users to customize images for specific needs or fork the repository for creating images for other systems.
+This repository provides the infrastructure to build, customize, and release container images for the [LUMI AI Factory](https://lumi-ai-factory.eu/). The current images are designed for use on the [LUMI supercomputer](https://lumi-supercomputer.eu/) and will be also published on Docker Hub. The build process has been made as transparent as possible, enabling users to customize images for specific needs or fork the repository for creating images for other systems. Complete recipes for the released images are available [here](https://github.com/lumi-ai-factory/laifs-container-recipes/releases).
 
 > **Note:** This repository and the images are currently in a **pre-release preview stage**. Official processes and support is planned to begin around **February 2026**. We welcome feedback, issues, and pull requests via [GitHub](https://github.com/lumi-ai-factory/laifs-container-recipes).
 
