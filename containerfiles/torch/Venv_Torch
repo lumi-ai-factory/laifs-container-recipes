@@ -8,7 +8,6 @@ ARG PYTORCH_TRITON_URL
 ARG TORCHAUDIO_URL
 ARG TORCHVISION_URL
 ARG TORCH_URL
-ARG XFORMERS_URL
 
 RUN set -ue; \
   #
@@ -16,7 +15,7 @@ RUN set -ue; \
   #
   python3.12 -m venv /opt/venv; \
   . /opt/venv/bin/activate; \
-  pip install $PYTORCH_TRITON_URL $TORCHAUDIO_URL $TORCHVISION_URL $TORCH_URL $XFORMERS_URL; \
+  pip install $PYTORCH_TRITON_URL $TORCHAUDIO_URL $TORCHVISION_URL $TORCH_URL; \
   pip cache purge; \
   echo "source /opt/venv/bin/activate" >> ~/.bashrc; \
   #

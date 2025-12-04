@@ -86,8 +86,6 @@ pytorch_triton_url: "https://download.pytorch.org/whl/pytorch_triton_rocm-3.5.1-
 torch_url: "https://download.pytorch.org/whl/rocm6.4/torch-2.9.1%2Brocm6.4-cp312-cp312-manylinux_2_28_x86_64.whl"
 torchaudio_url: "https://download.pytorch.org/whl/rocm6.4/torchaudio-2.9.1%2Brocm6.4-cp312-cp312-manylinux_2_28_x86_64.whl"
 torchvision_url: "https://download.pytorch.org/whl/rocm6.4/torchvision-0.24.1%2Brocm6.4-cp312-cp312-manylinux_2_28_x86_64.whl"
-# revisit: xformers is here for cp39 and for rocm 6.4 the cp312 seems to missing from the repository
-xformers_url: "https://download.pytorch.org/whl/rocm6.4/xformers-0.0.33.post1-cp39-abi3-manylinux_2_28_x86_64.whl"
 
 #
 # ubuntu-rocm-libfabric-mpich-torch-full
@@ -106,13 +104,19 @@ deepspeed_version: "0.18.2"
 flash_attention_repo_commit: "465cb97" # Latest commit from the main_perf branch before AITER integration
 flash_attention_repo_url: "https://github.com/ROCm/flash-attention"
 #
+llmcompressor_commit: "https://github.com/vllm-project/llm-compressor"
+llmcompressor_repo: "3cd0300" # latest commit as of 2025-12-04
+#
 multi_image_gpu_arch: "gfx90a"
 #
-vllm_version: "v0.11.2" #  revisit: find a better way to keep these in sync
-vllm_commit: "275de34" #  275de34 is for commit id "tags/v0.11.2"
+vllm_version: "v0.12.0" # revisit: find a better way to keep these in sync
+vllm_commit: "4fd9d6a" # 4fd9d6a is for commit id "tag/v0.12.0"
 vllm_repo: "https://github.com/vllm-project/vllm"
 #
 wretag_url: "git+https://github.com/viahlgre/wretag.git@0da1af0"
+#
+xformers_commit: "41531ce" # Commit for id for release "v0.0.33.post2: Wheels for PyTorch 2.9.1"
+xformers_repo: "https://github.com/facebookresearch/xformers"
 #
 extra_apt_packages:
   - cmake
@@ -137,7 +141,6 @@ extra_pip_packages:
   - evaluate
   - huggingface-hub
   - jupyter
-  - llmcompressor
   - matplotlib
   - mpi4py
   - numba

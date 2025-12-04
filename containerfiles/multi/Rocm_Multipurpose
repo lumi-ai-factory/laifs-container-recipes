@@ -24,10 +24,16 @@ ARG FLASH_ATTENTION_REPO_URL
 
 ARG MULTI_IMAGE_GPU_ARCH
 
+ARG LLMCOMPRESSOR_REPO
+ARG LLMCOMPRESSOR_COMMIT
+
 ARG VLLM_COMMIT
 ARG VLLM_REPO
 
 ARG WRETAG_URL
+
+ARG XFORMERS_COMMIT
+ARG XFORMERS_REPO
 
 #
 # Prepare build environment
@@ -112,6 +118,26 @@ RUN set -ue; \
 
 
 #
+# Install xFormers
+#
+RUN set -ue; \
+  . /opt/venv/bin/activate; \
+  git clone $XFORMERS_REPO /opt/src/xformers; \
+  cd /opt/src/xformers; \
+  git checkout $XFORMERS_COMMIT; \
+  git submodule update --init --recursive; \
+  export XFORMERS_CK_FLASH_ATTN=1; \
+  export HIP_ARCHITECTURES="${MULTI_IMAGE_GPU_ARCH}"; \
+  export MAX_JOBS="$(nproc)"; \
+  pip wheel --no-deps --no-build-isolation -w /opt/src/xformers/dist . ; \
+  wheel_path="$(find /opt/src/xformers/dist -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
+  test $(echo $wheel_path | wc -w) = 1; \
+  new_wheel="$(wretag -d -q lumi_aif_${MULTI_IMAGE_GPU_ARCH}_${XFORMERS_COMMIT} $wheel_path)"; \
+  pip install --no-cache-dir $new_wheel; \
+  rm -rf /opt/src/xformers;
+
+
+#
 # Install Apex
 #
 RUN set -ue; \
@@ -154,6 +180,19 @@ RUN set -ue; \
   new_wheel="$(wretag -d -q lumi_aif_${MULTI_IMAGE_GPU_ARCH}_${VLLM_COMMIT} $wheel_path)"; \
   pip install $new_wheel; \
   cd / && rm -rf /opt/src/vllm;
+
+
+#
+# Install llmcompressor
+#
+RUN set -ue; \
+  . /opt/venv/bin/activate; \
+  pip wheel --no-deps -w /opt/src/llmcompressor git+${LLMCOMPRESSOR_REPO}.git@${LLMCOMPRESSOR_COMMIT}; \
+  wheel_path="$(find /opt/src/llmcompressor -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
+  test $(echo $wheel_path | wc -w) = 1; \
+  new_wheel="$(wretag -d -q lumi_aif_${LLMCOMPRESSOR_COMMIT} $wheel_path)"; \
+  pip install $new_wheel; \
+  cd / && rm -rf /opt/src/llmcompressor;
 
 
 #

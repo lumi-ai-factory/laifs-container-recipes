@@ -108,7 +108,7 @@ desc: |
     - TorchVision (from {{torchvision_url}})
     - TorchAudio (from {{torchaudio_url}})
     - PyTorch Triton (from {{pytorch_triton_url}})
-    - xFormers (from {{xformers_url}})
+    - xFormers (from {{xformers_repo}} commit {{xformers_commit}})
     - Apex (from {{apex_git_repo}} commit {{apex_git_commit}})
     - Bitsandbytes (from {{bitsandbytes_repo_url}} commit {{bitsandbytes_commit}})
     - Causal Conv1D (from {{causal_conv1d_repo}} commit {{causal_conv1d_commit}})
@@ -312,7 +312,6 @@ steps:
         - TorchVision: {{torchvision_url}}
         - TorchAudio: {{torchaudio_url}}
         - PyTorch Triton: {{pytorch_triton_url}}
-        - xFormers: {{xformers_url}}
     template: torch/Venv_Torch
     force: True
     env:
@@ -322,7 +321,6 @@ steps:
       - TORCHAUDIO_URL={{torchaudio_url}}
       - TORCHVISION_URL={{torchvision_url}}
       - TORCH_URL={{torch_url}}
-      - XFORMERS_URL={{xformers_url}}
     export:
       name: {{image_digest_name("torch")}}
 
@@ -375,12 +373,18 @@ steps:
       - FLASH_ATTENTION_REPO_COMMIT={{flash_attention_repo_commit}}
       - FLASH_ATTENTION_REPO_URL={{flash_attention_repo_url}}
       #
+      - LLMCOMPRESSOR_REPO={{llmcompressor_repo}}
+      - LLMCOMPRESSOR_COMMIT={{llmcompressor_commit}}
+      #
       - MULTI_IMAGE_GPU_ARCH={{multi_image_gpu_arch}}
       #
       - VLLM_COMMIT={{vllm_commit}}
       - VLLM_REPO={{vllm_repo}}
       #
       - WRETAG_URL={{wretag_url}}
+      #
+      - XFORMERS_COMMIT={{xformers_commit}}
+      - XFORMERS_REPO={{xformers_repo}}
       #
     export:
       name: {{image_digest_name("full")}}
@@ -393,12 +397,12 @@ steps:
             export HIP_VISIBLE_DEVICES="$ROCR_VISIBLE_DEVICES"
         fi
         exec "$@"
-files: |
-  -name: "builds/{{release_id}}/{{release_id}}-post.sh"
-  -content: |
-    podman run -it --rm {{image_digest_name("full")}}:{{build_tag}} cat /.sbom.json > builds/{{release_id}}/{{image_build_name("full")}}.json
-    podman run -it --rm {{image_digest_name("torch")}}:{{build_tag}} cat /.sbom.json > builds/{{release_id}}/{{image_build_name("torch")}}.json
-    podman run -it --rm {{image_digest_name("libfabric")}}:{{build_tag}} cat /.sbom.json > builds/{{release_id}}/{{image_build_name("libfabric")}}.json
-    podman run -it --rm {{image_digest_name("mpich")}}:{{build_tag}} cat /.sbom.json > builds/{{release_id}}/{{image_build_name("mpich")}}.json
-    podman run -it --rm {{image_digest_name("rocm")}}:{{build_tag}} cat /.sbom.json > builds/{{release_id}}/{{image_build_name("rocm")}}.json
-    sha256sum builds/{{recipe_full_name}}-{{build_tag}}/* > builds/{{recipe_full_name}}-{{build_tag}}/{{recipe_full_name}}-full-{{build_tag}}.sha256
+files:
+  - name: "builds/{{release_id}}/{{release_id}}-post.sh"
+  - content: |
+      podman run -it --rm {{image_digest_name("full")}}:{{build_tag}} cat /.sbom.json > builds/{{release_id}}/{{image_build_name("full")}}.json
+      podman run -it --rm {{image_digest_name("torch")}}:{{build_tag}} cat /.sbom.json > builds/{{release_id}}/{{image_build_name("torch")}}.json
+      podman run -it --rm {{image_digest_name("libfabric")}}:{{build_tag}} cat /.sbom.json > builds/{{release_id}}/{{image_build_name("libfabric")}}.json
+      podman run -it --rm {{image_digest_name("mpich")}}:{{build_tag}} cat /.sbom.json > builds/{{release_id}}/{{image_build_name("mpich")}}.json
+      podman run -it --rm {{image_digest_name("rocm")}}:{{build_tag}} cat /.sbom.json > builds/{{release_id}}/{{image_build_name("rocm")}}.json
+      sha256sum builds/{{recipe_full_name}}-{{build_tag}}/* > builds/{{recipe_full_name}}-{{build_tag}}/{{recipe_full_name}}-full-{{build_tag}}.sha256
