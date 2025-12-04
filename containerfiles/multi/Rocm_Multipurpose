@@ -16,6 +16,8 @@ ARG CAUSAL_CONV1D_REPO
 
 ARG DEEPSPEED_VERSION
 
+ARG DEPENDENCY_PIP_PACKAGES
+
 ARG EXTRA_APT_PACKAGES
 ARG EXTRA_PIP_PACKAGES
 
@@ -61,7 +63,7 @@ RUN set -ue; \
   #
   . /opt/venv/bin/activate; \
   pip install --no-cache-dir "${WRETAG_URL}"; \
-  pip install --no-cache-dir ${EXTRA_PIP_PACKAGES};
+  pip install --no-cache-dir ${DEPENDENCY_PIP_PACKAGES} ${EXTRA_PIP_PACKAGES};
 
 
 #

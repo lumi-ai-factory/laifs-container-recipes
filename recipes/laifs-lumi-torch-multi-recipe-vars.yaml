@@ -153,6 +153,7 @@ extra_pip_packages:
   - tensorboard
   - trl
   - ultralytics
+dependency_pip_packages:
   # DeepSpeed OPS build
   - impi-devel
   - oneccl-devel
