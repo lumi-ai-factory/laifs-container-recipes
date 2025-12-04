@@ -73,11 +73,11 @@ desc: |
     - lumi: The primary target system for the images (LUMI)
     - multitorch: Image type (a multipurpose PyTorch image)
     - {{software_digest}}: Major software versions digest, consisting of:
-      - {{ubuntu_id}}: Digest for Ubuntu {{ubuntu_release}} LTS
-      - {{rocm_id}}: Digest for ROCm {{rocm_version}}
-      - {{libfabric_id}}: Digest for libfabric {{libfabric_version}}
-      - {{mpich_id}}: Digest for MPICH {{mpich_version}}
-      - {{torch_id}}: Digest for PyTorch {{torch_version}}
+      - {{ubuntu_id}}: Digest from Ubuntu {{ubuntu_release}} LTS
+      - {{rocm_id}}: Digest from ROCm {{rocm_version}}
+      - {{libfabric_id}}: Digest from libfabric {{libfabric_version}}
+      - {{mpich_id}}: Digest from MPICH {{mpich_version}}
+      - {{torch_id}}: Digest from PyTorch {{torch_version}}
     - {{build_tag}}: Timestamp-based build tag
 
   This release includes five images, each building on the previous one by adding
@@ -105,13 +105,14 @@ desc: |
     - TorchVision (from {{torchvision_url}})
     - TorchAudio (from {{torchaudio_url}})
     - PyTorch Triton (from {{pytorch_triton_url}})
-    - xFormers (from {{xformers_repo}} commit {{xformers_commit}})
     - Apex (from {{apex_git_repo}} commit {{apex_git_commit}})
     - Bitsandbytes (from {{bitsandbytes_repo_url}} commit {{bitsandbytes_commit}})
     - Causal Conv1D (from {{causal_conv1d_repo}} commit {{causal_conv1d_commit}})
     - DeepSpeed {{deepspeed_version}} (with locally built ops addons)
     - Flash Attention (from {{flash_attention_repo_url}} commit {{flash_attention_repo_commit}})
+    - LLM Compressor: (from {{llmcompressor_repo}} commit {{llmcompressor_commit}})
     - vLLM {{vllm_version}} (from {{vllm_repo}} commit {{vllm_commit}})
+    - xFormers (from {{xformers_repo}} commit {{xformers_commit}})
 
   These additional packages from PyPI are also included in the final image:
     {%- for pkg in extra_pip_packages %}
@@ -343,6 +344,7 @@ steps:
         - Causal Conv1D (from {{causal_conv1d_repo}} commit {{causal_conv1d_commit}})
         - DeepSpeed {{deepspeed_version}} (with locally built ops addons)
         - Flash Attention (from {{flash_attention_repo_url}} commit {{flash_attention_repo_commit}})
+        - LLM Compressor: (from {{llmcompressor_repo}} commit {{llmcompressor_commit}})
         - vLLM {{vllm_version}} (from {{vllm_repo}} commit {{vllm_commit}})
         - xFormers (from {{xformers_repo}} commit {{xformers_commit}})
 
