@@ -104,8 +104,8 @@ deepspeed_version: "0.18.2"
 flash_attention_repo_commit: "465cb97" # Latest commit from the main_perf branch before AITER integration
 flash_attention_repo_url: "https://github.com/ROCm/flash-attention"
 #
-llmcompressor_commit: "https://github.com/vllm-project/llm-compressor"
-llmcompressor_repo: "3cd0300" # latest commit as of 2025-12-04
+llmcompressor_commit: "3cd0300" # latest commit as of 2025-12-04
+llmcompressor_repo: "https://github.com/vllm-project/llm-compressor"
 #
 multi_image_gpu_arch: "gfx90a"
 #
