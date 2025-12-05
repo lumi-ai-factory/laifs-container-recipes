@@ -44,52 +44,49 @@
   {{- release_registry ~ ':' ~  short_name -}}
 {% endmacro %}
 
+{#- List of image variants for convenience with generating the documentation -#}
+{% set image_variants = ["full", "torch", "mpich", "libfabric", "rocm"] %}
+
 name: "{{ recipe_full_name }}"
 tag: "{{ build_tag }}"
 release: "{{ release_id }}"
 desc: |
-  This collection of container images is developed by the
-  [LUMI AI Factory](https://lumi-ai-factory.eu/) and is specifically designed for
-  use on the [LUMI supercomputer](https://lumi-supercomputer.eu/). The images are
-  built using recipes available in the LUMI AI Factory
-  [GitHub repository](https://github.com/lumi-ai-factory/laifs-container-recipes).
+  This collection of container images is developed by the LUMI AI Factory and is
+  specifically designed for use on the LUMI supercomputer. The images are built
+  using recipes available in the LUMI AI Factory GitHub repository. Each image of
+  the release builds on the previous one by adding new features, finally resulting
+  in a fully featured, GPU-enabled and MPI-capable PyTorch-based multipurpose
+  ML/AI container image.
 
-  Each image of the release builds on the previous one by adding new functionality,
-  finally resulting in a fully featured, GPU-enabled and MPI-capable PyTorch-based
-  multipurpose ML/AI container image.
-
-  All build artifacts, including the full recipe, Containerfiles, build logs, and
-  the resulting images, are publicly available. This transparent approach enables
-  full user customization for special use cases and reusability on other systems.
+  All build artifacts are publicly available. This includes the full recipe,
+  Containerfiles, build logs, and the resulting final container images. This
+  transparent approach enables full customization for special use cases, reuse
+  on other similar systems, as well as adapting the images to run on cloud
+  environments.
 
   All images are published to Docker Hub, and ready-to-run Apptainer/Singularity
   `.sif` versions of the images are available directly on LUMI. The generated
   Containerfiles and other artifacts are released as public GitHub releases.
 
-  The release identifier `{{release_id}}` encodes the
-  following information:
+  The release identifier `{{release_id}}` encodes
+  the following information:
     - lumi: The primary target system for the images (LUMI)
     - multitorch: Image type (a multipurpose PyTorch image)
     - {{software_digest}}: Major software versions digest, consisting of:
-      - {{ubuntu_id}}: Digest for Ubuntu {{ubuntu_release}} LTS
-      - {{rocm_id}}: Digest for ROCm {{rocm_version}}
-      - {{libfabric_id}}: Digest for libfabric {{libfabric_version}}
-      - {{mpich_id}}: Digest for MPICH {{mpich_version}}
-      - {{torch_id}}: Digest for PyTorch {{torch_version}}
+      - {{ubuntu_id}}: Digest from Ubuntu {{ubuntu_release}} LTS
+      - {{rocm_id}}: Digest from ROCm {{rocm_version}}
+      - {{libfabric_id}}: Digest from libfabric {{libfabric_version}}
+      - {{mpich_id}}: Digest from MPICH {{mpich_version}}
+      - {{torch_id}}: Digest from PyTorch {{torch_version}}
     - {{build_tag}}: Timestamp-based build tag
 
   This release includes five images, each building on the previous one by adding
   new major functionality in the following order:
-    - `{{image_digest_name("rocm")}}`:
-      Starts from Ubuntu base image and adds ROCm {{rocm_version}}
-    - `{{image_digest_name("libfabric")}}`:
-      Adds libfabric {{libfabric_version}} to the ROCm image
-    - `{{image_digest_name("mpich")}}`:
-      Adds MPICH {{mpich_version}} with GPU support to the libfabric image
-    - `{{image_digest_name("torch")}}`:
-      Adds PyTorch {{torch_version}} to the MPICH image
-    - `{{image_digest_name("full")}}`:
-      Adds selection of AI and ML libraries to the PyTorch image
+    - `{{image_digest_name("rocm")}}`: Starts from Ubuntu base image and adds ROCm {{rocm_version}}
+    - `{{image_digest_name("libfabric")}}`: Adds libfabric {{libfabric_version}} to the ROCm image
+    - `{{image_digest_name("mpich")}}`: Adds MPICH {{mpich_version}} with GPU support to the libfabric image
+    - `{{image_digest_name("torch")}}`: Adds PyTorch {{torch_version}} to the MPICH image
+    - `{{image_digest_name("full")}}`: Adds selection of AI and ML libraries to the PyTorch image
 
   The final image, `{{image_build_name("full")}}`,
   includes these key software components:
@@ -108,20 +105,26 @@ desc: |
     - TorchVision (from {{torchvision_url}})
     - TorchAudio (from {{torchaudio_url}})
     - PyTorch Triton (from {{pytorch_triton_url}})
-    - xFormers (from {{xformers_url}})
     - Apex (from {{apex_git_repo}} commit {{apex_git_commit}})
     - Bitsandbytes (from {{bitsandbytes_repo_url}} commit {{bitsandbytes_commit}})
     - Causal Conv1D (from {{causal_conv1d_repo}} commit {{causal_conv1d_commit}})
     - DeepSpeed {{deepspeed_version}} (with locally built ops addons)
     - Flash Attention (from {{flash_attention_repo_url}} commit {{flash_attention_repo_commit}})
+    - LLM Compressor: (from {{llmcompressor_repo}} commit {{llmcompressor_commit}})
     - vLLM {{vllm_version}} (from {{vllm_repo}} commit {{vllm_commit}})
+    - xFormers (from {{xformers_repo}} commit {{xformers_commit}})
+
+  These additional packages from PyPI are also included in the final image:
+    {%- for pkg in extra_pip_packages %}
+    - {{ pkg }}
+    {%- endfor %}
 
   Documentation for each image is provided separately in the `<image name>.md`
   Markdown text files, as well as in the next sections of this file. A Software
-  Bill of Materials (SBOM) is available in files named `<image name>.json`.  These
-  files list all Ubuntu and Python packages used in the images.  Containerfiles and
-  build logs for each image are available in files named
-  <image name>.Containerfile` and `<image name>.log`, respectively.
+  Bill of Materials (SBOM) with full software version numbers is available for
+  each image in files named `<image name>.json`. These files list all Ubuntu and
+  Python packages used in the images. Containerfiles and build logs for each image
+  are available in files named <image name>.Containerfile` and `<image name>.log`.
 
   All software in the images is installed as either Python or Ubuntu packages.
   Some packages are installed directly from Ubuntu repositories, some from PyPI,
@@ -132,13 +135,14 @@ desc: |
   all included software being managed by either Ubuntu or Python package managers.
 
   The GitHub release for this build consists of:
-  - A `.yaml` recipe file which defines the build steps, software versions, and
-    includes all required Containerfiles and documentation snippets to reproduce
-    the build of this release.
-  - Containerfiles and Singularity definition files (`.Containerfile`, `.def`) for
-    convenience (this data is embedded in the `.yaml` recipe as well).
-  - This release README file and separate per-image documentation (`.md`).
-  - Build logs (`.log`) and SBOM files (`.json`) for all images for transparency.
+    - A `.yaml` recipe file which defines the build steps, software versions, and
+      includes all required Containerfiles and documentation snippets to reproduce
+      the build of this release.
+    - Containerfiles and Singularity definition files (`.Containerfile`, `.def`)
+      for convenience (this data is embedded in the `.yaml` recipe as well).
+    - This release README file and separate per-image documentation (`.md`).
+    - Build logs (`.log`) and SBOM files (`.json`) for all images for
+      transparency.
 
   The images are available for direct use on LUMI:
     - Path to this exact release on LUMI is:
@@ -149,37 +153,34 @@ desc: |
       `{{release_latest_symlink}}`
     - Example listing of release directory content on LUMI:
       - `{{recipe_base_name}}-{{software_digest}}-{{build_tag}}.md`: The main readme file
-      - `{{image_build_name("full")}}.sif`: Singularity image for the full image
-      - `{{image_build_name("full")}}.md`: Readme file for the full image
-      - `{{image_build_name("full")}}.json`: Software Bill of materials for the full image
-      - `{{image_build_name("torch")}}.sif`: Singularity image for the torch image
-      - `{{image_build_name("torch")}}.md`: Readme file for the torch image
-      - `{{image_build_name("torch")}}.json`: Software Bill of materials for the torch image
-      - `...`
-    - Illustrative example use on LUMI:
-      ```
-      uan:~> srun --gpus-per-task=2 <other srun args> singularity \
-        run <singularity args> <path to sif image> \
-          python -c 'import torch; print("num gpus:", torch.cuda.device_count())'
-      [...]
-      num gpus: 2
-      ```
+      - `{{recipe_base_name}}-{{software_digest}}-{{build_tag}}.yaml`: The recipe file
+      {% for type in image_variants -%}
+      - `{{ image_build_name(type) }}.sif`: Singularity image for the {{ type }} image
+      - `{{ image_build_name(type) }}.md`: Readme file for the {{ type }} image
+      - `{{ image_build_name(type) }}.json`: Software Bill of materials for the {{ type }} image
+      {% endfor %}
+  Illustrative example use on LUMI:
+    ```
+    uan:~> srun --gpus-per-task=2 <other srun args> singularity \
+      run <singularity args> <path to sif image> \
+        python -c 'import torch; print("num gpus:", torch.cuda.device_count())'
+    [...]
+    num gpus: 2
+    ```
 
   On Docker Hub the images are available with the following tag/naming scheme:
     - The exact images from this recipe build:
-      - Image full: `{{image_registry_name("full")}}`
-      - Image torch: `{{image_registry_name("torch")}}`
-      - Image mpich: `{{image_registry_name("mpich")}}`
-      - Image libfabric: `{{image_registry_name("libfabric")}}`
-      - Image rocm: `{{image_registry_name("rocm")}}`
+      {%- for type in image_variants %}
+      - Image {{ type }}: `{{image_registry_name( type )}}`
+      {%- endfor %}
     - Latest build with specific significant software versions (using software digest):
-      - Image full: `{{image_registry_digest("full")}}`
-      - Image torch: `{{image_registry_digest("torch")}}`
-      - `[...]`
+      {%- for type in image_variants %}
+      - Image {{ type }}:  `{{image_registry_digest(type)}}`
+      {%- endfor %}
     - Floating tags for latest version (over any significant software versions / digests):
-      - `{{image_registry_latest("full")}}`: latest complete full image across all variants
-      - `{{image_registry_latest("torch")}}`: latest complete torch image across all variants
-      - `[...]`
+      {%- for type in image_variants %}
+      - `{{image_registry_latest(type)}}`: latest complete {{ type }} image across all variants
+      {%- endfor %}
     - Example Docker Hub pull commands:
       - `docker pull {{image_registry_name("full")}}`
       - `docker pull {{image_registry_digest("torch")}}`
@@ -190,9 +191,10 @@ steps:
     base: ubuntu:{{ubuntu_tag}}
     desc: |
       **Overview**
-      This is a base image building on Ubuntu {{ubuntu_release}} LTS upstream image with ROCm
-      software from AMD's official Ubuntu repositories installed on top of it. The
-      image also adds a few commonly used extra Ubuntu packages and enables man pages.
+      This is a base image building on Ubuntu {{ubuntu_release}} LTS upstream image
+      with ROCm software from AMD's official Ubuntu repositories installed on top of
+      it. The image also adds a few commonly used extra Ubuntu packages and enables
+      man pages.
 
       **Details**
       Ubuntu base image: ubuntu:{{ubuntu_tag}}
@@ -312,7 +314,6 @@ steps:
         - TorchVision: {{torchvision_url}}
         - TorchAudio: {{torchaudio_url}}
         - PyTorch Triton: {{pytorch_triton_url}}
-        - xFormers: {{xformers_url}}
     template: torch/Venv_Torch
     force: True
     env:
@@ -322,7 +323,6 @@ steps:
       - TORCHAUDIO_URL={{torchaudio_url}}
       - TORCHVISION_URL={{torchvision_url}}
       - TORCH_URL={{torch_url}}
-      - XFORMERS_URL={{xformers_url}}
     export:
       name: {{image_digest_name("torch")}}
 
@@ -344,17 +344,15 @@ steps:
         - Causal Conv1D (from {{causal_conv1d_repo}} commit {{causal_conv1d_commit}})
         - DeepSpeed {{deepspeed_version}} (with locally built ops addons)
         - Flash Attention (from {{flash_attention_repo_url}} commit {{flash_attention_repo_commit}})
+        - LLM Compressor: (from {{llmcompressor_repo}} commit {{llmcompressor_commit}})
         - vLLM {{vllm_version}} (from {{vllm_repo}} commit {{vllm_commit}})
+        - xFormers (from {{xformers_repo}} commit {{xformers_commit}})
 
       Additional Python packages from PyPI:
         {%- for pkg in extra_pip_packages %}
         - {{pkg}}
         {%- endfor %}
 
-      Additional Ubuntu packages:
-        {%- for pkg in extra_apt_packages  %}
-        - {{pkg}}
-        {%- endfor %}
     template: multi/Rocm_Multipurpose
     force: False
     env:
@@ -369,11 +367,16 @@ steps:
       #
       - DEEPSPEED_VERSION={{deepspeed_version}}
       #
+      - DEPENDENCY_PIP_PACKAGES="{{dependency_pip_packages | join(' ')}}"
+      #
       - EXTRA_APT_PACKAGES="{{extra_apt_packages | join(' ')}}"
       - EXTRA_PIP_PACKAGES="{{extra_pip_packages | join(' ')}}"
       #
       - FLASH_ATTENTION_REPO_COMMIT={{flash_attention_repo_commit}}
       - FLASH_ATTENTION_REPO_URL={{flash_attention_repo_url}}
+      #
+      - LLMCOMPRESSOR_REPO={{llmcompressor_repo}}
+      - LLMCOMPRESSOR_COMMIT={{llmcompressor_commit}}
       #
       - MULTI_IMAGE_GPU_ARCH={{multi_image_gpu_arch}}
       #
@@ -382,6 +385,9 @@ steps:
       #
       - WRETAG_URL={{wretag_url}}
       #
+      - XFORMERS_COMMIT={{xformers_commit}}
+      - XFORMERS_REPO={{xformers_repo}}
+      #
     export:
       name: {{image_digest_name("full")}}
       def: |
@@ -389,16 +395,16 @@ steps:
         if [ "${ROCR_USE_SLURM_LOCALID}" = 1 ] && [ -n "${SLURM_LOCALID}" ]; then
             export ROCR_VISIBLE_DEVICES="$SLURM_LOCALID"
         fi
+        if [[ -n "$ROCR_VISIBLE_DEVICES" ]] && [[ -z "$HIP_VISIBLE_DEVICES" ]]; then
+            export HIP_VISIBLE_DEVICES="$ROCR_VISIBLE_DEVICES"
+        fi
         exec "$@"
-
 files:
-  - name: builds/{{release_id}}/{{release_id}}-post.sh
-    purpose: post-build
-    content: |
+  - name: "builds/{{release_id}}/{{release_id}}-post.sh"
+  - content: |
       podman run -it --rm {{image_digest_name("full")}}:{{build_tag}} cat /.sbom.json > builds/{{release_id}}/{{image_build_name("full")}}.json
       podman run -it --rm {{image_digest_name("torch")}}:{{build_tag}} cat /.sbom.json > builds/{{release_id}}/{{image_build_name("torch")}}.json
       podman run -it --rm {{image_digest_name("libfabric")}}:{{build_tag}} cat /.sbom.json > builds/{{release_id}}/{{image_build_name("libfabric")}}.json
       podman run -it --rm {{image_digest_name("mpich")}}:{{build_tag}} cat /.sbom.json > builds/{{release_id}}/{{image_build_name("mpich")}}.json
       podman run -it --rm {{image_digest_name("rocm")}}:{{build_tag}} cat /.sbom.json > builds/{{release_id}}/{{image_build_name("rocm")}}.json
       sha256sum builds/{{recipe_full_name}}-{{build_tag}}/* > builds/{{recipe_full_name}}-{{build_tag}}/{{recipe_full_name}}-full-{{build_tag}}.sha256
-
