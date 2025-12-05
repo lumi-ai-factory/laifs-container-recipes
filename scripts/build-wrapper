@@ -37,16 +37,16 @@ main() {
     git diff | sed 's/^/        /' | tee -a $build_log
 
     echo "$(date +'%Y%m%d %H:%M:%S') generating recipe from template and vars file" | tee -a $build_log
-    scripts/render-recipe $BUILD_TAG $TEMPLATE $VARS > $recipe_file
+    scripts/render-recipe $BUILD_TAG $TEMPLATE $VARS $README_J2 > $recipe_file
 
     echo "$(date +'%Y%m%d %H:%M:%S') sha256 sums for the template, vars and final recipe are:" | tee -a $build_log
     sha256sum $TEMPLATE $VARS $recipe_file | sed -e 's/^/    /' | tee -a $build_log
 
     # Render the readme
     if [[ -n "$README_J2" ]]; then
-	readme_file="$build_dir/$NAME-${TIMESTAMP}.md"
+	readme_file=$(yq . $recipe_file | jq -r '.files[] | select(.purpose == "readme").name')
         echo "$(date +'%Y%m%d %H:%M:%S') generating readme file $readme_file" | tee -a $build_log
-        scripts/j2render "$README_J2" "$recipe_file" > "$readme_file"
+	yq . $recipe_file | jq -r '.files[] | select(.purpose == "readme").content' > "$readme_file"
         echo "$(date +'%Y%m%d %H:%M:%S') sha256 sum for the readme file is:" | tee -a $build_log
         sha256sum $readme_file | sed -e 's/^/    /' | tee -a $build_log
     fi
