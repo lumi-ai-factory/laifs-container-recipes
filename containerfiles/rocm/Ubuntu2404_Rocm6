@@ -28,7 +28,7 @@ RUN set -ue; \
   #
   apt-get install -y --no-install-recommends ca-certificates curl gnupg; \
   #
-  /usr/bin/echo -e 'Package: *\nPin: release o=repo.radeon.com\nPin-Priority: 800\n' > /etc/apt/preferences.d/rocm-pin-prio-800; \
+  printf "Package: *\nPin: release o=repo.radeon.com\nPin-Priority: 800\n" > /etc/apt/preferences.d/rocm-pin-prio-800; \
   #
   curl -sL ${ROCM_REPO}/rocm.gpg.key | apt-key add -; \
   #
