@@ -124,7 +124,7 @@ def main():
         help="Path to YAML file containing values for recipe variables",
     )
     parser.add_argument(
-        "--readme-template", type=str,
+        "readme_template", type=str, nargs="?",
         help="Path to the Jinja2 readme template file",
     )
 

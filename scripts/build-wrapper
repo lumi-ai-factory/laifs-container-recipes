@@ -37,7 +37,7 @@ main() {
     git diff | sed 's/^/        /' | tee -a $build_log
 
     echo "$(date +'%Y%m%d %H:%M:%S') generating recipe from template and vars file" | tee -a $build_log
-    scripts/render-recipe $BUILD_TAG $TEMPLATE $VARS --readme-template=$README_J2 > $recipe_file
+    scripts/render-recipe $BUILD_TAG $TEMPLATE $VARS $README_J2 > $recipe_file
 
     echo "$(date +'%Y%m%d %H:%M:%S') sha256 sums for the template, vars and final recipe are:" | tee -a $build_log
     sha256sum $TEMPLATE $VARS $recipe_file | sed -e 's/^/    /' | tee -a $build_log
