@@ -67,7 +67,7 @@ def add_containerfile_content(recipe, containerfile_root="containerfiles"):
             containerfile_filled.encode()
         ).hexdigest()
 
-        parent_lineage = get_parent_lineage(data, step["base"]) 
+        parent_lineage = get_parent_lineage(data, step["base"])
         containerfile_lineage = (
             f"{containerfile_fingerprint}"
             if parent_lineage == None
@@ -100,7 +100,7 @@ def add_readme_content(build_tag, readme_template, recipe_content):
         "content": rendered_readme,
     }
     recipe_data["files"].append(readme_dict)
-    
+
     buf = StringIO()
     yaml.dump(recipe_data, buf)
 
