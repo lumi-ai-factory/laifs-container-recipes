@@ -93,8 +93,10 @@ def add_readme_content(build_tag, readme_template, recipe_content):
         data=yaml.load(recipe_content),
     )
 
+    release_id = recipe_data["release"]
     readme_dict = {
-        "name": f"{recipe_data['release']}.md",
+        "name": f"builds/{release_id}/{release_id}.md",
+        "purpose": "readme",
         "content": rendered_readme,
     }
     recipe_data["files"].append(readme_dict)
@@ -114,11 +116,11 @@ def main():
 
     parser.add_argument("build_tag", type=str, help="build tag")
     parser.add_argument(
-        "--recipe-template", type=str,
+        "recipe_template", type=str,
         help="Path to the Jinja2 recipe template file",
     )
     parser.add_argument(
-        "--recipe-variables", type=str,
+        "recipe_variables", type=str,
         help="Path to YAML file containing values for recipe variables",
     )
     parser.add_argument(
