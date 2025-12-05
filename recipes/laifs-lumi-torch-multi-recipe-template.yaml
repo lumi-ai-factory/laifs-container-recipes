@@ -401,7 +401,7 @@ steps:
         exec "$@"
 files:
   - name: "builds/{{release_id}}/{{release_id}}-post.sh"
-  - content: |
+    content: |
       podman run -it --rm {{image_digest_name("full")}}:{{build_tag}} cat /.sbom.json > builds/{{release_id}}/{{image_build_name("full")}}.json
       podman run -it --rm {{image_digest_name("torch")}}:{{build_tag}} cat /.sbom.json > builds/{{release_id}}/{{image_build_name("torch")}}.json
       podman run -it --rm {{image_digest_name("libfabric")}}:{{build_tag}} cat /.sbom.json > builds/{{release_id}}/{{image_build_name("libfabric")}}.json
