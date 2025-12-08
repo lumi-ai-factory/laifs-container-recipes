@@ -28,7 +28,11 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
   && rm -rf /var/lib/apt/lists/*;
 
 # CUDA Toolkit
-# TODO: add nvcc path etc to PATH - update PATH, LD_LIBRARY_PATH + .bashrc
+# TODO: parameterise
+#
+#       https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/sbsa/cuda-ubuntu2404.pin ---> CUDA_UBUNTU_PIN???
+#       https://developer.download.nvidia.com/compute/cuda/12.8.0/local_installers/cuda-repo-ubuntu2404-12-8-local_12.8.0-570.86.10-1_arm64.deb ---> CUDA_DEB???
+#       12.8 ---> CUDA_VERSION
 
 RUN  wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/sbsa/cuda-ubuntu2404.pin \
   && mv cuda-ubuntu2404.pin /etc/apt/preferences.d/cuda-repository-pin-600 \

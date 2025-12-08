@@ -42,27 +42,59 @@ extra_packages:
 # ubuntu-cuda-libfabric
 #
 #
-cassini_headers_source: "https://github.com/HewlettPackard/shs-cassini-headers"
+# /---------------------------------------------------------------------------\
+#cassini_headers_source: "https://github.com/HewlettPackard/shs-cassini-headers"
+#cassini_headers_version: "12.0.1"
+# \-----------------------------/
 cassini_headers_version: "12.0.1"
 #
-cxi_headers_version: "0.1git-3233be5b1"
-cxi_headers_clone_url: "https://github.com/HewlettPackard/shs-cxi-driver"
-cxi_headers_git_commit: "3233be5b1"
+# /-----------------------------------\
+#cxi_headers_version: "0.1git-3233be5b1"
+#cxi_headers_clone_url: "https://github.com/HewlettPackard/shs-cxi-driver"
+#cxi_headers_git_commit: "3233be5b1"
+# \--------------------------------/
+cxi_headers_version: "12.0.1"
 #
-libcxi_version: "0.1git-ebd57a9ca"
-libcxi_clone_url: "https://github.com/HewlettPackard/shs-libcxi"
-libcxi_git_commit: "ebd57a9ca"
+# /------------------------------\
+#libcxi_version: "0.1git-ebd57a9ca"
+#libcxi_clone_url: "https://github.com/HewlettPackard/shs-libcxi"
+#libcxi_git_commit: "ebd57a9ca"
+# \--------------------------/
+libcxi_version: "12.0.1"
 #
-libfabric_git_commit: "e9cf535a"
-libfabric_version: "2.1.git-e9cf535a"
-libfabric_clone_url: "https://github.com/ofiwg/libfabric"
+# /----------------------------\
+#libfabric_git_commit: "e9cf535a"
+#libfabric_version: "2.1.git-e9cf535a"
+#libfabric_clone_url: "https://github.com/ofiwg/libfabric"
+# \-----------------------------------------------------/
+libfabric_version: "1.22.0"
 #
+#
+# Olivia -------> Q: move xpmem installation to mpich
+# ======
+# state: xpmem kernel driver installed on compute nodes
+# CrayEnv, xpmem
+# xpmem/2.11.3-1.3_gdbda01a1eb3d
+# linux-6.4.0-150600.23.25_15.0.9
+# /usr/src/linux-6.4.0-150600.23.25_15.0.9-obj/arm64/cray_shasta_c_64k
+# TODO: find headers for 6.4 + arm64 + 64k PAGE_SIZE!
+#       not available at http://archive.ubuntu.com/ubuntu/pool/main/l/linux/
+#       - using those from https://kernel.ubuntu.com/mainline/v6.4/
+# --------------------------------------------------------------------------
+#xpmem_clone_url: "https://github.com/hpc/xpmem"
+#xpmem_git_commit: "3bcab55"
+#xpmem_version: "0.1-git3bcab55"
+#xpmem_kernel_base_src: "linux-headers-5.15.0-160_5.15.0-160.170_all.deb"
+#xpmem_kernel_generic_src: "linux-headers-5.15.0-160-generic_5.15.0-160.170_amd64.deb"
+#xpmem_kernel_id: "linux-headers-5.15.0-160-generic"
+# --------------------------------------------------
 xpmem_clone_url: "https://github.com/hpc/xpmem"
 xpmem_git_commit: "3bcab55"
 xpmem_version: "0.1-git3bcab55"
-xpmem_kernel_base_src: "linux-headers-5.15.0-160_5.15.0-160.170_all.deb"
-xpmem_kernel_generic_src: "linux-headers-5.15.0-160-generic_5.15.0-160.170_amd64.deb"
-xpmem_kernel_id: "linux-headers-5.15.0-160-generic"
+xpmem_kernel_base_src: "linux-headers-6.4.0-060400_6.4.0-060400.202306271339_all.deb"
+xpmem_kernel_generic_src: "linux-headers-6.4.0-060400-generic-64k_6.4.0-060400.202306271339_arm64.deb"
+xpmem_kernel_id: "linux-headers-6.4.0-060400-generic-64k"
+
 
 #
 # ubuntu-cuda-libfabric-mpich
@@ -72,9 +104,9 @@ xpmem_kernel_id: "linux-headers-5.15.0-160-generic"
 #aws_ofi_rccl_commit: "6dae1b0"
 #aws_ofi_rccl_version: "1.4.0-1"
 # ------------------------------
-aws_ofi_nccl_repo:
-aws_ofi_nccl_commit:
-aws_ofi_nccl_version:
+aws_ofi_nccl_repo: "https://github.com/aws/aws-ofi-nccl"
+aws_ofi_nccl_commit: "9a68289"
+aws_ofi_nccl_version: "1.17.0"
 #
 mpich_source: "http://www.mpich.org/static/downloads"
 mpich_version: "4.3.2"
