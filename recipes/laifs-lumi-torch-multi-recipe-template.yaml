@@ -405,36 +405,39 @@ files:
     content: |
       #!/bin/bash
 
-      # This script is intended to be executed after image builds complete
-      # with working directory being the build output directory.
-      # This script will:
-      # - Extract and save the SBOM files from the images to files
-      # - Create a separate readme file for each image
-      # - Run image tests if the test script exists
-      # - Create sha256 checksum file for all produced files
+      # This script is used for executing post-build tasks and should run after
+      # the image builds complete. Working directory needs to be the build dir.
+      #
+      # The script performs these actions:
+      # - Extracts and saves SBOM files from the images.
+      # - Generates a dedicated README file for each image.
+      # - Executes image tests if the test script is available.
+      # - Creates a SHA256 checksum file for all generated artifacts.
 
-      # Extract SBOM files from the created images
-      podman run -it --rm {{image_digest_name("full")}}:{{build_tag}} cat /.sbom.json > {{image_build_name("full")}}.json
-      podman run -it --rm {{image_digest_name("torch")}}:{{build_tag}} cat /.sbom.json > {{image_build_name("torch")}}.json
-      podman run -it --rm {{image_digest_name("libfabric")}}:{{build_tag}} cat /.sbom.json > {{image_build_name("libfabric")}}.json
-      podman run -it --rm {{image_digest_name("mpich")}}:{{build_tag}} cat /.sbom.json > {{image_build_name("mpich")}}.json
-      podman run -it --rm {{image_digest_name("rocm")}}:{{build_tag}} cat /.sbom.json > {{image_build_name("rocm")}}.json
+      recipe_file="{{release_id}}.yaml"
 
-      # Store file recipe name in a variable for convenience
-      recipe="{{recipe_full_name}}-{{build_tag}}.yaml"
+      {%- for type in image_variants %}
 
-      # Create per image readme files
-      {% for type in image_variants %}
-      name="{{ image_digest_name(type) }}"
-      readme="{{ image_build_name(type) }}.md"
-      step=`yq . $recipe | jq -c -r --arg n $name -r '.steps[]|select(.name == $n)'`
-      desc=`jq -r .desc <<< "$step"`
-      printf '# Container Image %s\n\n## Description\n%s\n' "$name" "$desc"  > "$readme"
+      # Save per image files for {{ image_build_name(type) }}
+      step_name="{{ image_digest_name(type) }}"
+      image_name="{{ image_build_name(type) }}"
+
+      podman run -it --rm "${step_name}:{{build_tag}}" cat /.sbom.json > "${image_name}.json"
+
+      readme_file="${image_name}.md"
+      image_desc="$(yq . $recipe_file | jq -c -r ".steps[]|select(.name == \"$step_name\")|.desc")"
+      image_meta="$(podman image inspect "${step_name}:{{build_tag}}" | jq -r 'first|{Id,Created}|to_entries[]|"\(.key): \(.value)"')"
+
+      printf '# Container Image %s\n\n' "$image_name" > "$readme_file"
+      printf '%s\n\n' "$image_meta" >> "$readme_file"
+      printf '## Description\n\n%s\n\n' "$image_desc"  >> "$readme_file"
+      printf '## Files\n\n' >> "$readme_file"
+      sha256sum {{image_build_name(type)}}.{Containerfile,def,json,log,sif} >> "$readme_file"
       {% endfor %}
 
       # Run image tests
       if [ -f ~/cicd-tests/test-image.sh ]; then
-        bash ~/cicd-tests/test-image.sh {{ image_build_name("full") }}.sif 2>&1 > {{recipe_full_name}}-{{build_tag}}-tests.md
+        bash ~/cicd-tests/test-image.sh {{ release_id ~ '/' ~ image_build_name("full") }}.sif 2>&1 > {{release_id ~ '/' ~ release_id ~ '-tests.md' }}
       else
         echo "tests not available"
       fi
