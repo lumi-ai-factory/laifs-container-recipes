@@ -42,7 +42,7 @@ main() {
     echo "$(date +'%Y%m%d %H:%M:%S') sha256 sums for the template, vars and final recipe are:" | tee -a $build_log
     sha256sum $TEMPLATE $VARS $recipe_file | sed -e 's/^/    /' | tee -a $build_log
 
-    # Render the readme
+    # Save the rendered readme from the recipe file to a Markdown file
     if [[ -n "$README_J2" ]]; then
 	readme_file=$(yq . $recipe_file | jq -r '.files[] | select(.purpose == "readme").name')
         echo "$(date +'%Y%m%d %H:%M:%S') generating readme file $readme_file" | tee -a $build_log
