@@ -42,13 +42,16 @@ main() {
     echo "$(date +'%Y%m%d %H:%M:%S') sha256 sums for the template, vars and final recipe are:" | tee -a $build_log
     sha256sum $TEMPLATE $VARS $recipe_file | sed -e 's/^/    /' | tee -a $build_log
 
-    # Save the rendered readme from the recipe file to a Markdown file
-    if [[ -n "$README_J2" ]]; then
-	readme_file=$(yq . $recipe_file | jq -r '.files[] | select(.purpose == "readme").name')
-        echo "$(date +'%Y%m%d %H:%M:%S') generating readme file $readme_file" | tee -a $build_log
-	yq . $recipe_file | jq -r '.files[] | select(.purpose == "readme").content' > "$readme_file"
-        echo "$(date +'%Y%m%d %H:%M:%S') sha256 sum for the readme file is:" | tee -a $build_log
-        sha256sum $readme_file | sed -e 's/^/    /' | tee -a $build_log
+    # Save files from the recipe files section to the build directory
+    files="$(yq . $recipe_file | jq -c -r '.files // [] |.[].name')"
+    if [ -n "$files" ]; then
+        echo "$(date +'%Y%m%d %H:%M:%S') Saving files from the recipe:" | tee -a $build_log
+
+        for f in $files; do
+            file="${build_dir}/$(basename $f)" # strip directory paths for now
+            yq . $recipe_file | jq -r --arg name "$f" '.files[] | select(.name == $name).content' > "${file}"
+            sha256sum $file | sed -e 's/^/    /' | tee -a $build_log
+        done
     fi
 
     echo "$(date +'%Y%m%d %H:%M:%S') starting container image builds" | tee -a $build_log
