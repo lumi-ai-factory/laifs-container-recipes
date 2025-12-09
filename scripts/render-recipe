@@ -95,7 +95,7 @@ def add_readme_content(build_tag, readme_template, recipe_content):
 
     release_id = recipe_data["release"]
     readme_dict = {
-        "name": f"builds/{release_id}/{release_id}.md",
+        "name": f"{release_id}.md",
         "content": rendered_readme,
     }
     recipe_data["files"].append(readme_dict)
