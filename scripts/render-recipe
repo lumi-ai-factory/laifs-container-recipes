@@ -98,6 +98,10 @@ def add_readme_content(build_tag, readme_template, recipe_content):
         "name": f"{release_id}.md",
         "content": rendered_readme,
     }
+
+    if "files" not in recipe_data:
+        recipe_data["files"] = []
+
     recipe_data["files"].append(readme_dict)
 
     buf = StringIO()

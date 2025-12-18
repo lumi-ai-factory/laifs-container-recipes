@@ -1,0 +1,17 @@
+# Simple Example Container Image Collection {{ name }} release {{ tag }}
+
+This is a simple example template for the README file of {{ name }}.
+
+## Overview
+
+{{ desc }}
+
+## Included Images
+
+The next sections describe each included image.
+
+{%- for step in steps %}
+### Image {{ step.name }}-{{tag}}
+
+{{ step.desc }}
+{%- endfor %}

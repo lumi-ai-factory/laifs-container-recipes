@@ -1,0 +1,13 @@
+@@ BUILD_ARGS @@
+
+FROM $BASE_IMAGE:$BASE_IMAGE_TAG
+
+ARG BASE_IMAGE
+ARG BASE_IMAGE_TAG
+
+ARG UBUNTU_PACKAGES
+
+RUN set -ue; \
+  export DEBIAN_FRONTEND=noninteractive; \
+  apt-get update; \
+  apt-get -y --no-install-recommends install ${UBUNTU_PACKAGES};

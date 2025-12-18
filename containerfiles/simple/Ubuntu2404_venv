@@ -1,0 +1,19 @@
+@@ BUILD_ARGS @@
+
+FROM $BASE_IMAGE:$BASE_IMAGE_TAG
+
+ARG BASE_IMAGE
+ARG BASE_IMAGE_TAG
+
+ARG VENV_PACKAGES
+ARG VENV_PATH
+
+RUN set -ue; \
+  #
+  # Create a new venv and install some packages
+  #
+  python3.12 -m venv ${VENV_PATH}; \
+  . /opt/venv/bin/activate; \
+  pip install ${VENV_PACKAGES};
+
+CMD ["/bin/bash"]

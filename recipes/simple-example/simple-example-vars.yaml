@@ -1,0 +1,19 @@
+#
+# Recipe simple-example
+#
+recipe_name: simple-example
+
+#
+# Image simple-example-base
+#
+ubuntu_packages:
+  - less
+  - python3-pip
+  - python3-venv
+
+#
+# Image simple-example-venv
+#
+venv_path: /opt/venv
+venv_packages:
+  - zstandard
