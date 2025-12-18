@@ -82,14 +82,8 @@ Render a recipe from a template and variable file:
 scripts/render-recipe $(date +"%Y%m%d_%H%M%S") \
   recipes/<recipe>-template.yaml \
   recipes/<recipe>-vars.yaml \
+  [ recipes/<recipe>-readme.j2 ] \
   > <recipe>-rendered.yaml
-```
-
-### Create a README.md file
-
-Render a README.md file for a recipe build using a rendered recipe file and a documentation template file:
-```bash
-scripts/j2render recipes/<recipe>-readme.j2 <recipe>-rendered.yaml > <recipe>-readme.md
 ```
 
 ### Build Images
