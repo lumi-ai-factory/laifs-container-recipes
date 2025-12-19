@@ -2,6 +2,11 @@ name: Build all images
 
 on:
   workflow_dispatch:
+  # push:
+  #   branches:
+  #     - main
+  #   tags:
+  #   - '*'
 
 jobs:
   build:
@@ -27,3 +32,30 @@ jobs:
           recipes/laifs-lumi-torch-multi-recipe-template.yaml \
           recipes/laifs-lumi-torch-multi-recipe-vars.yaml \
           recipes/laifs-lumi-torch-multi-recipe-readme.j2
+
+      - name: tar build artifacts
+        run: |
+          BUILD_DIR=$(ls -d ./builds/lumi-* | sort | tail -n1)
+          TAR_NAME=$(basename "$BUILD_DIR").tar.gz
+          tar --exclude='*.tar' --exclude='*.sif' -czf "${{ github.workspace }}/$TAR_NAME" -C ./builds "$(basename "$BUILD_DIR")"
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: ${{ github.ref_name }}
+          draft: false
+          prerelease: true
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ github.workspace }}/$TAR_NAME
+          asset_name: $TAR_NAME
+          asset_content_type: application/gzip
