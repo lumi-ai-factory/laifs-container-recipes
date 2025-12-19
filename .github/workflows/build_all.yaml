@@ -29,9 +29,9 @@ jobs:
       - name: Run build wrapper
         run: |
           scripts/build-wrapper \
-          recipes/laifs-lumi-torch-multi-recipe-template.yaml \
-          recipes/laifs-lumi-torch-multi-recipe-vars.yaml \
-          recipes/laifs-lumi-torch-multi-recipe-readme.j2
+          recipes/lumi-multitorch/lumi-multitorch-template.yaml \
+          recipes/lumi-multitorch/lumi-multitorch-vars.yaml \
+          recipes/lumi-multitorch/lumi-multitorch-readme.j2
 
       - name: tar build artifacts
         run: |
