@@ -1,15 +1,9 @@
 #
 #  ubuntu-cuda
 #
-amdgpu_repo: "https://repo.radeon.com/amdgpu"
-amdgpu_version: "6.4.4"
-#
-# ----------------------------------------
-#rocm_repo: "https://repo.radeon.com/rocm"
-#rocm_version: "6.4.4"
-# --------------------
-cuda_repo: "https://developer.download.nvidia.com/compute/cuda/12.8.0/local_installers/cuda-repo-cross-sbsa-ubuntu2404-12-8-local_12.8.0-1_all.deb"
-cuda_version: "12.8.0"
+nvidia_repo: "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/sbsa"
+cuda_repo: "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/sbsa"
+cuda_version: "12.8"
 #
 ubuntu_release: "24.04"
 ubuntu_tag: "noble-20251013"
@@ -41,69 +35,31 @@ extra_packages:
 #
 # ubuntu-cuda-libfabric
 #
-#
-# /---------------------------------------------------------------------------\
-#cassini_headers_source: "https://github.com/HewlettPackard/shs-cassini-headers"
-#cassini_headers_version: "12.0.1"
-# \-----------------------------/
+cassini_headers_source: "https://github.com/HewlettPackard/shs-cassini-headers"
 cassini_headers_version: "12.0.1"
 #
-# /-----------------------------------\
-#cxi_headers_version: "0.1git-3233be5b1"
-#cxi_headers_clone_url: "https://github.com/HewlettPackard/shs-cxi-driver"
-#cxi_headers_git_commit: "3233be5b1"
-# \--------------------------------/
-cxi_headers_version: "12.0.1"
+cxi_headers_version: "1.0.0-SHS12.0.2"
+cxi_headers_clone_url: "https://github.com/HewlettPackard/shs-cxi-driver"
+cxi_headers_git_commit: "27f7be5"
 #
-# /------------------------------\
-#libcxi_version: "0.1git-ebd57a9ca"
-#libcxi_clone_url: "https://github.com/HewlettPackard/shs-libcxi"
-#libcxi_git_commit: "ebd57a9ca"
-# \--------------------------/
-libcxi_version: "12.0.1"
+libcxi_version: "1.0.2-SHS12.0.2"
+libcxi_clone_url: "https://github.com/HewlettPackard/shs-libcxi"
+libcxi_git_commit: "30fa2dd"
 #
-# /----------------------------\
-#libfabric_git_commit: "e9cf535a"
-#libfabric_version: "2.1.git-e9cf535a"
-#libfabric_clone_url: "https://github.com/ofiwg/libfabric"
-# \-----------------------------------------------------/
-libfabric_version: "1.22.0"
+libfabric_git_commit: "78d6e03"
+libfabric_version: "2.1"
+libfabric_clone_url: "https://github.com/ofiwg/libfabric"
 #
-#
-# Olivia -------> Q: move xpmem installation to mpich
-# ======
-# state: xpmem kernel driver installed on compute nodes
-# CrayEnv, xpmem
-# xpmem/2.11.3-1.3_gdbda01a1eb3d
-# linux-6.4.0-150600.23.25_15.0.9
-# /usr/src/linux-6.4.0-150600.23.25_15.0.9-obj/arm64/cray_shasta_c_64k
-# TODO: find headers for 6.4 + arm64 + 64k PAGE_SIZE!
-#       not available at http://archive.ubuntu.com/ubuntu/pool/main/l/linux/
-#       - using those from https://kernel.ubuntu.com/mainline/v6.4/
-# --------------------------------------------------------------------------
-#xpmem_clone_url: "https://github.com/hpc/xpmem"
-#xpmem_git_commit: "3bcab55"
-#xpmem_version: "0.1-git3bcab55"
-#xpmem_kernel_base_src: "linux-headers-5.15.0-160_5.15.0-160.170_all.deb"
-#xpmem_kernel_generic_src: "linux-headers-5.15.0-160-generic_5.15.0-160.170_amd64.deb"
-#xpmem_kernel_id: "linux-headers-5.15.0-160-generic"
-# --------------------------------------------------
 xpmem_clone_url: "https://github.com/hpc/xpmem"
 xpmem_git_commit: "3bcab55"
 xpmem_version: "0.1-git3bcab55"
+# NOTE: double-check these headers, the latest build test done with current LUMI version
 xpmem_kernel_base_src: "linux-headers-6.4.0-060400_6.4.0-060400.202306271339_all.deb"
 xpmem_kernel_generic_src: "linux-headers-6.4.0-060400-generic-64k_6.4.0-060400.202306271339_arm64.deb"
 xpmem_kernel_id: "linux-headers-6.4.0-060400-generic-64k"
-
-
 #
 # ubuntu-cuda-libfabric-mpich
 #
-# --------------------------------------------------------
-#aws_ofi_rccl_repo: "https://github.com/ROCm/aws-ofi-rccl"
-#aws_ofi_rccl_commit: "6dae1b0"
-#aws_ofi_rccl_version: "1.4.0-1"
-# ------------------------------
 aws_ofi_nccl_repo: "https://github.com/aws/aws-ofi-nccl"
 aws_ofi_nccl_commit: "9a68289"
 aws_ofi_nccl_version: "1.17.0"
@@ -112,35 +68,22 @@ mpich_source: "http://www.mpich.org/static/downloads"
 mpich_version: "4.3.2"
 #
 osu_source: "https://mvapich.cse.ohio-state.edu/download/mvapich"
-osu_version: "7.5.1"
+osu_version: "7.5.2"
 #
-# ---------------------------------------------------
-#rccl_tests_repo: "https://github.com/ROCm/rccl-tests"
-#rccl_tests_commit: "33cc4df" # Latest commit at the time
-#rccl_tests_gpu_archs: "gfx90a"
-#rccl_tests_version: "0.1git-33cc4df"
-# ----------------------------------
 # TODO: check the nccl tests
+nccl_test_repo: "https://github.com/NVIDIA/nccl-tests"
+nccl_tests_commit: "88d7e33" # latest, jane
 #
 # ubuntu-cuda-libfabric-mpich-torch
 #
-torch_version: "2.8.0"
+torch_version: "2.9.1"
+torch_url: "https://download.pytorch.org/whl/cu129/torch-2.9.1%2Bcu129-cp312-cp312-manylinux_2_28_aarch64.whl"
+torchvision_url: "https://download.pytorch.org/whl/cu129/torchvision-0.24.1-cp312-cp312-manylinux_2_28_aarch64.whl"
+torchaudio_url: "https://download.pytorch.org/whl/cu129/torchaudio-2.9.1-cp312-cp312-manylinux_2_28_aarch64.whl"
+pytorch_triton_url: "https://download.pytorch.org/whl/triton-3.5.1-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl"
 #
-# ------------------------------------------
-#pytorch_triton_url: "https://download.pytorch.org/whl/pytorch_triton_rocm-3.4.0-cp312-cp312-linux_x86_64.whl"
-#torch_url: "https://download.pytorch.org/whl/rocm6.4/torch-2.8.0%2Brocm6.4-cp312-cp312-manylinux_2_28_x86_64.whl"
-#torchaudio_url: "https://download.pytorch.org/whl/rocm6.4/torchaudio-2.8.0%2Brocm6.4-cp312-cp312-manylinux_2_28_x86_64.whl"
-#torchvision_url: "https://download.pytorch.org/whl/rocm6.4/torchvision-0.23.0%2Brocm6.4-cp312-cp312-manylinux_2_28_x86_64.whl"
+# :jane build tested up to here
 #xformers_url: "https://download.pytorch.org/whl/rocm6.4/xformers-0.0.32.post2-cp39-abi3-manylinux_2_28_x86_64.whl"
-# ------------------------------------------
-# NOTE: xformers from source, TORCH_CUDA_ARCH_LIST="6.0;6.1;6.2;7.0;7.2;7.5;8.0;8.6" - export if needed
-# NOTE: xformers on aarch64, found to work, from https://github.com/facebookresearch/xformers/issues/1142
-# pip install -v -U "git+https://github.com/facebookresearch/xformers.git@main#egg=xformers" --no-deps
-# pip install -v --no-build-isolation git+https://github.com/facebookresearch/xformers.git@v0.0.33.post1#egg=xformers
-# NOTE: from https://www.stephendiehl.com/posts/setup_gh200_tutorial/:
-# pip install ninja
-# # Set TORCH_CUDA_ARCH_LIST if running and building on different GPU types
-# pip install -v -U git+https://github.com/facebookresearch/xformers.git@main#egg=xformers
 #
 # ubuntu-cuda-libfabric-mpich-torch-multi
 #
