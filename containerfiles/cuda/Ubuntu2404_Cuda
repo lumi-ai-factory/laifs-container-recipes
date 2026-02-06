@@ -2,68 +2,102 @@
 
 FROM $BASE_IMAGE:$BASE_IMAGE_TAG
 
-# TODO: trim CUDA Toolkit ---> individual .deb packages, we don't need whole lot!
-# NOTE: remains to be decided by senior NRIS ppl
-# TODO: add <cuda_version> related arguments (figure out naming conventions)
 ARG BASE_IMAGE
 ARG BASE_IMAGE_TAG
 
+ARG NVIDIA_REPO
+ARG CUDA_REPO
+ARG CUDA_VERSION
+
 # ubuntu basics
 
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-      build-essential \
-      file \
-      git \
-      kmod \
-      less \
-      libelf1 \
-      neovim \
-      python3-dev \
-      python3-packaging \
-      python3-pip \
-      python3-venv \
-      sudo \
-      wget \
-  && apt-get clean  \
-  && rm -rf /var/lib/apt/lists/*;
+RUN set -ue; \
+  #
+  # Enable man pages with unminimize and install additional locales
+  #
+  export DEBIAN_FRONTEND=noninteractive; \
+  apt-get update; \
+  yes | unminimize; \
+  apt-get -y --no-install-recommends install man locales; \
+  locale-gen ${EXTRA_LOCALES}; \
+  #
+  # Install extra packages
+  #
+  apt-get install -y --no-install-recommends cmake libaio-dev libaio1t64 \
+    ffmpeg libglib2.0-dev apt-transport-https ca-certificates \
+    libfmt-dev libmsgpack-dev libsqlite3-dev libsuitesparse-dev \
+    gnupg wget sqlite3 build-essential file git kmod less libelf1 \
+    neovim python3-dev python3-packaging python3-pip python3-venv \
+    sudo wget; \
+    apt-get clean; \
+   rm -rf /var/lib/apt/lists/*; \
+  #
+  # CUDA
+  #
+  # CUDA Toolkit contains user space CUDA Driver (.lib and .h) - toolkit for developers.
+  # The best practice to install the driver directly from NVIDIA's website first, than install
+  # the CUDA Toolkit without the driver component to ensure the best stability and performance.
+  #
+  # Therefore, first install NVIDIA Driver (user space).
+  #
+  # ###############
+  # NVIDIA Driver #
+  # ###############
+  # TODO: double-check these
+  apt-get update && apt-get install -y --no-install-recommends ca-certificates curl gnupg gnupg2; \
+  #       # TODO: sort pinning later
+  #       printf "Package: *nvidia*\nPin: release o=\nPin-Priority: 800\n" > /etc/apt/preferences.d/cuda-repository-pin-800; \
+  #       printf "\nPackage: libcuda*\nPin: release o=\nPin-Priority: 800\n" >> /etc/apt/preferences.d/cuda-repository-pin-800; \
+  #       add-apt-repository "deb [arch=arm64] ${CUDA_REPO}"; \
+  apt-get update && apt-get install -y --no-install-recommends build-essential kmod libelf1 libnuma-dev zstd; \
 
-# CUDA Toolkit
-# TODO: parameterise
-#
-#       https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/sbsa/cuda-ubuntu2404.pin ---> CUDA_UBUNTU_PIN???
-#       https://developer.download.nvidia.com/compute/cuda/12.8.0/local_installers/cuda-repo-ubuntu2404-12-8-local_12.8.0-570.86.10-1_arm64.deb ---> CUDA_DEB???
-#       12.8 ---> CUDA_VERSION
+  # We opt for compute-only system which assumes the driver installation without the desktop components. ---> -compute
+  # https://ubuntu.pkgs.org/24.04/ubuntu-updates-restricted-arm64/libnvidia-compute-570_570.211.01-0ubuntu0.24.04.1_arm64.deb.html
+  apt-get update && apt-get install -y --no-install-recommends libnvidia-compute-570.deb; \
+  #
+  # installed alongside the driver packages
+  apt-get update && apt-get install nvidia-utils-570; \
+  # ##############
+  # CUDA Toolkit #
+  # ##############
+  #
+  # From https://developer.nvidia.com/cuda-downloads choose Operating System:
+  # Linux -> Architecture: arm64-sbsa -> Compilation: Native -> Distribution: Ubuntu -> Version: 24.04 -> Installer Type: deb (network)
+  wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/sbsa/cuda-keyring_1.1-1_all.deb; \
+  dpkg -i cuda-keyring_1.1-1_all.deb; \
+  apt-get update && apt-get -y install cuda-toolkit-12-8; \
+  echo /usr/local/cuda-12.8/lib64 > /etc/ld.so.conf.d/cuda-12.8.conf; \
+  ldconfig;
+  #
+  # From https://developer.nvidia.com/cuda-downloads choose Operating System: Linux -> Architecture: arm64-sbsa -> Compilation: Native -> Distribution: Ubuntu -> Version: 24.04 -> Installer Type: deb (local)
+  #
+  #       wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/sbsa/cuda-ubuntu2404.pin; \
+  #
+        # pin priority changed 600 ---> 800 to align installation instructions with rocm for LAIFS
+  #       mv cuda-ubuntu2404.pin /etc/apt/preferences.d/cuda-repository-pin-800; \
+  #       wget https://developer.download.nvidia.com/compute/cuda/12.8.0/local_installers/cuda-repo-ubuntu2404-12-8-local_12.8.0-570.86.10-1_arm64.deb; \
+  #       dpkg -i cuda-repo-ubuntu2404-12-8-local_12.8.0-570.86.10-1_arm64.deb; \
+  #       cp /var/cuda-repo-ubuntu2404-12-8-local/cuda-*-keyring.gpg /usr/share/keyrings/; \
+  #       apt-get update; \
+  #       apt-get -y install cuda-toolkit-12-8; \
+  #       echo /usr/local/cuda-12.8/lib64 > /etc/ld.so.conf.d/cuda-12.8.conf; \
+  #       ldconfig;
+  #
+        # NVLink, NVLink Switch, NVIDIA Fabric Manager - here? in libfabric stage? included in one of the installations?
+        # NOTE: some libraries with nvlink in their name present after cudatoolkit installation
+        # apt install nvidia-fabricmanager-${DRIVER_BRANCH} libnvidia-nscq-${DRIVER_BRANCH}\
+  #
+        # Additional GPU-accelerated data processing libraries, deep learning core libraries - some of these should be part of the image
+        # https://developer.nvidia.com/cuda/cuda-x-libraries
+        # TODO: decide which additional to install (some are part of cudatoolkit) (RAPIDS for data, GPU Direct Storage, communication libraries ---> move to .libfabric stage?, DL)
+        # TODO: take the set of those that come with NVIDIA NGC PyTorch for the start
+  #
+  # Double-check: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/docker-specialized.html
+  # - some environment variables may have to be set
+  #####################
+  # Post-installation #
+  #####################
 
-RUN  wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/sbsa/cuda-ubuntu2404.pin \
-  && mv cuda-ubuntu2404.pin /etc/apt/preferences.d/cuda-repository-pin-600 \
-  && wget https://developer.download.nvidia.com/compute/cuda/12.8.0/local_installers/cuda-repo-ubuntu2404-12-8-local_12.8.0-570.86.10-1_arm64.deb \
-  && dpkg -i cuda-repo-ubuntu2404-12-8-local_12.8.0-570.86.10-1_arm64.deb \
-  && cp /var/cuda-repo-ubuntu2404-12-8-local/cuda-*-keyring.gpg /usr/share/keyrings/ \
-  && apt-get update \
-  && apt-get -y install cuda-toolkit-12-8 \
-  && echo /usr/local/cuda-12.8/lib64 > /etc/ld.so.conf.d/cuda-12.8.conf \
-  && ldconfig \
-  && apt-get clean  \
-  && rm -rf /var/lib/apt/lists/* \
-  && echo "export PATH=/usr/local/cuda-12.8/bin${PATH:+:${PATH}}" >> ~/.bashrc \
-  && echo "export LD_LIBRARY_PATH=/usr/local/cuda-12.8/lib64${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}" >> ~/.bashrc;
-
-
-  # NOTE: /etc/apt/preferences.d/cuda-repository-pin-600 (on compute node, running apptainer wo kernel driver installed by us)
-  # /etc/apt/sources.list.d/cuda-ubuntu2404-12-8-local.list
-  # /etc/apt/sources.list.d/ ---> shouldn't there be one for nvidia as well?
-
-  # NOTE: CUDA Toolkit most likely contains libraries we don't really need for base
-  #       but for the time being, keeping it ---> TODO: move to individual .deb installations 
-  #       https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/sbsa/
-  # NOTE: for installing CUDA Toolkit, using:
-  # https://developer.nvidia.com/cuda-12-8-0-download-archive?target_os=Linux&target_arch=arm64-sbsa&Compilation=Native&Distribution=Ubuntu&target_version=24.04&target_type=deb_local
-#wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/sbsa/cuda-ubuntu2404.pin
-#sudo mv cuda-ubuntu2404.pin /etc/apt/preferences.d/cuda-repository-pin-600
-#wget https://developer.download.nvidia.com/compute/cuda/12.8.0/local_installers/cuda-repo-ubuntu2404-12-8-local_12.8.0-570.86.10-1_arm64.deb
-#sudo dpkg -i cuda-repo-ubuntu2404-12-8-local_12.8.0-570.86.10-1_arm64.deb
-#sudo cp /var/cuda-repo-ubuntu2404-12-8-local/cuda-*-keyring.gpg /usr/share/keyrings/
-#sudo apt-get update
-#sudo apt-get -y install cuda-toolkit-12-8
-  
-  # linux-headers-6.4.0-150600.23.25_15.0.9-cray_shasta_c # hard-coded! ---> $(uname -r) from Olivia
+ENV CUDA_HOME=/usr/local/cuda-${CUDA_VERSION}
+ENV PATH=/usr/local/cuda-${CUDA_VERSION}/bin${PATH:+:${PATH}}
+ENV LD_LIBRARY_PATH=/usr/local/cuda-${CUDA_VERSION}/lib64${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
