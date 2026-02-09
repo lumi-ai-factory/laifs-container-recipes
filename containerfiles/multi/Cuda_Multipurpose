@@ -4,17 +4,48 @@ FROM $BASE_IMAGE:$BASE_IMAGE_TAG
 
 ARG BASE_IMAGE
 ARG BASE_IMAGE_TAG
-ARG EXTRA_APT_PACKAGES
-ARG EXTRA_PIP_PACKAGES
-ARG FLASH_ATTENTION_GPU_ARCHS
+
+ARG BITSANDBYTES_REPO_URL
+ARG BITSANDBYTES_COMMIT
+
+# flash-attention build - from flash-attention/setup.py
+#BUILD_TARGET # 'cuda' (other possibility 'rocm')
+#FLASH_ATTENTION_FORCE_BUILD # set env TRUE
+#FLASH_ATTENTION_SKIP_CUDA_BUILD # set env FALSE
+#FLASH_ATTENTION_FORCE_CXX11_ABI # set TRUE
+#FLASH_ATTENTION_SKIP_CK_BUILD # set FALSE; actually, this seems to be relvant for rocm using triton ---> seems not important for us
+#FLASH_ATTN_CUDA_ARCHS # ---> check if H100 is among "80;90;100;110;120" ---checked---> yes! sorted by nvcc installations
+
+# FLASH_ATTENTION_GPU_ARCHS= # let this var be picked up by nvcc
 ARG FLASH_ATTENTION_REPO_COMMIT
 ARG FLASH_ATTENTION_REPO_URL
-ARG VLLM_COMMIT
-ARG VLLM_GPU_ARCHS
-#ARG XFORMERS_PIP_URL
 
+# from https://huggingface.co/varunneal/flash-attention-3
+# Tips for arm builds
+# On an aarch64/ARM64 system, such as a GH200 server, building requires a bit of finesse. Try:
+# export FLASH_ATTENTION_TRITON_AMD_ENABLE="TRUE" ---> does the mention of AMD in the var name really matter for the var functionality?
+# export MAX_JOBS=4 ---> this one should be OK since we use NPROC which is even higher, 8, on 86.50.230.73
 
-# Install required pre-built pip and apt packages
+ARG CAUSAL_CONV1D_REPO
+ARG CAUSAL_CONV1D_COMMIT
+
+ARG XFORMERS_REPO
+ARG XFORMERS_COMMIT
+
+#
+# Prepare build environment
+#
+RUN set -ue; \
+  #
+  mkdir /opt/src; \
+  #
+  apt-get -y --no-install-recommends install ${EXTRA_APT_PACKAGES}; \
+  apt clean ;\
+  #
+  . /opt/venv/bin/activate; \
+  # not using retagging at this phase
+  #pip install --no-cache-dir "${WRETAG_URL}"; \
+  pip install --no-cache-dir ${DEPENDENCY_PIP_PACKAGES} ${EXTRA_PIP_PACKAGES};
 
 RUN set -ue; \
   python3.12 -m venv /opt/venv; \
@@ -23,84 +54,163 @@ RUN set -ue; \
   pip install ${EXTRA_PIP_PACKAGES};
 
 
+# install this dependency for deepspeed later - check the error
+#ERROR: Could not find a version that satisfies the requirement impi-devel (from versions: none)
+#ERROR: No matching distribution found for impi-devel
+#       impi-devel \
+#       oneccl-devel \
+#ERROR: Could not find a version that satisfies the requirement oneccl-devel (from versions: none)
+#ERROR: No matching distribution found for oneccl-devel
+
+# hang ===> leaving only dependencies for FlashAttention, commenting out the rest, for now
+#        datasets \
+#        evaluate \
+#        huggingface-hub \
+#        jupyter \
+#        matplotlib \
+#        mpi4py \
+#        numba \
+#        numpy \
+#        pandas \
+#        peft \
+#        pytorch_lightning \
+#        scipy \
+#        sentencepiece \
+#        tensorboard \
+#        trl \
+#        ultralytics \
+#        ninja \
+#        packaging \
+#        flask-restful \
+#        nltk \
+#        pybind11 \
+#        pynvml \
+#        tensorstore \
+#        wandb \
+#        wrapt \
+#        zarr \
+#        jinja2 \
+#        setuptools_scm;
+
+#
+# Install bitsandbytes for CUDA
+#
+# NOTE: source HuggingFace: bitsandbytes is only supported on CUDA GPUs for CUDA versions 11.0 - 12.5.
+#       cuda toolkit >= 12.4, matching gcc >= 13
+#       line 'export BNB_CUDA_VERSION=117' - from HuggingFace
+RUN set -ue; \
+  . /opt/venv/bin/activate; \
+  export BNB_CUDA_VERSION=128; \
+  git clone ${BITSANDBYTES_REPO_URL} /opt/src/bitsandbytes; \
+  cd /opt/src/bitsandbytes; \
+  git checkout ${BITSANDBYTES_COMMIT}; \
+  cmake -DCOMPUTE_BACKEND=cuda -S .; \
+  make; \
+  pip wheel --no-deps . -w /opt/src/bitsandbytes/dist; \
+  wheel_path="$(find /opt/src/bitsandbytes/dist  -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
+  test $(echo $wheel_path | wc -w) = 1; \
+#  new_wheel="$(wretag -d -q LAIFS-on-Olivia_bitsandbytes $wheel_path)"; \
+#  pip install --no-cache-dir $new_wheel; \
+#  cd / && rm -rf /opt/src/bitsandbytes;
+# NOTE: see the log, the build works, what fails is package managment ---> return to the old style for testing
+# TODO: check what wget does
+  pip install --no-cache-dir $wheel_path; \
+  cd / && rm -rf /opt/src/bitsandbytes;
+
+#
 # Compile and install Flash Attention
-# Q: Order of instalaltion, Flash Attention and xFormers before vLLM?
+#
+#RUN set -ue; \
+#  . /opt/venv/bin/activate; \
+#  git clone $FLASH_ATTENTION_REPO_URL /opt/src/flash-attention; \
+#  cd /opt/src/flash-attention; \
+#  git checkout $FLASH_ATTENTION_REPO_COMMIT; \
+#  BUILD_TARGET=rocm MAX_JOBS=$(nproc) GPU_ARCHS=$MULTI_IMAGE_GPU_ARCH python3 setup.py bdist_wheel --dist-dir=dist; \
+#  wheel_path="$(find /opt/src/flash-attention/dist  -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
+#  test $(echo $wheel_path | wc -w) = 1; \
+#  new_wheel="$(wretag -d -q lumi_aif_${MULTI_IMAGE_GPU_ARCH}_${FLASH_ATTENTION_REPO_COMMIT} $wheel_path)"; \
+#  pip install --no-cache-dir $new_wheel; \
+#  cd / && rm -rf /opt/src/flash-attention;
+
+RUN set -ue; \
+        . /opt/venv/bin/activate; \
+        mkdir -p /opt/src; \
+        ###################
+        # Flash Attention #
+        ###################
+        # prepare environment - subset of variables found in setup.py
+        # build from source - we have to because of aarch64
+        export FLASH_ATTENTION_FORCE_BUILD="TRUE"; \
+        # ensure the build is for Hopper
+        export FLASH_ATTENTION_DISABLE_SM80="TRUE"; \
+        # leave BF16, FP8 - yes, we sacrifice precision for gaining dynamic range
+        export FLASH_ATTENTION_DISABLE_FP16="TRUE"; \
+        git clone $FLASH_ATTENTION_REPO_URL /opt/src/flash-attention; \
+        cd /opt/src/flash-attention; \
+        git checkout $FLASH_ATTENTION_REPO_COMMIT; \
+        #BUILD_TARGET=rocm MAX_JOBS=$(nproc) GPU_ARCHS=$FLASH_ATTENTION_GPU_ARCHS python3 setup.py bdist_wheel --dist-dir=dist; \
+        cd hopper; \
+        BUILD_TARGET=cuda MAX_JOBS=$(nproc) python3 setup.py bdist_wheel --dist-dir=dist; \
+        wheel_path="$(find /opt/src/flash-attention/hopper/dist  -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
+        test $(echo $wheel_path | wc -w) = 1; \
+        pip install --no-cache-dir $wheel_path; \
+        cd / && rm -rf /opt/src/flash-attention;
+#       new_wheel="$(wretag -d -q lumi_aif_${MULTI_IMAGE_GPU_ARCH}_${FLASH_ATTENTION_REPO_COMMIT} $wheel_path)"; \
+#       pip install --no-cache-dir $new_wheel; \
+#       cd / && rm -rf /opt/src/flash-attention
+
+#
+# Install causal-conv1d
+#
 RUN set -ue; \
   . /opt/venv/bin/activate; \
-  mkdir /opt/src; \
-  export FLASH_ATTENTION_FORCE_BUILD="TRUE"; \
-  # ensure the build is for Hopper
-  export FLASH_ATTENTION_DISABLE_SM80="TRUE"; \
-  # leave BF16, FP8 - yes, we sacrifice precision for gaining dynamic range
-  export FLASH_ATTENTION_DISABLE_FP16="TRUE"; \
-  # suggested at https://huggingface.co/varunneal/flash-attention-3
-  export FLASH_ATTENTION_TRITON_AMD_ENABLE="TRUE"; \
-  git clone $FLASH_ATTENTION_REPO_URL /opt/src/flash-attention; \
-  cd /opt/src/flash-attention; \
-  git checkout $FLASH_ATTENTION_REPO_COMMIT; \
-  #BUILD_TARGET=cuda MAX_JOBS=$(nproc) GPU_ARCHS=$FLASH_ATTENTION_GPU_ARCHS python3 setup.py bdist_wheel --dist-dir=dist; \
-  BUILD_TARGET=cuda MAX_JOBS=$(nproc) python3 setup.py bdist_wheel --dist-dir=dist; \
-  pip3.12 install /opt/src/flash-attention/dist/*.whl;
+  git clone $CAUSAL_CONV1D_REPO /opt/src/causal-conv1d; \
+  cd /opt/src/causal-conv1d; \
+  git checkout $CAUSAL_CONV1D_COMMIT; \
+  export MAX_JOBS="$(nproc)"; \
+  pip wheel --no-deps --no-build-isolation . -w /opt/src/causal-conv1d/dist; \
+  wheel_path="$(find /opt/src/causal-conv1d/dist  -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
+  test $(echo $wheel_path | wc -w) = 1; \
+  pip install --no-cache-dir $wheel_path; \
+  rm -rf /opt/src/causal-conv1d;
+  #new_wheel="$(wretag -d -q lumi_aif_${MULTI_IMAGE_GPU_ARCH}_${CAUSAL_CONV1D_COMMIT} $wheel_path)"; \
+  #pip install --no-cache-dir $new_wheel; \
+  #rm -rf /opt/src/causal-conv1d;;
 
-
+#
 # Install xFormers
+#
+# TODO: double-check XFORMERS_OK_FLASH_ATTN - is it ok to include
+## GH200 is sm_90 so adding:
+# export TORCH_CUDA_ARCH_LIST="9.0+PTX"
+# from github - might be useful:
+#Missing Features: If memory-efficient attention is missing, it indicates a compiler mismatch or incorrect TORCH_CUDA_ARCH_LIST.
+#For specialized GH200 setups using unified memory, you may need to patch PyTorch to ensure stability
 
 RUN set -ue; \
   . /opt/venv/bin/activate; \
-  pip install xformers;
-  # leaving out specifying url --index-url $XFORMERS_PIP_URL;
+  git clone $XFORMERS_REPO /opt/src/xformers; \
+  cd /opt/src/xformers; \
+  git checkout $XFORMERS_COMMIT; \
+  git submodule update --init --recursive; \
+  export XFORMERS_CK_FLASH_ATTN=1; \
+  export TORCH_CUDA_ARCH_LIST="9.0+PTX"; \
+  export MAX_JOBS="$(nproc)"; \
+  pip wheel --no-deps --no-build-isolation -w /opt/src/xformers/dist . ; \
+  wheel_path="$(find /opt/src/xformers/dist -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
+  test $(echo $wheel_path | wc -w) = 1; \
+  pip install --no-cache-dir $wheel_path; \
+  rm -rf /opt/src/xformers;
+  #test $(echo $wheel_path | wc -w) = 1; \
+  #new_wheel="$(wretag -d -q lumi_aif_${MULTI_IMAGE_GPU_ARCH}_${XFORMERS_COMMIT} $wheel_path)"; \
+  #pip install --no-cache-dir $new_wheel; \
+  #rm -rf /opt/src/xformers;
 
-  # BUILD (from 86.50.230.73):
-#  Successfully built xformers
-#Installing collected packages: torch, xformers
-#  Attempting uninstall: torch
-#    Found existing installation: torch 2.8.0+cu129
-#    Uninstalling torch-2.8.0+cu129:
-#      Successfully uninstalled torch-2.8.0+cu129
-#ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-#torchaudio 2.8.0 requires torch==2.8.0, but you have torch 2.9.1 which is incompatible.
-#torchvision 0.23.0 requires torch==2.8.0, but you have torch 2.9.1 which is incompatible.
-#Successfully installed torch-2.9.1 xformers-0.0.33.post1
-
-
-# Compile and install vLLM
-
+#
+# Cleanup and finalize
+#
 RUN set -ue; \
-  . /opt/venv/bin/activate; \
-  git clone https://github.com/vllm-project/vllm.git /opt/src/vllm; \
-  # ---> find location of nvidia-smi! Q: why do we move to smi? Is it really necessary?
-  #cd /opt/rocm/share/amd_smi; \
-  #python3 -m pip install .; \
-  cd /opt/src/vllm; \
-  git fetch --tags; \
-  git checkout $VLLM_COMMIT; \
-  export GPU_ARCHS=$VLLM_GPU_ARCHS; \
-  export PYTORCH_ROCM_ARCH=$VLLM_GPU_ARCHS; \
-  export GPU_TARGETS=$VLLM_GPU_ARCHS; \
-  export MAKEFLAGS="-j$(nproc)"; \
-  python3 setup.py clean --all; \
-  python3 setup.py bdist_wheel --dist-dir=dist; \
-  pip install ./dist/*.whl;
-
-
-# Install Deepspeed (revisit: compile also extensions)
-
-RUN set -ue; \
-  . /opt/venv/bin/activate; \
-  #export DS_BUILD_AIO=1; \
-  #export DS_BUILD_CCL_COMM=1; \
-  #export DS_BUILD_EVOFORMER_ATTN=1; \
-  #export DS_BUILD_FUSED_ADAM=1; \
-  #export DS_BUILD_FUSED_LION=1; \
-  #export DS_BUILD_FUSED_LAMB=1; \
-  #export DS_BUILD_QUANTIZER=1; \
-  #export DS_BUILD_RANDOM_LTD=1; \
-  #export DS_BUILD_SPARSE_ATTN=1; \
-  #export DS_BUILD_TRANSFORMER=1; \
-  #export DS_BUILD_TRANSFORMER_INFERENCE=1; \
-  #export DS_BUILD_STOCHASTIC_TRANSFORMER=1; \
-  python3 -m pip install deepspeed --no-build-isolation;
-
-ENV PATH="/opt/venv/bin:$PATH"
+  #
+  rmdir /opt/src;
 
 CMD ["/bin/bash"]
