@@ -6,6 +6,14 @@ ARG BASE_IMAGE
 ARG BASE_IMAGE_TAG
 ARG NPROC
 
+ARG NCCL_VERSION
+ARG NCCL_REPO
+ARG NCCL_COMMIT
+
+ARG HWLOC_TGZ_URL
+ARG HWLOC_VERSION
+ARG HWLOC_VERSION_SUB
+
 ARG AWS_OFI_NCCL_VERSION
 ARG AWS_OFI_NCCL_REPO
 ARG AWS_OFI_NCCL_COMMIT
@@ -43,14 +51,14 @@ RUN set -ue; \
 
 RUN set -ue; \
   # ugly hack as for libfabric when configure does not see cuda .h's and .so's ---> see log message for error
-    export LD_LIBRARY_PATH=/usr/local/cuda-12.8/lib64:$LD_LIBRARY_PATH; \
-    export CPPFLAGS="-I/usr/local/cuda/include/i -I/usr/local/cuda-12.8/targets/sbsa-linux/include"; \
-    #ln -s /usr/local/cuda-12.8/lib64/ /usr/lib64; \
-    mkdir /usr/lib64; \
-    cp /usr/local/cuda-12.8/lib64/libcudart.so /usr/lib64/; \
-    cp /usr/local/cuda-12.8/lib64/libcudart.so /usr/lib64/cudart.so; \
-    cp /usr/local/cuda-12.8/targets/sbsa-linux/lib/stubs/libcuda.so /usr/lib64/cuda.so; \
-    cp /usr/local/cuda-12.8/targets/sbsa-linux/lib/stubs/libcuda.so /usr/lib64/; \
+  export LD_LIBRARY_PATH=/usr/local/cuda-12.8/lib64:$LD_LIBRARY_PATH; \
+  export CPPFLAGS="-I/usr/local/cuda/include/i -I/usr/local/cuda-12.8/targets/sbsa-linux/include"; \
+  #ln -s /usr/local/cuda-12.8/lib64/ /usr/lib64; \
+  mkdir /usr/lib64; \
+  cp /usr/local/cuda-12.8/lib64/libcudart.so /usr/lib64/; \
+  cp /usr/local/cuda-12.8/lib64/libcudart.so /usr/lib64/cudart.so; \
+  cp /usr/local/cuda-12.8/targets/sbsa-linux/lib/stubs/libcuda.so /usr/lib64/cuda.so; \
+  cp /usr/local/cuda-12.8/targets/sbsa-linux/lib/stubs/libcuda.so /usr/lib64/; \
 # location of libcuda.so (from .libfabric container image run on Olivia): /usr/local/cuda-12.8/targets/sbsa-linux/lib/stubs/libcuda.so
 # since compiler complains about -lcuda, do the same trick as in libfabric
 # note: better use symlink but then needs to be tested id it works
@@ -62,7 +70,7 @@ RUN set -ue; \
   curl -L -o "${TMPROOT}/src/${MPICH_TGZ}" "${MPICH_URL}"; \
   tar -C "${TMPROOT}/src" -xf "${TMPROOT}/src/${MPICH_TGZ}" --no-same-owner; \
   cd "${TMPROOT}/src/mpich-${MPICH_VERSION}"; \
-  # TODO: confirm build options with Marcin (ucx?, --with-device)
+  # TODO: confirm build options (ucx?, --with-device)
   ./configure LDFLAGS="-L/usr/local/cuda-12.8/targets/sbsa-linux/lib -L/usr/local/cuda-12.8/targets/sbsa-linux/lib/stubs/ -L/usr/lib64" --disable-fortran --enable-fast=O3 --enable-threads=multiple --prefix=/usr --with-device=ch4:ofi --with-libfabric --with-xpmem=/usr --with-cuda --without-ucx; \
   make -j $(nproc) DESTDIR="$TMPROOT" install; \
   cd /debs; \
@@ -78,19 +86,19 @@ RUN set -ue; \
 # OSU benchmarks
 #
 RUN set -ue; \
-    TMPROOT=$(mktemp -d); \
-    OSU_TGZ="osu-micro-benchmarks-${OSU_VERSION}.tar.gz"; \
-    OSU_URL="${OSU_SOURCE}/${OSU_TGZ}"; \
-    install -d "$TMPROOT/libexec" "$TMPROOT/src"; \
-    curl -L -o "${TMPROOT}/src/${OSU_TGZ}" "${OSU_URL}"; \
-    tar -C "${TMPROOT}/src" -xf "${TMPROOT}/src/${OSU_TGZ}" --no-same-owner; \
-    cd "${TMPROOT}/src/osu-micro-benchmarks-${OSU_VERSION}"; \
-    ./configure --prefix=/usr CC=mpicc CXX=mpicxx --enable-cuda --with-cuda-include=$CUDA_HOME/include --with-cuda-libpath=$CUDA_HOME/lib64; \
-    make -j $(nproc) DESTDIR="$TMPROOT" install; \
-    cd /debs; \
-    fpm -s dir -t deb -n osu-micro-benchmarks -v "${OSU_VERSION}" --description "LAIFS-on-Olivia" --prefix / -C "$TMPROOT"  usr/libexec; \
-    rm -rf "$TMPROOT"; \
-    dpkg -i "osu-micro-benchmarks_${OSU_VERSION}_arm64.deb";
+  TMPROOT=$(mktemp -d); \
+  OSU_TGZ="osu-micro-benchmarks-${OSU_VERSION}.tar.gz"; \
+  OSU_URL="${OSU_SOURCE}/${OSU_TGZ}"; \
+  install -d "$TMPROOT/libexec" "$TMPROOT/src"; \
+  curl -L -o "${TMPROOT}/src/${OSU_TGZ}" "${OSU_URL}"; \
+  tar -C "${TMPROOT}/src" -xf "${TMPROOT}/src/${OSU_TGZ}" --no-same-owner; \
+  cd "${TMPROOT}/src/osu-micro-benchmarks-${OSU_VERSION}"; \
+  ./configure --prefix=/usr CC=mpicc CXX=mpicxx --enable-cuda --with-cuda-include=$CUDA_HOME/include --with-cuda-libpath=$CUDA_HOME/lib64; \
+  make -j $(nproc) DESTDIR="$TMPROOT" install; \
+  cd /debs; \
+  fpm -s dir -t deb -n osu-micro-benchmarks -v "${OSU_VERSION}" --description "LAIFS-on-Olivia" --prefix / -C "$TMPROOT"  usr/libexec; \
+  rm -rf "$TMPROOT"; \
+  dpkg -i "osu-micro-benchmarks_${OSU_VERSION}_arm64.deb";
 
 # TODO: double-check this
 # We need hwloc and nccl for aws-ofi-nccl to be of use.
@@ -98,38 +106,40 @@ RUN set -ue; \
 # when running on the accelerated compute nodes (--nv) but userspace is unavailable and
 # we should install it/them here.
 
-# TODO: update build arguments: NCCL_TAR_GZ, NCCL_VERSION, ...
 #
 # NCCL
 #
 #https://github.com/NVIDIA/nccl/archive/refs/tags/v2.29.3-1.tar.gz
+      #wget "${NCCL_TAR_GZ}/v${NCCL_VERSION}.tar.gz"; \
+      #tar xzf "v${NCCL_VERSION}.tar.gz";\
+      #cd nccl-${NCCL_VERSION}; \
 RUN set -ue || true; \
-        TMPROOT=$(mktemp -d); \
-        wget "${NCCL_TAR_GZ}/v${NCCL_VERSION}.tar.gz"; \
-        tar xaf "v${NCCL_VERSION}.tar.gz";\
-        cd nccl-${NCCL_VERSION}; \
-        make -j $(nproc) src.build NVCC_GENCODE="-gencode=arch=compute_90,code=sm_90" DESTDIR="$TMPROOT" install; \
-        echo "Finished make install"; \
-        cd /debs; \
-        fpm -s dir -t deb -n nccl -v "${NCCL_VERSION}" --description "LAIFS-on-Olivia" --prefix / -C "$TMPROOT" usr; \
-        rm -rf "$TMPROOT"; \
-        dpkg -i "nccl_${NCCL_VERSION}_arm64.deb";
+  TMPROOT=$(mktemp -d); \
+  git clone "${NCCL_REPO}" "$TMPROOT/nccl"; \
+  cd "$TMPROOT/nccl"; \
+  make -j $(nproc) src.build NVCC_GENCODE="-gencode=arch=compute_90,code=sm_90" DESTDIR="$TMPROOT" install; \
+  echo "Finished make install"; \
+  cd /debs; \
+  fpm -s dir -t deb -n nccl -v "${NCCL_VERSION}" --description "LAIFS-on-Olivia" --prefix / -C "$TMPROOT" usr; \
+  rm -rf "$TMPROOT"; \
+  dpkg -i "nccl_${NCCL_VERSION}_arm64.deb";
 
-# TODO: update build arguments HWLOC_TAR_GZ, HWLOC_VERSION, HWLOC_V_FILE...
+#
+# hwloc
 #
 # https://download.open-mpi.org/release/hwloc/v2.12/hwloc-2.12.2.tar.gz
-#
+# TODO: libudev-dev / libudev-devel, libtool-ltdl-devel / libltdl-dev
 RUN set -ue || true; \
-        TMPROOT=$(mktemp -d); \
-        wget "${HWLOC_TAR_GZ}/v${HWLOC_VERSION}/hwloc-${HWLOC_V_FILE}.tar.gz"; \
-        tar xaf "hwloc-${HWLOC_V_FILE}.tar.gz"; \
-        cd hwloc-${HWLOC_V_FILE}; \
-        ./configure; \
-        make -j ${nproc} DESTDIR="$TMPROOT" install; \
-        cd /debs; \
-        fpm -s dir -t deb -n hwloc -v "${HWLOC_VERSION}" --description "LAIFS-on-Olivia" --prefix / -C "$TMPROOT" usr; \
-        rm -rf "$TMPROOT"; \
-        dpkg -i "hwloc_${HWLOC_VERSION}_arm64.deb";
+  TMPROOT=$(mktemp -d); \
+  wget "${HWLOC_TGZ_URL}/v${HWLOC_VERSION}/hwloc-${HWLOC_VERSION_SUB}.tar.gz"; \
+  tar xzf "hwloc-${HWLOC_VERSION_SUB}.tar.gz"; \
+  cd hwloc-${HWLOC_VERSION_SUB}; \
+  ./configure --enable-cuda --enable-nvml --with-cuda=${CUDA_HOME}; \
+  make -j ${nproc} DESTDIR="$TMPROOT" install; \
+  cd /debs; \
+  fpm -s dir -t deb -n hwloc -v "${HWLOC_VERSION}" --description "LAIFS-on-Olivia" --prefix / -C "$TMPROOT" usr; \
+  rm -rf "$TMPROOT"; \
+  dpkg -i "hwloc_${HWLOC_VERSION}_arm64.deb";
 
 #
 # Build and install AWS-OFI-RCCL package into the builder container
@@ -139,24 +149,26 @@ RUN set -ue || true; \
 # AWS-OFI-NCCL
 #
 RUN set -ue; \
-    # ugly hack here as well - just  copy-pasting from above, sort it later
-    export CPPFLAGS="-I/usr/local/cuda/include/ -I/usr/local/cuda-12.8/targets/sbsa-linux/include"; \
-    #ln -s /usr/local/cuda-12.8/lib64/ /usr/lib64; \
-    cp /usr/local/cuda-12.8/lib64/libcudart.so /usr/lib64/; \
-    cp /usr/local/cuda-12.8/lib64/libcudart.so /usr/lib64/cudart.so; \
-    cp /usr/local/cuda-12.8/targets/sbsa-linux/lib/stubs/libcuda.so /usr/lib64/cuda.so; \
-    cp /usr/local/cuda-12.8/targets/sbsa-linux/lib/stubs/libcuda.so /usr/lib64/; \
-    TMPROOT=$(mktemp -d); \
-    git clone "${AWS_OFI_NCCL_REPO}" "$TMPROOT/aws-ofi-nccl"; \
-    cd  "$TMPROOT/aws-ofi-nccl"; \
-    git checkout "${AWS_OFI_NCCL_COMMIT}"; \
-    ./autogen.sh; \
-    ./configure -Wl,-Bdynamic LDFLAGS="-L/usr/local/cuda-12.8/targets/sbsa-linux/lib -L/usr/local/cuda-12.8/targets/sbsa-linux/lib/stubs/ -L/usr/lib64 -L/usr/local/cuda-12.8/lib64" --with-libfabric=/usr --enable-trace --disable-tests --prefix=/usr; \
-    make -j $(nproc) DESTDIR="$TMPROOT" install; \
-    cd /debs; \
-    fpm -s dir -t deb -n aws-ofi-nccl -v "${AWS_OFI_NCCL_VERSION}" --description "LAIFS-on-Olivia" --prefix / -C "$TMPROOT"  usr/lib; \
-    rm -rf "$TMPROOT"; \
-    dpkg -i "aws-ofi-nccl_${AWS_OFI_NCCL_VERSION}_arm64.deb";
+  # ugly hack here as well - just  copy-pasting from above, sort it later
+  export CPPFLAGS="-I/usr/local/cuda/include/ -I/usr/local/cuda-12.8/targets/sbsa-linux/include"; \
+  #ln -s /usr/local/cuda-12.8/lib64/ /usr/lib64; \
+  cp /usr/local/cuda-12.8/lib64/libcudart.so /usr/lib64/; \
+  cp /usr/local/cuda-12.8/lib64/libcudart.so /usr/lib64/cudart.so; \
+  cp /usr/local/cuda-12.8/targets/sbsa-linux/lib/stubs/libcuda.so /usr/lib64/cuda.so; \
+  cp /usr/local/cuda-12.8/targets/sbsa-linux/lib/stubs/libcuda.so /usr/lib64/; \
+  TMPROOT=$(mktemp -d); \
+  git clone "${AWS_OFI_NCCL_REPO}" "$TMPROOT/aws-ofi-nccl"; \
+  cd  "$TMPROOT/aws-ofi-nccl"; \
+  git checkout "${AWS_OFI_NCCL_COMMIT}"; \
+  ./autogen.sh; \
+  ./configure -Wl,-Bdynamic LDFLAGS="-L/usr/local/cuda-12.8/targets/sbsa-linux/lib -L/usr/local/cuda-12.8/targets/sbsa-linux/lib/stubs/ -L/usr/lib64 -L/usr/local/cuda-12.8/lib64" --with-libfabric=/usr --enable-trace --disable-tests --prefix=/usr; \
+  make -j $(nproc) DESTDIR="$TMPROOT" install; \
+  cd /debs; \
+  fpm -s dir -t deb -n aws-ofi-nccl -v "${AWS_OFI_NCCL_VERSION}" --description "LAIFS-on-Olivia" --prefix / -C "$TMPROOT"  usr/lib; \
+  rm -rf "$TMPROOT"; \
+  dpkg -i "aws-ofi-nccl_${AWS_OFI_NCCL_VERSION}_arm64.deb";
+
+# TODO: NCCL_TESTS - needed to be part of the container image?
 
 #
 # Copy the Debian packages created in the previous steps from the builder image to

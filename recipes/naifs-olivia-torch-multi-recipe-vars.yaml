@@ -60,6 +60,15 @@ xpmem_kernel_id: "linux-headers-6.4.0-060400-generic-64k"
 #
 # ubuntu-cuda-libfabric-mpich
 #
+#nccl_tar_gz: "https://github.com/NVIDIA/nccl/archive/refs/tags"
+nccl_version: "2.29.3-1"
+nccl_repo: "https://github.com/NVIDIA/nccl/"
+nccl_commit: "25368a7" # latest, jane, corresponds release 2.29.3-1
+#
+hwloc_tgz_url: "https://download.open-mpi.org/release/hwloc"
+hwloc_version: "2.12"
+hwloc_version_sub: "2.12.2"
+#
 aws_ofi_nccl_repo: "https://github.com/aws/aws-ofi-nccl"
 aws_ofi_nccl_commit: "9a68289"
 aws_ofi_nccl_version: "1.17.0"
@@ -91,8 +100,7 @@ pytorch_triton_url: "https://download.pytorch.org/whl/triton-3.5.1-cp312-cp312-m
 #apex_git_commit: "3f26640" # Latest from branch release/1.8.0 (this branch is specifically for Pytorch 2.8)
 #apex_git_repo: "https://github.com/ROCm/apex"
 # --------------------------------------------
-apex_git_commit: "4bdecd0" # latest release/tags 25.09, Oct 4
-                            # TODO: do I have to check for being for PyTorch 2.8?
+apex_git_commit: "4bdecd0" # latest release/tags 25.09, Oct 4 - PyTorch compatibility not specified
 apex_git_repo: "https://github.com/NVIDIA/apex"
 #
 # NOTE: bitsandbytes should be OK (installed during build-testing from pip install)
@@ -106,10 +114,6 @@ causal_conv1d_repo: "https://github.com/Dao-AILab/causal-conv1d"
 # NOTE: deepspeed should be OK (tested on Hopper)
 deepspeed_version: "0.18.2"
 #
-# ------------------------------------------------------------------
-#flash_attention_repo_commit: "465cb97" # Latest commit from the main_perf branch before AITER integration
-#flash_attention_repo_url: "https://github.com/ROCm/flash-attention"
-# ------------------------------------------------------------------
 # Use FlashAttention-3 since it was developed aiming at increasing the utilization rate
 # specifically for Hopper GPU.
 # NOTE: not published for aarch64
@@ -121,14 +125,12 @@ deepspeed_version: "0.18.2"
 flash_attention_repo_commit: 672381f # latest main, Nov 26th, contains FA-3 optimised for Hopper100
 flash_attention_repo_url: "https://github.com/Dao-AILab/flash-attention"
 #
-# ----------------------------
-#multi_image_gpu_arch: "gfx90a"
-# ----------------------------
-multi_image_gpu_arch: # TODO: find the code for Hopper
-#
-vllm_version: "v0.11.0" #  revisit: find a better way to keep these in sync
-vllm_commit: "b8b302c" #  b8b302c is for commit id "tags/v0.11.0"
+vllm_version: "v0.15.1" # "v0.15.1" is the latest release as of 2026-02-06
+vllm_commit: "1892993"  # 1892993 is for commit id "tag/v0.15.1"
 vllm_repo: "https://github.com/vllm-project/vllm"
+#
+llmcompressor_commit: "129c793" # Commit id 129c793 is the latest release v0.9.0 as of 2026-01-07
+llmcompressor_repo: "https://github.com/vllm-project/llm-compressor"
 #
 wretag_url: "git+https://github.com/viahlgre/wretag.git@0da1af0"
 #

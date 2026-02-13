@@ -32,6 +32,15 @@ ARG CAUSAL_CONV1D_COMMIT
 ARG XFORMERS_REPO
 ARG XFORMERS_COMMIT
 
+ARG APEX_GIT_REPO
+ARG APEX_GIT_COMMIT
+
+ARG VLLM_REPO
+ARG VLLM_COMMIT
+
+ARG LLMCOMPRESSOR_REPO
+ARG LLMCOMPRESSOR_COMMIT
+
 #
 # Prepare build environment
 #
@@ -183,9 +192,6 @@ RUN set -ue; \
 # TODO: double-check XFORMERS_OK_FLASH_ATTN - is it ok to include
 ## GH200 is sm_90 so adding:
 # export TORCH_CUDA_ARCH_LIST="9.0+PTX"
-# from github - might be useful:
-#Missing Features: If memory-efficient attention is missing, it indicates a compiler mismatch or incorrect TORCH_CUDA_ARCH_LIST.
-#For specialized GH200 setups using unified memory, you may need to patch PyTorch to ensure stability
 
 RUN set -ue; \
   . /opt/venv/bin/activate; \
@@ -194,7 +200,7 @@ RUN set -ue; \
   git checkout $XFORMERS_COMMIT; \
   git submodule update --init --recursive; \
   export XFORMERS_CK_FLASH_ATTN=1; \
-  export TORCH_CUDA_ARCH_LIST="9.0+PTX"; \
+  export TORCH_CUDA_ARCH_LIST="9.0 10.0+PTX"; \
   export MAX_JOBS="$(nproc)"; \
   pip wheel --no-deps --no-build-isolation -w /opt/src/xformers/dist . ; \
   wheel_path="$(find /opt/src/xformers/dist -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
@@ -205,6 +211,99 @@ RUN set -ue; \
   #new_wheel="$(wretag -d -q lumi_aif_${MULTI_IMAGE_GPU_ARCH}_${XFORMERS_COMMIT} $wheel_path)"; \
   #pip install --no-cache-dir $new_wheel; \
   #rm -rf /opt/src/xformers;
+
+# NOTE: recommended method to build apex is by using env vars
+# - leaving with --config-settings to keep aligned with LAIFS
+# - consider adding additional settings to comply with Olivia's HW and CUDA SW:
+# * --cudnn_gbn
+# * --nccl_p2p
+# * --nccl_allocator
+# * --gpu_direct_storage
+# Also, consider adding: NVCC_APPEND_FLAGS="--threads 4" APEX_PARALLEL_BUILD=8 to speed up the build
+
+#
+# Install Apex
+#
+RUN set -ue; \
+  . /opt/venv/bin/activate; \
+  git clone "${APEX_GIT_REPO}" /opt/src/apex; \
+  cd /opt/src/apex; \
+  git checkout "${APEX_GIT_COMMIT}"; \
+  pip wheel -w /opt/src/apex/dist --no-deps --no-build-isolation \
+      --config-settings "--build-option=--cpp_ext" --config-settings "--build-option=--cuda_ext" ./; \
+  wheel_path="$(find /opt/src/apex/dist  -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
+  test $(echo $wheel_path | wc -w) = 1; \
+  #new_wheel="$(wretag -d -q lumi_aif_${MULTI_IMAGE_GPU_ARCH}_${APEX_GIT_COMMIT} $wheel_path)"; \
+  pip install --no-cache-dir --disable-pip-version-check $wheel_path; \
+  cd / && rm -rf /opt/src/apex;
+
+# NOTE: jinja2 and setuptools_scm installed from dependencies package lot
+# here added for ease of copying to test build files
+# Q: Why is amd_smi explicitly instaleld here? Is it used at some point
+# - Olivia's equivalent nvidia_smi is part of utilities nvidia_util ---> Ubuntu2404_Cuda
+# NOTE: consider using ccache: add CCACHE_NOHASHDIR="true"
+# NOTE: revisit --build-arg for building vLLM for docker image: max_jobs, nvcc_threads, torch_cuda_arch_list
+# NOTE: cutlass may need to be set up to be used form the local installation - this needs additional env variable
+#
+# Compile and install vLLM
+#
+RUN set -ue; \
+  . /opt/venv/bin/activate; \
+  pip install --no-cache-dir jinja2 setuptools_scm; \
+  git clone ${VLLM_REPO} /opt/src/vllm; \
+  #cd /opt/rocm/share/amd_smi; \
+  #pip install --no-cache-dir .; \
+  cd /opt/src/vllm; \
+  git fetch --tags; \
+  git checkout $VLLM_COMMIT; \
+  export MAKEFLAGS="-j$(nproc)"; \
+  export CPU_ARCH="aarch64"; \
+  export CUDA_VERSION=129: \
+  export TORCH_CUDA_ARCH_LIST="9.0 10.0++PTX"; \
+  python3 setup.py clean --all; \
+  python3 setup.py bdist_wheel --dist-dir=dist; \
+  wheel_path="$(find /opt/src/vllm/dist  -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
+  test $(echo $wheel_path | wc -w) = 1; \
+  pip install $wheel_path; \
+  cd / && rm -rf /opt/src/vllm;
+
+#
+# Install llmcompressor
+#
+RUN set -ue; \
+  . /opt/venv/bin/activate; \
+  pip wheel --no-deps -w /opt/src/llmcompressor git+${LLMCOMPRESSOR_REPO}.git@${LLMCOMPRESSOR_COMMIT}; \
+  wheel_path="$(find /opt/src/llmcompressor -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
+  test $(echo $wheel_path | wc -w) = 1; \
+  pip install $wheel_path; \
+  cd / && rm -rf /opt/src/llmcompressor;
+
+#
+# Install Deepspeed
+#
+#new_wheel="$(wretag -d -q lumi_aif_dsops $wheel_path)"; \
+
+RUN set -ue; \
+  . /opt/venv/bin/activate; \
+  export DS_BUILD_OPS=1; \
+  python3 -m pip wheel deepspeed==${DEEPSPEED_VERSION} --no-deps --no-build-isolation -w /tmp/deepspeed; \
+  wheel_path="$(find /tmp/deepspeed  -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
+  test $(echo $wheel_path | wc -w) = 1; \
+  pip install $wheel_path; \
+  cd / && rm -rf /tmp/deepspeed;
+
+#
+# Install Megatron LM (experimental for testing)
+#
+#new_wheel="$(wretag -d -q lumi_aif_${MEGATRON_LM_COMMIT} $wheel_path)"; \
+
+RUN set -ue; \
+  . /opt/venv/bin/activate; \
+  pip wheel --no-deps -w /opt/src/megatronlm git+${MEGATRON_LM_REPO_URL}.git@${MEGATRON_LM_COMMIT}; \
+  wheel_path="$(find /opt/src/megatronlm -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
+  test $(echo $wheel_path | wc -w) = 1; \
+  pip install $wheel_path; \
+  cd / && rm -rf /opt/src/megatronlm;
 
 #
 # Cleanup and finalize
