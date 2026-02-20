@@ -111,8 +111,8 @@ bitsandbytes_repo_url: "https://github.com/bitsandbytes-foundation/bitsandbytes"
 causal_conv1d_commit: "22a4577" # Latest commit 2025-10-30
 causal_conv1d_repo: "https://github.com/Dao-AILab/causal-conv1d"
 #
-# NOTE: deepspeed should be OK (tested on Hopper)
-deepspeed_version: "0.18.2"
+# NOTE: deepspeed updated to latest from week7
+deepspeed_version: "0.18.6"
 #
 # Use FlashAttention-3 since it was developed aiming at increasing the utilization rate
 # specifically for Hopper GPU.

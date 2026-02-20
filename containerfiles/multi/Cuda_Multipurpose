@@ -41,6 +41,8 @@ ARG VLLM_COMMIT
 ARG LLMCOMPRESSOR_REPO
 ARG LLMCOMPRESSOR_COMMIT
 
+ARG DEEPSPEED_VERSION
+
 #
 # Prepare build environment
 #
@@ -281,16 +283,27 @@ RUN set -ue; \
 #
 # Install Deepspeed
 #
+# --------------------> SUCCESS with these changes
+# wrt LAIFS:    - changing extensions to be JIT-built as by default
+#               - adding directory where these extensions will be stored when JIT-compiled
+#               - adding var to have only Hopper architecture compiled (saves compile time)
+#               - in Buildvars: updating version to the latest: 0.18.5 ---> 0.18.6
+# --------------------> FAILED: same thing with setuptools and packages missing as captured in the log
+# another attempt to get back to LAIFS approach and have extensions compiled (DS_BUILD_OPS=1)
+#               - keeping additional variables (TORCH_EXTENSIONS_DIR and TORCH_CUDA_ARCH_LIST)
+#               - keeping latest version, 0.18.6
+# using DS_SKIP_CUDA_CHECK=1 - at risk ----> this also FAILS, pointing to some mismatches in defs/declarations
 #new_wheel="$(wretag -d -q lumi_aif_dsops $wheel_path)"; \
 
 RUN set -ue; \
   . /opt/venv/bin/activate; \
-  export DS_BUILD_OPS=1; \
+  export DS_BUILD_OPS=0; \
+  export TORCH_EXTENSIONS_DIR=/opt/; \
+  export TORCH_CUDA_ARCH_LIST="9.0"; \
   python3 -m pip wheel deepspeed==${DEEPSPEED_VERSION} --no-deps --no-build-isolation -w /tmp/deepspeed; \
   wheel_path="$(find /tmp/deepspeed  -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
   test $(echo $wheel_path | wc -w) = 1; \
   pip install $wheel_path; \
-  cd / && rm -rf /tmp/deepspeed;
 
 #
 # Install Megatron LM (experimental for testing)
