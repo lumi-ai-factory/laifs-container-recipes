@@ -106,7 +106,7 @@ RUN set -ue; \
   git clone ${BITSANDBYTES_REPO_URL} /opt/src/bitsandbytes; \
   cd /opt/src/bitsandbytes; \
   git checkout ${BITSANDBYTES_COMMIT}; \
-  cmake -DCOMPUTE_BACKEND=cuda -S .; \
+  cmake -DCOMPUTE_BACKEND=cuda -DCOMPUTE_CAPABILITY=90 -S .; \
   make; \
   pip wheel --no-deps . -w /opt/src/bitsandbytes/dist; \
   wheel_path="$(find /opt/src/bitsandbytes/dist  -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
@@ -148,12 +148,11 @@ RUN set -ue; \
         git clone $FLASH_ATTENTION_REPO_URL /opt/src/flash-attention; \
         cd /opt/src/flash-attention; \
         git checkout $FLASH_ATTENTION_REPO_COMMIT; \
-        #BUILD_TARGET=rocm MAX_JOBS=$(nproc) GPU_ARCHS=$FLASH_ATTENTION_GPU_ARCHS python3 setup.py bdist_wheel --dist-dir=dist; \
         cd hopper; \
         BUILD_TARGET=cuda MAX_JOBS=$(nproc) python3 setup.py bdist_wheel --dist-dir=dist; \
         wheel_path="$(find /opt/src/flash-attention/hopper/dist  -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
         test $(echo $wheel_path | wc -w) = 1; \
-        pip install --no-cache-dir $wheel_path; \
+        pip install --no-deps --no-cache-dir $wheel_path; \
         cd / && rm -rf /opt/src/flash-attention;
 #       new_wheel="$(wretag -d -q lumi_aif_${MULTI_IMAGE_GPU_ARCH}_${FLASH_ATTENTION_REPO_COMMIT} $wheel_path)"; \
 #       pip install --no-cache-dir $new_wheel; \
@@ -172,7 +171,7 @@ RUN set -ue; \
   wheel_path="$(find /opt/src/causal-conv1d/dist  -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
   test $(echo $wheel_path | wc -w) = 1; \
   pip install --no-cache-dir $wheel_path; \
-  rm -rf /opt/src/causal-conv1d;
+  cd / && rm -rf /opt/src/causal-conv1d;
   #new_wheel="$(wretag -d -q lumi_aif_${MULTI_IMAGE_GPU_ARCH}_${CAUSAL_CONV1D_COMMIT} $wheel_path)"; \
   #pip install --no-cache-dir $new_wheel; \
   #rm -rf /opt/src/causal-conv1d;;
@@ -197,7 +196,7 @@ RUN set -ue; \
   wheel_path="$(find /opt/src/xformers/dist -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
   test $(echo $wheel_path | wc -w) = 1; \
   pip install --no-cache-dir $wheel_path; \
-  rm -rf /opt/src/xformers;
+  cd / && rm -rf /opt/src/xformers;
   #test $(echo $wheel_path | wc -w) = 1; \
   #new_wheel="$(wretag -d -q lumi_aif_${MULTI_IMAGE_GPU_ARCH}_${XFORMERS_COMMIT} $wheel_path)"; \
   #pip install --no-cache-dir $new_wheel; \
