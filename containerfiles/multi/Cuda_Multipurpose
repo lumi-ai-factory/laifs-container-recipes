@@ -16,15 +16,8 @@ ARG BITSANDBYTES_COMMIT
 #FLASH_ATTENTION_SKIP_CK_BUILD # set FALSE; actually, this seems to be relvant for rocm using triton ---> seems not important for us
 #FLASH_ATTN_CUDA_ARCHS # ---> check if H100 is among "80;90;100;110;120" ---checked---> yes! sorted by nvcc installations
 
-# FLASH_ATTENTION_GPU_ARCHS= # let this var be picked up by nvcc
 ARG FLASH_ATTENTION_REPO_COMMIT
 ARG FLASH_ATTENTION_REPO_URL
-
-# from https://huggingface.co/varunneal/flash-attention-3
-# Tips for arm builds
-# On an aarch64/ARM64 system, such as a GH200 server, building requires a bit of finesse. Try:
-# export FLASH_ATTENTION_TRITON_AMD_ENABLE="TRUE" ---> does the mention of AMD in the var name really matter for the var functionality?
-# export MAX_JOBS=4 ---> this one should be OK since we use NPROC which is even higher, 8, on 86.50.230.73
 
 ARG CAUSAL_CONV1D_REPO
 ARG CAUSAL_CONV1D_COMMIT
@@ -43,6 +36,8 @@ ARG LLMCOMPRESSOR_COMMIT
 
 ARG DEEPSPEED_VERSION
 
+ARG MEGATRON_LM_REPO_URL
+ARG MEGATRON_LM_COMMIT
 #
 # Prepare build environment
 #
@@ -54,7 +49,7 @@ RUN set -ue; \
   apt clean ;\
   #
   . /opt/venv/bin/activate; \
-  # not using retagging at this phase
+  # not using retagging at :fibbo
   #pip install --no-cache-dir "${WRETAG_URL}"; \
   pip install --no-cache-dir ${DEPENDENCY_PIP_PACKAGES} ${EXTRA_PIP_PACKAGES};
 
@@ -64,7 +59,7 @@ RUN set -ue; \
   apt-get -y --no-install-recommends install ${EXTRA_APT_PACKAGES}; \
   pip install ${EXTRA_PIP_PACKAGES};
 
-
+# from :fibbo testing:
 # install this dependency for deepspeed later - check the error
 #ERROR: Could not find a version that satisfies the requirement impi-devel (from versions: none)
 #ERROR: No matching distribution found for impi-devel
@@ -73,42 +68,38 @@ RUN set -ue; \
 #ERROR: Could not find a version that satisfies the requirement oneccl-devel (from versions: none)
 #ERROR: No matching distribution found for oneccl-devel
 
-# hang ===> leaving only dependencies for FlashAttention, commenting out the rest, for now
-#        datasets \
-#        evaluate \
-#        huggingface-hub \
-#        jupyter \
-#        matplotlib \
-#        mpi4py \
-#        numba \
-#        numpy \
-#        pandas \
-#        peft \
-#        pytorch_lightning \
-#        scipy \
-#        sentencepiece \
-#        tensorboard \
-#        trl \
-#        ultralytics \
-#        ninja \
-#        packaging \
-#        flask-restful \
-#        nltk \
-#        pybind11 \
-#        pynvml \
-#        tensorstore \
-#        wandb \
-#        wrapt \
-#        zarr \
-#        jinja2 \
-#        setuptools_scm;
+        datasets \
+        evaluate \
+        huggingface-hub \
+        jupyter \
+        matplotlib \
+        mpi4py \
+        numba \
+        numpy \
+        pandas \
+        peft \
+        pytorch_lightning \
+        scipy \
+        sentencepiece \
+        tensorboard \
+        trl \
+        ultralytics \
+        ninja \
+        packaging \
+        flask-restful \
+        nltk \
+        pybind11 \
+        pynvml \
+        tensorstore \
+        wandb \
+        wrapt \
+        zarr \
+        jinja2 \
+        setuptools_scm;
 
 #
 # Install bitsandbytes for CUDA
 #
-# NOTE: source HuggingFace: bitsandbytes is only supported on CUDA GPUs for CUDA versions 11.0 - 12.5.
-#       cuda toolkit >= 12.4, matching gcc >= 13
-#       line 'export BNB_CUDA_VERSION=117' - from HuggingFace
 RUN set -ue; \
   . /opt/venv/bin/activate; \
   export BNB_CUDA_VERSION=128; \
@@ -123,8 +114,6 @@ RUN set -ue; \
 #  new_wheel="$(wretag -d -q LAIFS-on-Olivia_bitsandbytes $wheel_path)"; \
 #  pip install --no-cache-dir $new_wheel; \
 #  cd / && rm -rf /opt/src/bitsandbytes;
-# NOTE: see the log, the build works, what fails is package managment ---> return to the old style for testing
-# TODO: check what wget does
   pip install --no-cache-dir $wheel_path; \
   cd / && rm -rf /opt/src/bitsandbytes;
 
@@ -202,7 +191,7 @@ RUN set -ue; \
   git checkout $XFORMERS_COMMIT; \
   git submodule update --init --recursive; \
   export XFORMERS_CK_FLASH_ATTN=1; \
-  export TORCH_CUDA_ARCH_LIST="9.0 10.0+PTX"; \
+  export TORCH_CUDA_ARCH_LIST="9.0+PTX"; \
   export MAX_JOBS="$(nproc)"; \
   pip wheel --no-deps --no-build-isolation -w /opt/src/xformers/dist . ; \
   wheel_path="$(find /opt/src/xformers/dist -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
@@ -260,8 +249,8 @@ RUN set -ue; \
   git checkout $VLLM_COMMIT; \
   export MAKEFLAGS="-j$(nproc)"; \
   export CPU_ARCH="aarch64"; \
-  export CUDA_VERSION=129: \
-  export TORCH_CUDA_ARCH_LIST="9.0 10.0++PTX"; \
+  export CUDA_VERSION=128; \
+  export TORCH_CUDA_ARCH_LIST="9.0+PTX"; \
   python3 setup.py clean --all; \
   python3 setup.py bdist_wheel --dist-dir=dist; \
   wheel_path="$(find /opt/src/vllm/dist  -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
@@ -304,6 +293,7 @@ RUN set -ue; \
   wheel_path="$(find /tmp/deepspeed  -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
   test $(echo $wheel_path | wc -w) = 1; \
   pip install $wheel_path; \
+	cd / && rm -rf /tmp/deepspeed;
 
 #
 # Install Megatron LM (experimental for testing)
