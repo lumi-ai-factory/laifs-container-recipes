@@ -86,43 +86,30 @@ nccl_tests_commit: "88d7e33" # latest, jane
 # ubuntu-cuda-libfabric-mpich-torch
 #
 torch_version: "2.9.1"
-torch_url: "https://download.pytorch.org/whl/cu129/torch-2.9.1%2Bcu129-cp312-cp312-manylinux_2_28_aarch64.whl"
-torchvision_url: "https://download.pytorch.org/whl/cu129/torchvision-0.24.1-cp312-cp312-manylinux_2_28_aarch64.whl"
-torchaudio_url: "https://download.pytorch.org/whl/cu129/torchaudio-2.9.1-cp312-cp312-manylinux_2_28_aarch64.whl"
+torch_url: "https://download.pytorch.org/whl/cu128/torch-2.9.1%2Bcu128-cp312-cp312-manylinux_2_28_aarch64.whl"
+torchvision_url: "https://download.pytorch.org/whl/cu128/torchvision-0.24.1-cp312-cp312-manylinux_2_28_aarch64.whl"
+torchaudio_url: "https://download.pytorch.org/whl/cu128/torchaudio-2.9.1-cp312-cp312-manylinux_2_28_aarch64.whl"
 pytorch_triton_url: "https://download.pytorch.org/whl/triton-3.5.1-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl"
 #
 # :jane build tested up to here
-#xformers_url: "https://download.pytorch.org/whl/rocm6.4/xformers-0.0.32.post2-cp39-abi3-manylinux_2_28_x86_64.whl"
+# :fibbo builds and logs relevant for multi stage
 #
 # ubuntu-cuda-libfabric-mpich-torch-multi
 #
 # --------------------------------------------
-#apex_git_commit: "3f26640" # Latest from branch release/1.8.0 (this branch is specifically for Pytorch 2.8)
-#apex_git_repo: "https://github.com/ROCm/apex"
-# --------------------------------------------
-apex_git_commit: "4bdecd0" # latest release/tags 25.09, Oct 4 - PyTorch compatibility not specified
+apex_git_commit: "4bdecd0"
 apex_git_repo: "https://github.com/NVIDIA/apex"
 #
-# NOTE: bitsandbytes should be OK (installed during build-testing from pip install)
-bitsandbytes_commit: "7e16503" # 7e16503 is commit id for tags/0.48.1
+bitsandbytes_commit: "26f0c7a"
 bitsandbytes_repo_url: "https://github.com/bitsandbytes-foundation/bitsandbytes"
 #
-# NOTE: causal-conv1d should be OK (CUDA native, has rocm_patch)
-causal_conv1d_commit: "22a4577" # Latest commit 2025-10-30
+causal_conv1d_commit: "67e0a9d"
 causal_conv1d_repo: "https://github.com/Dao-AILab/causal-conv1d"
 #
 # NOTE: deepspeed updated to latest from week7
 deepspeed_version: "0.18.6"
 #
-# Use FlashAttention-3 since it was developed aiming at increasing the utilization rate
-# specifically for Hopper GPU.
-# NOTE: not published for aarch64
-#       see https://github.com/Dao-AILab/flash-attention/issues/1875
-#       seems that we'll have to wait a bit for a stable wheel and likely
-#       will have to upgrade cuda to 129 or 130 - even better
-# NOTE: depends on NVIDIA's CUTLASS whose latest release 4.3.0 supports
-#       Hopper and Ampere only as an experimental feature
-flash_attention_repo_commit: 672381f # latest main, Nov 26th, contains FA-3 optimised for Hopper100
+flash_attention_repo_commit: "f1284cf"
 flash_attention_repo_url: "https://github.com/Dao-AILab/flash-attention"
 #
 vllm_version: "v0.15.1" # "v0.15.1" is the latest release as of 2026-02-06
@@ -131,6 +118,12 @@ vllm_repo: "https://github.com/vllm-project/vllm"
 #
 llmcompressor_commit: "129c793" # Commit id 129c793 is the latest release v0.9.0 as of 2026-01-07
 llmcompressor_repo: "https://github.com/vllm-project/llm-compressor"
+#
+# lumi at "0.18.5" at the time of this update
+deepspeed_version: "0.18.6"
+#
+megatron_lm_repo_url: "https://github.com/viahlgre/Megatron-LM"
+megatron_lm_commit: "c913367"
 #
 wretag_url: "git+https://github.com/viahlgre/wretag.git@0da1af0"
 #
