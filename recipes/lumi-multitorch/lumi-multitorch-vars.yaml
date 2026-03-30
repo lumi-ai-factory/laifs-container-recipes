@@ -2,10 +2,10 @@
 #  ubuntu-rocm
 #
 amdgpu_repo: "https://repo.radeon.com/amdgpu"
-amdgpu_version: "6.4.4"
+amdgpu_version: "7.0.3"
 #
 rocm_repo: "https://repo.radeon.com/rocm"
-rocm_version: "6.4.4"
+rocm_version: "7.0.3"
 #
 ubuntu_release: "24.04"
 ubuntu_tag: "noble-20260217"
@@ -39,7 +39,8 @@ extra_packages:
 # ubuntu-rocm-libfabric
 #
 cassini_headers_source: "https://github.com/HewlettPackard/shs-cassini-headers"
-cassini_headers_version: "12.0.1" # Based on version LUMI's versions since Jan 2026 maint break
+cassini_headers_version: "12.0.2" # Based on version LUMI's versions since Jan 2026 maint break
+cassini_headers_git_commit: "b3f65f0"
 #
 cxi_headers_version_prefix: "1.0.0-SHS12.0.2"
 cxi_headers_clone_url: "https://github.com/HewlettPackard/shs-cxi-driver"
@@ -49,13 +50,13 @@ libcxi_version_prefix: "1.0.2-SHS12.0.2"
 libcxi_clone_url: "https://github.com/HewlettPackard/shs-libcxi"
 libcxi_git_commit: "30fa2dd" # Based on version LUMI's versions since Jan 2026 maint break
 #
-libfabric_git_commit: "78d6e03"
-libfabric_version_prefix: "2.1"
+libfabric_git_commit: "5a13558"
+libfabric_version_prefix: "2.4.0"
 libfabric_clone_url: "https://github.com/ofiwg/libfabric"
 #
-xpmem_clone_url: "https://github.com/hpc/xpmem"
-xpmem_git_commit: "3bcab55"
-xpmem_version_prefix: "0.1"
+xpmem_clone_url: "https://github.com/openucx/xpmem"
+xpmem_git_commit: "b8808be"
+xpmem_version_prefix: "2.7.4"
 xpmem_kernel_base_src: "linux-headers-6.8.0-92_6.8.0-92.94_all.deb"
 xpmem_kernel_generic_src: "linux-headers-6.8.0-92-generic_6.8.0-92.94_amd64.deb"
 xpmem_kernel_id: "linux-headers-6.8.0-92-generic"
@@ -63,9 +64,9 @@ xpmem_kernel_id: "linux-headers-6.8.0-92-generic"
 #
 # ubuntu-rocm-libfabric-mpich
 #
-aws_ofi_rccl_repo: "https://github.com/ROCm/aws-ofi-rccl"
-aws_ofi_rccl_commit: "6dae1b0"
-aws_ofi_rccl_version: "1.4.0-1"
+aws_ofi_rccl_repo: "https://github.com/ROCm/aws-ofi-nccl"
+aws_ofi_rccl_commit: "86ebeaf"
+aws_ofi_rccl_version: "1.18.0"
 #
 mpich_source: "http://www.mpich.org/static/downloads"
 mpich_version: "4.3.2"
