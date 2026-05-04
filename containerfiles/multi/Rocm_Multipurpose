@@ -231,4 +231,16 @@ RUN set -ue; \
   jq -n --argjson apt "$apt_json"  --argjson pip "$pip_json" '{apt: $apt, pip: $pip}' > /.sbom.json;
 
 
-CMD ["/bin/bash"]
+RUN printf '#!/bin/bash\n\
+if [ "${SLURM_NNODES}" = 1 ] && [ -z "${SLURM_GPUS_ON_NODE}" ]; then\n\
+    export FI_HMEM_DISABLE_P2P=1\n\
+fi\n\
+if [ "${ROCR_USE_SLURM_LOCALID}" = 1 ] && [ -n "${SLURM_LOCALID}" ]; then\n\
+    export ROCR_VISIBLE_DEVICES="$SLURM_LOCALID"\n\
+fi\n\
+if [ "${MAP_HIP_TO_ROCR_VISIBLE_DEVICES}" = 1 ] && [ -n "${ROCR_VISIBLE_DEVICES}" ]; then\n\
+    export HIP_VISIBLE_DEVICES=`seq -s , 0 $(echo "${ROCR_VISIBLE_DEVICES%%,}" | awk -F, '\''{print NF-1}'\'')`\n\
+fi\n\
+exec "$@"\n' > /opt/entrypoint.sh
+
+ENTRYPOINT ["/bin/bash", "/opt/entrypoint.sh"]

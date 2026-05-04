@@ -169,4 +169,10 @@ RUN set -ue; \
     apt_json="$(dpkg-query -W -f='${Package}\t${Version}\n' | jq -R -s 'split("\n")[:-1] | map(split("\t") | {name: .[0], version: .[1]})')"; \
     jq -n --argjson apt "$apt_json"  '{apt: $apt}' > /.sbom.json;
 
-CMD ["/bin/bash"]
+RUN printf '#!/bin/bash\n\
+if [ "${SLURM_NNODES}" = 1 ] && [ -z "${SLURM_GPUS_ON_NODE}" ]; then\n\
+    export FI_HMEM_DISABLE_P2P=1\n\
+fi\n\
+exec "$@"\n' > /opt/entrypoint.sh
+
+ENTRYPOINT ["/bin/bash", "/opt/entrypoint.sh"]

@@ -146,7 +146,7 @@ desc: |
     - A `.yaml` recipe file which defines the build steps, software versions, and
       includes all required Containerfiles and documentation snippets to reproduce
       the build of this release.
-    - Containerfiles and Apptainer definition files (`.Containerfile`, `.def`)
+    - Containerfiles (`.Containerfile`)
       for convenience (this data is embedded in the `.yaml` recipe as well).
     - This release README file and separate per-image documentation (`.md`).
     - Build logs (`.log`) and SBOM files (`.json`) for all images for
@@ -221,8 +221,6 @@ steps:
       - ROCM_VERSION={{rocm_version}}
       - EXTRA_LOCALES="{{extra_locales | join(' ')}}"
       - EXTRA_PACKAGES="{{extra_packages | join(' ')}}"
-    export:
-      name: {{image_digest_name("rocm")}}
 
   - name: {{image_digest_name("libfabric")}}
     base: {{image_digest_name("rocm")}}
@@ -266,14 +264,6 @@ steps:
       - LIBFABRIC_VERSION={{libfabric_version_prefix}}-{{libfabric_git_commit}}
       - LIBFABRIC_CLONE_URL={{libfabric_clone_url}}
       - LIBFABRIC_GIT_COMMIT={{libfabric_git_commit}}
-    export:
-      name: {{image_digest_name("libfabric")}}
-      def: |
-        %runscript
-        if [ "${SLURM_NNODES}" = 1 ] && [ -z "${SLURM_GPUS_ON_NODE}" ]; then
-            export FI_HMEM_DISABLE_P2P=1
-        fi
-        exec "$@"
 
   - name: {{image_digest_name("mpich")}}
     base: {{image_digest_name("libfabric")}}
@@ -314,14 +304,6 @@ steps:
       - RCCL_TESTS_GPU_ARCHS={{rccl_tests_gpu_archs}}
       - RCCL_TESTS_REPO={{rccl_tests_repo}}
       - RCCL_TESTS_VERSION={{rccl_tests_version_prefix}}-{{rccl_tests_commit}}
-    export:
-      name: {{image_digest_name("mpich")}}
-      def: |
-        %runscript
-        if [ "${SLURM_NNODES}" = 1 ] && [ -z "${SLURM_GPUS_ON_NODE}" ]; then
-            export FI_HMEM_DISABLE_P2P=1
-        fi
-        exec "$@"
 
   - name: {{image_digest_name("torch")}}
     base: {{image_digest_name("mpich")}}
@@ -357,15 +339,6 @@ steps:
       - FAKE_TRITON_URL={{fake_triton_url}}
       #
       - WRETAG_URL={{wretag_url}}
-
-    export:
-      name: {{image_digest_name("torch")}}
-      def: |
-        %runscript
-        if [ "${SLURM_NNODES}" = 1 ] && [ -z "${SLURM_GPUS_ON_NODE}" ]; then
-            export FI_HMEM_DISABLE_P2P=1
-        fi
-        exec "$@"
 
   - name: {{image_digest_name("full")}}
     base: {{image_digest_name("torch")}}
@@ -427,20 +400,6 @@ steps:
       - XFORMERS_COMMIT={{xformers_commit}}
       - XFORMERS_REPO={{xformers_repo}}
       #
-    export:
-      name: {{image_digest_name("full")}}
-      def: |
-        %runscript
-        if [ "${SLURM_NNODES}" = 1 ] && [ -z "${SLURM_GPUS_ON_NODE}" ]; then
-            export FI_HMEM_DISABLE_P2P=1
-        fi
-        if [ "${ROCR_USE_SLURM_LOCALID}" = 1 ] && [ -n "${SLURM_LOCALID}" ]; then
-            export ROCR_VISIBLE_DEVICES="$SLURM_LOCALID"
-        fi
-        if [ "${MAP_HIP_TO_ROCR_VISIBLE_DEVICES}" = 1 ] && [ -n "${ROCR_VISIBLE_DEVICES}" ]; then
-            export HIP_VISIBLE_DEVICES=`seq -s , 0 $(echo "${ROCR_VISIBLE_DEVICES%%,}" | awk -F, '{print NF-1}')`
-        fi
-        exec "$@"
 
   - name: {{image_digest_name("plus")}}
     base: {{image_digest_name("full")}}
@@ -465,20 +424,6 @@ steps:
       - TRANSFORMERS_ENGINE_ARCH={{transformers_engine_arch}}
       - TRANSFORMERS_ENGINE_COMMIT={{transformers_engine_commit}}
       - TRANSFORMERS_ENGINE_REPO={{transformers_engine_repo}}
-    export:
-      name: {{image_digest_name("plus")}}
-      def: |
-        %runscript
-        if [ "${SLURM_NNODES}" = 1 ] && [ -z "${SLURM_GPUS_ON_NODE}" ]; then
-            export FI_HMEM_DISABLE_P2P=1
-        fi
-        if [ "${ROCR_USE_SLURM_LOCALID}" = 1 ] && [ -n "${SLURM_LOCALID}" ]; then
-            export ROCR_VISIBLE_DEVICES="$SLURM_LOCALID"
-        fi
-        if [ "${MAP_HIP_TO_ROCR_VISIBLE_DEVICES}" = 1 ] && [ -n "${ROCR_VISIBLE_DEVICES}" ]; then
-            export HIP_VISIBLE_DEVICES=`seq -s , 0 $(echo "${ROCR_VISIBLE_DEVICES%%,}" | awk -F, '{print NF-1}')`
-        fi
-        exec "$@"
 
 files:
   - name: "{{release_id}}-post.sh"
@@ -513,7 +458,7 @@ files:
       printf '%s\n\n' "$image_meta" >> "$readme_file"
       printf '## Description\n\n%s\n\n' "$image_desc"  >> "$readme_file"
       printf '## Files\n\n' >> "$readme_file"
-      sha256sum {{image_build_name(type)}}.{Containerfile,def,json,log,sif} >> "$readme_file"
+      sha256sum {{image_build_name(type)}}.{Containerfile,json,log,sif} >> "$readme_file"
       {% endfor %}
 
       # Run image tests
