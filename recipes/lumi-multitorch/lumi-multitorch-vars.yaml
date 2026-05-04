@@ -116,7 +116,7 @@ pytorch_triton_url: "https://download.pytorch.org/whl/triton_rocm-3.6.0-cp312-cp
 torchaudio_url: "https://download-r2.pytorch.org/whl/rocm7.0/torchaudio-2.10.0%2Brocm7.0-cp312-cp312-manylinux_2_28_x86_64.whl"
 torchvision_url: "https://download-r2.pytorch.org/whl/rocm7.0/torchvision-0.25.0%2Brocm7.0-cp312-cp312-manylinux_2_28_x86_64.whl"
 #
-wretag_url: "git+https://github.com/viahlgre/wretag.git@0da1af0"
+wretag_url: "git+https://github.com/lumi-ai-factory/wretag.git@0da1af0"
 
 #
 # ubuntu-rocm-libfabric-mpich-torch-full
