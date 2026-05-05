@@ -417,13 +417,13 @@ steps:
       Base image: {{image_digest_name("full")}}
       GPU architectures: {{multi_image_gpu_arch}}
       Components:
-        - TransformersEngine (from {{transformers_engine_repo}} commit {{transformers_engine_commit}})
+        - TransformerEngine (from {{transformer_engine_repo}} commit {{transformer_engine_commit}})
     template: plus/Plus
     force: False
     env:
-      - TRANSFORMERS_ENGINE_ARCH={{transformers_engine_arch}}
-      - TRANSFORMERS_ENGINE_COMMIT={{transformers_engine_commit}}
-      - TRANSFORMERS_ENGINE_REPO={{transformers_engine_repo}}
+      - TRANSFORMER_ENGINE_ARCH={{transformer_engine_arch}}
+      - TRANSFORMER_ENGINE_COMMIT={{transformer_engine_commit}}
+      - TRANSFORMER_ENGINE_REPO={{transformer_engine_repo}}
 
 files:
   - name: "{{release_id}}-post.sh"
