@@ -241,6 +241,6 @@ fi\n\
 if [ "${MAP_HIP_TO_ROCR_VISIBLE_DEVICES}" = 1 ] && [ -n "${ROCR_VISIBLE_DEVICES}" ]; then\n\
     export HIP_VISIBLE_DEVICES=`seq -s , 0 $(echo "${ROCR_VISIBLE_DEVICES%%,}" | awk -F, '\''{print NF-1}'\'')`\n\
 fi\n\
-exec "$@"\n' > /opt/entrypoint.sh
+exec "$@"\n' > /opt/entrypoint.sh && chmod +x > /opt/entrypoint.sh
 
-ENTRYPOINT ["/bin/bash", "/opt/entrypoint.sh"]
+ENTRYPOINT ["/opt/entrypoint.sh"]
