@@ -167,6 +167,6 @@ RUN printf '#!/bin/bash\n\
 if [ "${SLURM_NNODES}" = 1 ] && [ -z "${SLURM_GPUS_ON_NODE}" ]; then\n\
     export FI_HMEM_DISABLE_P2P=1\n\
 fi\n\
-exec "$@"\n' > /opt/entrypoint.sh && chmod +x > /opt/entrypoint.sh
+exec "$@"\n' > /opt/oci-entrypoint.sh && chmod +x > /opt/oci-entrypoint.sh
 
-ENTRYPOINT ["/opt/entrypoint.sh"]
+ENTRYPOINT ["/opt/oci-entrypoint.sh"]
