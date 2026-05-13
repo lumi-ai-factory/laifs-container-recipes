@@ -176,3 +176,8 @@ fi\n\
 exec "$@"\n' > /opt/oci-entrypoint.sh && chmod +x > /opt/oci-entrypoint.sh
 
 ENTRYPOINT ["/opt/oci-entrypoint.sh"]
+
+# Make default runscript compatible with OCI entrypoint.
+# This only needs to be set once in the container lineage, i.e.,
+# in the first Containerfile that includes an entrypoint.
+ENV SINGULARITY_NO_EVAL=1
