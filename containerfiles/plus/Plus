@@ -30,7 +30,7 @@ RUN set -ue; \
   # --no-build-isolation needed for pytorch HIP support detection
   pip install . --no-build-isolation;
 
-RUN printf '#!/bin/bash\n\
+RUN printf '#!/usr/bin/env bash\n\
 if [ "${SLURM_NNODES}" = 1 ] && [ -z "${SLURM_GPUS_ON_NODE}" ]; then\n\
     export FI_HMEM_DISABLE_P2P=1\n\
 fi\n\
