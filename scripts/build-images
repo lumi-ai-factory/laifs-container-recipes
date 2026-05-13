@@ -105,13 +105,20 @@ export_image() {
     #
     local IMAGE_NAME=$1
     local IMAGE_TAG=$2
+    local IMAGE_DEF=$3
 
     local OCI_FILE="${BUILD_DIR}/${IMAGE_NAME}-${IMAGE_TAG}.tar"
+    local DEF_FILE="${BUILD_DIR}/${IMAGE_NAME}-${IMAGE_TAG}.def"
     local SIF_FILE="${BUILD_DIR}/${IMAGE_NAME}-${IMAGE_TAG}.sif"
 
     local OCI_COMMAND="podman image save --format oci-archive ${IMAGE_NAME}:${IMAGE_TAG} -o $OCI_FILE"
 
-    local SIF_COMMAND="apptainer build ${SIF_FILE} oci-archive:${OCI_FILE}"
+    if [[ -n $IMAGE_DEF ]]; then
+        printf 'Bootstrap: oci-archive\nFrom: %s\n%s\n' "${OCI_FILE}" "${IMAGE_DEF}" > "$DEF_FILE"
+        local SIF_COMMAND="apptainer build ${SIF_FILE} ${DEF_FILE}"
+    else
+        local SIF_COMMAND="apptainer build ${SIF_FILE} oci-archive:${OCI_FILE}"
+    fi
 
     log "*** Exporting image with command $OCI_COMMAND"
     ${OCI_COMMAND[@]} 2>&1 | sed -e 's/^/    /' | log
@@ -131,6 +138,9 @@ parse_step() {
     STEP_DATA["IMAGE_NAME"]=$(jq -r '.name' <<< "$STEP_JSON")
     STEP_DATA["IMAGE_TAG"]=${BUILD_TAG}
     STEP_DATA["IMAGE_DESCRIPTION"]=$(jq -r '.desc' <<< "$STEP_JSON")
+
+    # Enables building SIF image from a definition file, if provided
+    STEP_DATA["IMAGE_DEF"]=$(jq -r '.export.def // ""' <<< "$STEP_JSON")
 
     # The first image in the chain of images we build differs from all
     # other images in that it has its base image fetched externally and
@@ -266,7 +276,11 @@ build_image() {
     log "*** Image info:"
     podman image inspect $image_id| sed -e 's/^/    /' | log
 
-    export_image "${STEP['IMAGE_NAME']}" "${STEP['IMAGE_TAG']}"
+    if [[ -n "${STEP['IMAGE_DEF']}" ]]; then
+        export_image "${STEP['IMAGE_NAME']}" "${STEP['IMAGE_TAG']}" "${STEP['IMAGE_DEF']}"
+    else
+        export_image "${STEP['IMAGE_NAME']}" "${STEP['IMAGE_TAG']}"
+    fi
 
     log "*** Building image ${STEP['IMAGE_NAME']}:${STEP['IMAGE_TAG']} completed at $(date)"
 
