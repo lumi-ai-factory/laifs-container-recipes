@@ -439,13 +439,29 @@ steps:
       def:
 
 files:
+  - name: "{{release_id}}-release.md"
+    desc: "Template file for release notes"
+    content: |
+      # Release notes for {{release_id}}
+
+      **Release links:**
+      - [Release README](https://github.com/lumi-ai-factory/laifs-container-recipes-release-artifacts/blob/main/{{release_id}}/{{release_id}}.md)
+      - [GitHub release](https://github.com/lumi-ai-factory/laifs-container-recipes/releases/tag/{{release_id}})
+      - [Recipe changes](https://github.com/lumi-ai-factory/laifs-container-recipes/compare/<PREVIOUS-RELEASE-ID>...{{release_id}})
+      - [Known issues](https://github.com/lumi-ai-factory/laifs-container-recipes/issues?q=label%3A{{release_id}})
+
+      ## Major updates
+
+      ## Other changes
+
   - name: "{{release_id}}-post.sh"
     desc: "Script for performing post-build actions"
     content: |
       #!/bin/bash
 
       # This script is used for executing post-build tasks and should run after
-      # the image builds complete. Working directory needs to be the build dir.
+      # the image builds complete and the release notes have been written.
+      # Working directory needs to be the build dir.
       #
       # The script performs these actions:
       # - Extracts and saves SBOM files from the images.
