@@ -34,7 +34,7 @@ def diff_managers(old_data, new_data):
         for name in sorted(old_names & new_names):
             if old_pkgs[name] != new_pkgs[name]:
                 changed.append(
-                    f"- `{name}` {old_pkgs[name]} → {new_pkgs[name]}"
+                    f"- `{name}` {old_pkgs[name]} -> {new_pkgs[name]}"
                 )
 
         for name in sorted(new_names - old_names):
@@ -47,20 +47,20 @@ def diff_managers(old_data, new_data):
             continue
 
         changes_found = True
-        output.append(f"\n## Package manager: {manager}\n")
+        output.append(f"### {manager.capitalize()} Package Changes\n")
 
         if changed:
-            output.append("### Changed\n")
+            output.append("**Changed:**\n")
             output.extend(changed)
             output.append("")
 
         if added:
-            output.append("### Added\n")
+            output.append("**Added:**\n")
             output.extend(added)
             output.append("")
 
         if removed:
-            output.append("### Removed\n")
+            output.append("**Removed:**\n")
             output.extend(removed)
             output.append("")
 
@@ -73,8 +73,10 @@ def main(old_path, new_path):
 
     changes_found, diff_output = diff_managers(old_data, new_data)
 
-    print(f"# Container image package version diff\n")
-    print(f"**Comparing:** `{Path(old_path).name}` → `{Path(new_path).name}`\n")
+    print(f"## Package changes\n")
+    print("Comprehensive list of package changes comparing the following releases:\n")
+    print(f"- `{Path(old_path).name}`")
+    print(f"- `{Path(new_path).name}`\n")
 
     if diff_output.strip():
         print(diff_output)
