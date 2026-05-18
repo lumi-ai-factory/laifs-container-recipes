@@ -88,7 +88,7 @@ def main(old_path, new_path):
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
-        print("Usage: python diff_packages.py old.json new.json")
+        print("Usage: python package_version_diff.py old.json new.json")
         sys.exit(1)
 
     main(sys.argv[1], sys.argv[2])
