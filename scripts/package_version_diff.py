@@ -47,7 +47,7 @@ def diff_managers(old_data, new_data):
             continue
 
         changes_found = True
-        output.append(f"### {manager.capitalize()} Package Changes\n")
+        output.append(f"### {manager.capitalize()} package changes\n")
 
         if changed:
             output.append("**Changed:**\n")
