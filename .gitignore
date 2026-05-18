@@ -4,6 +4,8 @@
 # Build artifacts
 /builds/
 
+# Customized image test script
+/scripts/test-image.sh
+
 # Vim swap files
 *.swp
-

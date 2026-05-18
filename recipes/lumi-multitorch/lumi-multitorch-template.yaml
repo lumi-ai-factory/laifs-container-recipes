@@ -475,11 +475,7 @@ files:
       {% endfor %}
 
       # Run image tests
-      if [ -f ~/cicd-tests/test-image.sh ]; then
-        bash ~/cicd-tests/test-image.sh {{ image_build_name("full") }}.sif > {{release_id ~ '-tests.md' }}
-      else
-        echo "tests not available"
-      fi
+      bash scripts/test-image.sh {{image_build_name("full")}}.sif {{release_id}} > {{release_id ~ '-tests.md'}}
 
       # Checksum all files created so far
       sha256sum {{recipe_base_name}}* > {{release_id}}.sha256
