@@ -488,23 +488,37 @@ files:
     desc: "Script for performing image release actions"
     content: |
       #!/bin/bash
+      #
+      # This script is used for executing release tasks and should run after
+      # the post-build script. Working directory needs to be the build dir.
+      #
+      # The script performs these actions:
+      # - Uploads OCI images to Docker Hub
+      # - Uploads SIF images and release artifacts to LUMI
+      # - Creates a GitHub release
 
       set -eu
 
+      # Upload OCI images to Docker Hub
       {%- for type in image_variants %}
       podman push {{image_digest_name(type)}}:{{build_tag}} docker://docker.io/{{release_registry}}:{{type}}-{{software_digest}}-{{build_tag}}
       podman push {{image_digest_name(type)}}:{{build_tag}} docker://docker.io/{{release_registry}}:{{type}}-{{software_digest}}
       podman push {{image_digest_name(type)}}:{{build_tag}} docker://docker.io/{{release_registry}}:{{type}}
       {% endfor %}
 
-      tar -C .. --exclude='*.tar' --exclude '*.tgz' --exclude='*.sif' -czf {{release_id}}-release.tgz {{release_id}}
-
+      # Upload SIF images and release artifacts to LUMI
       rsync -avz --exclude='*.tar' --exclude '*.sh' ../{{release_id}} lumi.csc.fi:/appl/local/laifs/containers/
-
       ssh -l $SSH_USER $SSH_HOST chgrp -R appl_laifs /appl/local/laifs/containers/{{release_id}}
       ssh -l $SSH_USER $SSH_HOST chmod 664 /appl/local/laifs/containers/{{release_id}}/lumi-multitorch-*
       ssh -l $SSH_USER $SSH_HOST chmod o+x /appl/local/laifs/containers/{{release_id}}/lumi-multitorch-*.sif
       ssh -l $SSH_USER $SSH_HOST chmod 2775 /appl/local/laifs/containers/{{release_id}}
 
+      # Create GitHub release
+      #
+      # The GitHub CLI commands must be run under the root of the `laifs-container-recipes` repo,
+      # as the build dir is tracked under `laifs-container-recipes-release-artifacts`.
+      cd ../..
+      #
+      tar -C builds/ --exclude='*.tar' --exclude '*.tgz' --exclude='*.sif' -czf {{release_id}}-release.tgz {{release_id}}
       gh label create --repo https://github.com/lumi-ai-factory/laifs-container-recipes {{release_id}}
-      gh release create {{release_id}} --verify-tag --notes-file {{release_id}}.md --title {{release_id}} {{release_id}}-release.tgz
+      gh release create {{release_id}} --verify-tag --notes-file builds/{{release_id}}/{{release_id}}-release.md --title {{release_id}} builds/{{release_id}}-release.tgz
