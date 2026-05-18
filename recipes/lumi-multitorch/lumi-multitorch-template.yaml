@@ -476,7 +476,7 @@ files:
 
       # Run image tests
       if [ -f ~/cicd-tests/test-image.sh ]; then
-        bash ~/cicd-tests/test-image.sh {{ image_build_name("full") }}.sif 2>&1 > {{release_id ~ '-tests.md' }}
+        bash ~/cicd-tests/test-image.sh {{ image_build_name("full") }}.sif > {{release_id ~ '-tests.md' }}
       else
         echo "tests not available"
       fi
