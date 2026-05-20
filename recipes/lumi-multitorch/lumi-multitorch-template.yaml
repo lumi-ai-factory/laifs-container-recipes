@@ -491,7 +491,7 @@ files:
       {% endfor %}
 
       # Run image tests
-      bash scripts/test-image.sh {{image_build_name("full")}}.sif {{release_id}} > {{release_id ~ '-tests.md'}}
+      bash ../../scripts/test-image.sh {{image_build_name("full")}}.sif {{release_id}} > {{release_id ~ '-tests.md'}}
 
       # Checksum all files created so far
       sha256sum {{recipe_base_name}}* > {{release_id}}.sha256
