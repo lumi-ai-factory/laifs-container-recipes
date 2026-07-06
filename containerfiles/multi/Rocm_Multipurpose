@@ -166,6 +166,7 @@ RUN set -ue; \
 #
 RUN set -ue; \
   . /opt/venv/bin/activate; \
+  export BUILD_TYPE=release; \
   pip wheel --no-deps -w /opt/src/llmcompressor git+${LLMCOMPRESSOR_REPO}.git@${LLMCOMPRESSOR_COMMIT}; \
   wheel_path="$(find /opt/src/llmcompressor -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
   test $(echo $wheel_path | wc -w) = 1; \
