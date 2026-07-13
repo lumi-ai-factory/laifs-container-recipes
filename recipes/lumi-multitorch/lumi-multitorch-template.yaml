@@ -107,6 +107,7 @@ desc: |
     - TorchAudio (from {{torchaudio_url}})
     - PyTorch Triton (from {{pytorch_triton_url}})
     - Apex (from {{apex_git_repo}} commit {{apex_git_commit}})
+    - Bitsandbytes (from {{bnb_repo}} commit {{bnb_commit}})
     - Causal Conv1D (from {{causal_conv1d_repo}} commit {{causal_conv1d_commit}})
     - DeepSpeed {{deepspeed_version}} (with locally built ops addons)
     - Flash Attention (from {{flash_attention_repo_url}} commit {{flash_attention_repo_commit}})
@@ -363,6 +364,7 @@ steps:
       GPU architectures: {{multi_image_gpu_arch}}
       Components:
         - Apex (from {{apex_git_repo}} commit {{apex_git_commit}})
+        - Bitsandbytes (from {{bnb_repo}} commit {{bnb_commit}})
         - Causal Conv1D (from {{causal_conv1d_repo}} commit {{causal_conv1d_commit}})
         - DeepSpeed {{deepspeed_version}} (with locally built ops addons)
         - Flash Attention (from {{flash_attention_repo_url}} commit {{flash_attention_repo_commit}})
@@ -381,6 +383,9 @@ steps:
     env:
       - APEX_GIT_REPO={{apex_git_repo}}
       - APEX_GIT_COMMIT={{apex_git_commit}}
+      #
+      - BNB_REPO={{bnb_repo}}
+      - BNB_COMMIT={{bnb_commit}}
       #
       - CAUSAL_CONV1D_REPO={{causal_conv1d_repo}}
       - CAUSAL_CONV1D_COMMIT={{causal_conv1d_commit}}
