@@ -126,9 +126,12 @@ RUN set -ue; \
 
 RUN set -ue; \
     TMPROOT=$(mktemp -d); \
-    git clone "${RCCL_TESTS_REPO}" "$TMPROOT/rccl-tests"; \
-    cd  "$TMPROOT/rccl-tests"; \
+    git clone --no-checkout --filter=blob:none "${RCCL_TESTS_REPO}" "$TMPROOT/rocm-systems"; \
+    cd  "$TMPROOT/rocm-systems"; \
+    git sparse-checkout init --cone; \
+    git sparse-checkout set projects/rccl-tests; \
     git checkout "${RCCL_TESTS_COMMIT}"; \
+    cd projects/rccl-tests; \
     make -j $(nproc) MPI=1 GPU_TARGETS="${RCCL_TESTS_GPU_ARCHS}"; \
     install -d "${TMPROOT}/libexec/rccl-tests"; \
     cp build/*_perf "${TMPROOT}/libexec/rccl-tests"; \

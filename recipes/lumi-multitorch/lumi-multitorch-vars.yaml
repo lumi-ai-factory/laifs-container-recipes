@@ -77,10 +77,10 @@ mpich_gpu_arch: "gfx90a"
 osu_source: "https://mvapich.cse.ohio-state.edu/download/mvapich"
 osu_version: "7.5.2" # Latest version as of 2026-07-13
 #
-rccl_tests_repo: "https://github.com/ROCm/rccl-tests"
-rccl_tests_commit: "5272cd1" # Tagged as latest release (therock-7.11) as of 2026-05-05
+rccl_tests_repo: "https://github.com/ROCm/rocm-systems"
+rccl_tests_commit: "81a5a30" # Tagged as latest release (therock-7.13) as of 2026-07-13
 rccl_tests_gpu_archs: "gfx90a"
-rccl_tests_version_prefix: "0.1"
+rccl_tests_version_prefix: "2.18.3" # Set version prefix to NCCL_TESTS_VERSION
 
 #
 # ubuntu-rocm-libfabric-mpich-torch
