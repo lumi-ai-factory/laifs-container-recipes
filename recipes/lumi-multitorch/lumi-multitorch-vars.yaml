@@ -172,6 +172,7 @@ extra_pip_packages:
   - huggingface-hub
   - jupyter
   - lightning
+  - marimo
   - matplotlib
   - mlflow
   - mpi4py
