@@ -33,6 +33,7 @@ RUN set -ue; \
         autoconf \
         libconfig-dev \
         libcurl4-openssl-dev \
+        libdw1t64 \
         libfuse-dev \
         libjson-c-dev \
         libnl-3-dev \
