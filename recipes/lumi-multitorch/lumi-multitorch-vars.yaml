@@ -121,18 +121,18 @@ wretag_url: "git+https://github.com/lumi-ai-factory/wretag.git@0da1af0"
 #
 # ubuntu-rocm-libfabric-mpich-torch-full
 #
-apex_git_commit: "73423b4" # Latest from branch release/1.10.0 (this branch is specifically for Pytorch 2.10.0) as of 2026-05-05
+apex_git_commit: "e97c665" # Latest from branch release/1.10.0 (this branch is specifically for Pytorch 2.10.0) as of 2026-07-13
 apex_git_repo: "https://github.com/ROCm/apex"
 #
-causal_conv1d_commit: "0d2252d" # Latest commit as of 2026-05-05
+causal_conv1d_commit: "4f6ae4e" # Latest commit as of 2026-07-13
 causal_conv1d_repo: "https://github.com/Dao-AILab/causal-conv1d"
 #
-deepspeed_version: "0.18.9" # Latest release as of 2026-05-05
+deepspeed_version: "0.19.2" # Latest release as of 2026-07-13
 #
-flash_attention_repo_commit: "bbe25ba" # Latest commit before "migrate to aiter commit" from the main_perf branch as of 2026-03-17
+flash_attention_repo_commit: "bbe25ba" # Last commit before migration to Aiter (3f94643) from the main_perf branch as of 2026-07-13
 flash_attention_repo_url: "https://github.com/ROCm/flash-attention"
 #
-llmcompressor_commit: "5a1552e" # Tagged as latest release (v0.10.0.2) as of 2026-05-05
+llmcompressor_commit: "6d2a090" # Tagged as latest release (v0.12.0) as of 2026-07-13
 llmcompressor_repo: "https://github.com/vllm-project/llm-compressor"
 #
 megatron_lm_repo_url: "https://github.com/viahlgre/Megatron-LM"
@@ -140,11 +140,11 @@ megatron_lm_commit: "c333868" # c333868@viahlgre/Megatron-LM is d85dd3c@ROCm/Meg
 #
 multi_image_gpu_arch: "gfx90a"
 #
-vllm_version: "v0.20.1" # "v0.20.1" is the last release as of 2026-05-05
-vllm_commit: "132765e"  # Tagged as latest release (v0.20.1) as of 2026-05-05
+vllm_version: "v0.25.0" # "v0.25.0" is the last release as of 2026-07-13
+vllm_commit: "702f481"  # Tagged as latest release (v0.25.0) as of 2026-07-13
 vllm_repo: "https://github.com/vllm-project/vllm"
 #
-xformers_commit: "03b91d7" # Tagged as latest release (v0.0.35) as of 2026-05-05
+xformers_commit: "03b91d7" # Tagged as latest release (v0.0.35) as of 2026-07-13
 xformers_repo: "https://github.com/facebookresearch/xformers"
 #
 extra_apt_packages:
