@@ -49,8 +49,8 @@ libcxi_version_prefix: "1.0.2-SHS12.0.2"
 libcxi_clone_url: "https://github.com/HewlettPackard/shs-libcxi"
 libcxi_git_commit: "30fa2dd" # Based on version LUMI's versions since Jan 2026 maint break
 #
-libfabric_git_commit: "78d6e03"
-libfabric_version_prefix: "2.1"
+libfabric_git_commit: "5de2d6a" # Tagged as latest release (v2.6.0) as of 2026-07-13
+libfabric_version_prefix: "2.6"
 libfabric_clone_url: "https://github.com/ofiwg/libfabric"
 #
 xpmem_clone_url: "https://github.com/hpc/xpmem"
