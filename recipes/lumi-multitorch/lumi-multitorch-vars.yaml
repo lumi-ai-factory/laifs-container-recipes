@@ -163,7 +163,6 @@ extra_apt_packages:
   - libmsgpack-dev
   - libsqlite3-dev
   - libsuitesparse-dev
-  - seuptools-rust
   - sqlite3
 extra_pip_packages:
   - accelerate
@@ -205,6 +204,7 @@ dependency_pip_packages:
   - zarr
   # vLLM build
   - jinja2
+  - setuptools_rust
   - setuptools_scm
 
 #
