@@ -143,8 +143,8 @@ megatron_lm_commit: "c333868" # c333868@viahlgre/Megatron-LM is d85dd3c@ROCm/Meg
 #
 multi_image_gpu_arch: "gfx90a"
 #
-vllm_version: "v0.25.0" # "v0.25.0" is the last release as of 2026-07-13
-vllm_commit: "702f481"  # Tagged as latest release (v0.25.0) as of 2026-07-13
+vllm_version: "v0.22.1" # "v0.22.1" is the last release to build against PyTorch 2.10.0 as of 2026-07-13
+vllm_commit: "0decac0"  # Tagged as release "v0.21.0"
 vllm_repo: "https://github.com/vllm-project/vllm"
 #
 xformers_commit: "03b91d7" # Tagged as latest release (v0.0.35) as of 2026-07-13
