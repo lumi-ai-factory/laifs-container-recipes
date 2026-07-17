@@ -22,7 +22,7 @@ RUN set -ue; \
   export NVTE_FRAMEWORK=pytorch; \
   export NVTE_FUSED_ATTN=0; \
   #
-  git clone --recursive --branch "${TRANSFORMER_ENGINE_COMMIT}" ${TRANSFORMER_ENGINE_REPO} /opt/src/transformer_engine; \
+  git clone --recursive --branch "v${TRANSFORMER_ENGINE_COMMIT}" ${TRANSFORMER_ENGINE_REPO} /opt/src/transformer_engine; \
   #
   cd /opt/src/transformer_engine; \
   #

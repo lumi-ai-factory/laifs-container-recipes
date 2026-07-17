@@ -212,4 +212,4 @@ dependency_pip_packages:
 #
 transformer_engine_arch: "gfx90a"
 transformer_engine_repo: "https://github.com/ROCm/TransformerEngine"
-transformer_engine_commit: "b2a0450" # Tagged as latest release (v2.10_rocm) as of 2026-07-13
+transformer_engine_commit: "2.8_rocm" # Latest release as of 2026-05-05
