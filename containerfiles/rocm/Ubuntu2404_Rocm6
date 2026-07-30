@@ -75,6 +75,14 @@ RUN set -ue; \
   # Add SBOM
   #
   apt_json="$(dpkg-query -W -f='${Package}\t${Version}\n' | jq -R -s 'split("\n")[:-1] | map(split("\t") | {name: .[0], version: .[1]})')"; \
-  jq -n --argjson apt "$apt_json"  '{apt: $apt}' > /.sbom.json;
+  jq -n --argjson apt "$apt_json"  '{apt: $apt}' > /.sbom.json; \
+  #
+  # Remove ROCm objects for GPU models not present on LUMI
+  #
+  find /opt/rocm/lib/ -type f -print0 \
+    | grep -zP 'gfx[0-9a-fA-F]+' \
+    | grep -zPv 'gfx90a(?![0-9a-fA-F])' \
+    | xargs -0 rm -v --
+
 
 ENV ROCM_PATH=/opt/rocm
