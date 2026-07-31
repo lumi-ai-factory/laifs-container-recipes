@@ -124,9 +124,6 @@ wretag_url: "git+https://github.com/lumi-ai-factory/wretag.git@0da1af0"
 apex_git_commit: "e97c665" # Latest from branch release/1.10.0 (this branch is specifically for Pytorch 2.10.0) as of 2026-07-13
 apex_git_repo: "https://github.com/ROCm/apex"
 #
-bnb_commit: "f0e6ca3" # Tagged as latest release (v0.49.2) as of 2026-07-13
-bnb_repo: "https://github.com/bitsandbytes-foundation/bitsandbytes"
-#
 causal_conv1d_commit: "4f6ae4e" # Latest commit as of 2026-07-13
 causal_conv1d_repo: "https://github.com/Dao-AILab/causal-conv1d"
 #
@@ -166,6 +163,7 @@ extra_apt_packages:
   - sqlite3
 extra_pip_packages:
   - accelerate
+  - bitsandbytes
   - datasets
   - evaluate
   - h5py

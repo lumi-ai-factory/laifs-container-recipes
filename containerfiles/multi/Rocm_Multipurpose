@@ -220,27 +220,6 @@ RUN set -ue; \
 
 
 #
-# Install bitsandbytes
-#
-
-RUN set -ue; \
-  . /opt/venv/bin/activate; \
-    git clone ${BNB_REPO} /opt/src/bitsandbytes; \
-    cd /opt/src/bitsandbytes; \
-    git checkout ${BNB_COMMIT}; \
-    export MAKEFLAGS="-j$(nproc)"; \
-    export COMPUTE_BACKEND=hip; \
-    export BNB_ROCM_ARCH=${MULTI_IMAGE_GPU_ARCH}; \
-    python3 setup.py clean --all; \
-    python3 setup.py bdist_wheel --dist-dir=dist; \
-    wheel_path="$(find /opt/src/bitsandbytes/dist  -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
-    test $(echo $wheel_path | wc -w) = 1; \
-    new_wheel="$(wretag -d -q lumi_aif_${MULTI_IMAGE_GPU_ARCH}_${BNB_COMMIT} $wheel_path)"; \
-    pip install $new_wheel; \
-    cd / && rm -rf /opt/src/bitsandbytes;
-
-
-#
 # Cleanup and finalize
 #
 RUN set -ue; \
