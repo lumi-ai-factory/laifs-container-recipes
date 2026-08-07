@@ -22,9 +22,11 @@ RUN set -ue; \
   export NVTE_FRAMEWORK=pytorch; \
   export NVTE_FUSED_ATTN=0; \
   #
-  git clone --recursive --branch "${TRANSFORMER_ENGINE_COMMIT}" ${TRANSFORMER_ENGINE_REPO} /opt/src/transformer_engine; \
+  git clone ${TRANSFORMER_ENGINE_REPO} /opt/src/transformer_engine; \
   #
   cd /opt/src/transformer_engine; \
+  git checkout ${TRANSFORMER_ENGINE_COMMIT}; \
+  git submodule update --init --recursive; \
   #
   . /opt/venv/bin/activate; \
   # --no-build-isolation needed for pytorch HIP support detection
