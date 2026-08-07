@@ -531,6 +531,6 @@ files:
       # as the build dir is tracked under `laifs-container-recipes-release-artifacts`.
       cd ../..
       #
-      tar -C builds/ --exclude='*.tar' --exclude '*.tgz' --exclude='*.sif' -czf {{release_id}}-release.tgz {{release_id}}
+      tar -C builds/ --exclude='*.tar' --exclude '*.tgz' --exclude='*.sif' -czf builds/{{release_id}}-release.tgz {{release_id}}
       gh label create --repo https://github.com/lumi-ai-factory/laifs-container-recipes {{release_id}}
       gh release create {{release_id}} --verify-tag --notes-file builds/{{release_id}}/{{release_id}}-release.md --title {{release_id}} builds/{{release_id}}-release.tgz
