@@ -339,7 +339,7 @@ show_commands() {
 
 main() {
     # Set shell options
-    set -e  # Exit on non-zero exit status
+    set -eo pipefail  # Exit on non-zero exit status
     #set -x  # Print executed commands
 
     # Ensure availability of required shell features

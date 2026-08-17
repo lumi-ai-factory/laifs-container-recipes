@@ -2,7 +2,7 @@
 
 main() {
     # Set shell options
-    set -eu
+    set -euo pipefail
 
     # Get build args
     TEMPLATE=$1
