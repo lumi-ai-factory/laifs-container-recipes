@@ -212,7 +212,7 @@ steps:
       {%- for pkg in extra_packages %}
         - {{ pkg }}
       {%- endfor %}
-    template: rocm/Ubuntu2404_Rocm6
+    template: rocm/Ubuntu2404_Rocm7
     force: False
     env:
       - AMDGPU_REPO={{amdgpu_repo}}
