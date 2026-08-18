@@ -5,10 +5,10 @@ amdgpu_repo: "https://repo.radeon.com/amdgpu"
 amdgpu_version: "6.4.4"
 #
 rocm_repo: "https://repo.radeon.com/rocm"
-rocm_version: "7.0.2"
+rocm_version: "7.1.1"
 #
 ubuntu_release: "24.04"
-ubuntu_tag: "noble-20260324"
+ubuntu_tag: "noble-20260730.1"
 #
 extra_locales:
   - cs_CZ.UTF-8
@@ -86,10 +86,10 @@ rccl_tests_version_prefix: "2.18.3" # Set version prefix to NCCL_TESTS_VERSION
 # ubuntu-rocm-libfabric-mpich-torch
 #
 torch_repo: "https://github.com/pytorch/pytorch"
-torch_version: "2.10.0"
+torch_version: "2.11.0"
 torch_gpu_arch: "gfx90a"
-torch_patches:
-  - "https://github.com/viahlgre/pytorch/commit/f0374f296279f6fbdb3437a144b226521d00b788.patch"
+# torch_patches:
+#   - "https://github.com/viahlgre/pytorch/commit/f0374f296279f6fbdb3437a144b226521d00b788.patch" # Disabled for PyTorch 2.13
 #
 torch_pip_dependencies:
   - mkl-include
@@ -113,8 +113,8 @@ torch_apt_dependencies:
 #
 fake_triton_url: "git+https://github.com/viahlgre/fake-triton.git@d35f4ca"
 pytorch_triton_url: "https://download.pytorch.org/whl/triton_rocm-3.6.0-cp312-cp312-linux_x86_64.whl"
-torchaudio_url: "https://download-r2.pytorch.org/whl/rocm7.0/torchaudio-2.10.0%2Brocm7.0-cp312-cp312-manylinux_2_28_x86_64.whl"
-torchvision_url: "https://download-r2.pytorch.org/whl/rocm7.0/torchvision-0.25.0%2Brocm7.0-cp312-cp312-manylinux_2_28_x86_64.whl"
+torchaudio_url: "https://download-r2.pytorch.org/whl/rocm7.1/torchaudio-2.11.0%2Brocm7.1-cp312-cp312-manylinux_2_28_x86_64.whl"
+torchvision_url: "https://download-r2.pytorch.org/whl/rocm7.1/torchvision-0.26.0%2Brocm7.1-cp312-cp312-manylinux_2_28_x86_64.whl"
 #
 wretag_url: "git+https://github.com/lumi-ai-factory/wretag.git@0da1af0"
 
