@@ -29,7 +29,7 @@ RUN set -e;\
     build-essential cmake kmod libelf1 libnuma-dev \
     pkgconf zstd ${EXTRA_PACKAGES}
 
-RUN set -e;\
+RUN set -ue;\
   #
   # Add ROCm repository
   #
@@ -52,7 +52,7 @@ RUN set -e;\
   echo /opt/rocm/lib > /etc/ld.so.conf.d/rocm-30.conf && \
   ldconfig
 
-RUN \
+RUN set -e;\
   #
   # Add SBOM
   #

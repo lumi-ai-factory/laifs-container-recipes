@@ -5,33 +5,22 @@ FROM $BASE_IMAGE:$BASE_IMAGE_TAG
 ARG BASE_IMAGE
 ARG BASE_IMAGE_TAG
 
-ARG TORCH_REPO
-ARG TORCH_VERSION
-ARG TORCH_ROCM_VERSION
-ARG TORCH_GPU_ARCH
-ARG TORCH_PATCHES
-
-ARG TORCH_PIP_DEPENDENCIES
-ARG TORCH_APT_DEPENDENCIES
-
-ARG PYTORCH_TRITON_URL
-ARG FAKE_TRITON_URL
-ARG TORCHAUDIO_URL
-ARG TORCHVISION_URL
-
-ARG WRETAG_URL
-
 ARG SRC_DIR="/opt/pytorch/src"
 ARG WHEEL_DIR="/opt/pytorch/wheels"
 
-RUN \
+ARG TORCH_APT_DEPENDENCIES
+
+RUN set -ue; \
   # Install OS dependencies
   apt-get update && \
   apt-get -y install --no-install-recommends ${TORCH_APT_DEPENDENCIES} && \
   apt-get clean && \
   rm -rf /var/lib/apt/lists/*
-  #
-RUN \
+
+ARG TORCH_PIP_DEPENDENCIES
+ARG PYTORCH_TRITON_URL
+
+RUN set -ue; \
   # Install Python dependencies
   python3.12 -m venv /opt/venv && \
   . /opt/venv/bin/activate; \
@@ -40,16 +29,14 @@ RUN \
   pip install --no-cache-dir ${TORCH_PIP_DEPENDENCIES}; \
   pip install --no-cache-dir ${PYTORCH_TRITON_URL}; \
   pip install --no-cache-dir /opt/rocm/share/amd_smi
-  #
+
+ARG TORCH_REPO
+ARG TORCH_VERSION
+
 RUN set -ue; \
   # Get PyTorch
-  mkdir -p ${SRC_DIR} ; \
-  mkdir -p ${WHEEL_DIR} ; \
-  #
-  test -f /opt/rocm/lib/llvm/bin/amdgpu-arch.really && { echo "error: amdgpu-arch.really already exists"; false; } || true; \
-  mv /opt/rocm/lib/llvm/bin/amdgpu-arch /opt/rocm/lib/llvm/bin/amdgpu-arch.really; \
-  printf "#!/bin/bash\necho ${TORCH_GPU_ARCH}\n" > /opt/rocm/lib/llvm/bin/amdgpu-arch; \
-  chmod a+rx /opt/rocm/lib/llvm/bin/amdgpu-arch; \
+  mkdir -p ${SRC_DIR} && \
+  mkdir -p ${WHEEL_DIR}; \
   #
   git clone --branch "v${TORCH_VERSION}" --depth 1 "${TORCH_REPO}" "${SRC_DIR}" && \
   cd "${SRC_DIR}" && \
@@ -59,8 +46,16 @@ RUN set -ue; \
   # for PATCH_URL in ${TORCH_PATCHES}; do curl -s $PATCH_URL | git apply; done; \
   #
   git status
-  #
-RUN \
+
+ARG TORCH_ROCM_VERSION
+ARG TORCH_GPU_ARCH
+ARG TORCH_PATCHES
+
+ARG FAKE_TRITON_URL
+ARG TORCHAUDIO_URL
+ARG TORCHVISION_URL
+
+RUN set -ue; \
   # Build PyTorch
   export GPU_ARCH_TYPE=rocm; \
   export ROCM_HOME=/opt/rocm; \
@@ -84,10 +79,13 @@ RUN \
   export USE_ROCM_CK_SDPA=0; \
   export USE_ROCM_CK_GEMM=0: \
   #
-  export USE_MPI=1; \
-  export USE_C10D_MPI=1; \
+  # MPI disabled for PyTorch 2.11.0 to avoid memory corruption at torch library exit
+  export USE_MPI=0; \
+  export USE_C10D_MPI=0; \
   export USE_SYSTEM_NCCL=1; \
   export USE_STATIC_NCCL=0; \
+  # Flags on official build script
+  # https://github.com/pytorch/pytorch/blob/v2.11.0/.ci/manywheel/build_rocm.sh#L10
   #
   export BUILD_TEST=0; \
   export INSTALL_TEST=0; \
@@ -100,21 +98,17 @@ RUN \
   python tools/amd_build/build_amd.py && \
   python -m pip wheel --no-build-isolation --no-deps -v -w ${WHEEL_DIR} .; \
   #
-  wheel_path="$(find ${WHEEL_DIR}  -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
-  # test $(echo $wheel_path | wc -w) = 1; \
-  # new_wheel="$(wretag -d -q ${TORCH_ROCM_VERSION}_lumi_aif_$(date -u +'%Y%m%d%H%M%S') $wheel_path)"; \
+  wheel_path="$(find ${WHEEL_DIR}  -mindepth 1 -maxdepth 1 -type f -name '*.whl')" && \
+  test $(echo $wheel_path | wc -w) = 1 && \
   pip install $wheel_path; \
   #
-  pip install $TORCHAUDIO_URL $TORCHVISION_URL $FAKE_TRITON_URL; \
+  pip install $TORCHAUDIO_URL $TORCHVISION_URL $FAKE_TRITON_URL && \
+  python -c "import torch; print(torch.__version__)"; \
   #
   pip cache purge; \
   #
-  rm -rf ${SRC_DIR}; \
+  rm -rf ${SRC_DIR} && \
   rm -rf ${WHEEL_DIR}; \
-  #
-  test -f /opt/rocm/lib/llvm/bin/amdgpu-arch.really || { echo "error: amdgpu-arch.really is missing"; false; }; \
-  rm /opt/rocm/lib/llvm/bin/amdgpu-arch; \
-  mv /opt/rocm/lib/llvm/bin/amdgpu-arch.really /opt/rocm/lib/llvm/bin/amdgpu-arch; \
   #
   # Add SBOM
   #
