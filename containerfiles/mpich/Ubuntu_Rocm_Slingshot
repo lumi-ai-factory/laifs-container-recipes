@@ -2,44 +2,26 @@
 
 FROM $BASE_IMAGE:$BASE_IMAGE_TAG AS builder
 
-ARG AWS_OFI_NCCL_COMMIT
-ARG AWS_OFI_NCCL_REPO
-ARG AWS_OFI_NCCL_VERSION
-
 ARG BASE_IMAGE
 ARG BASE_IMAGE_TAG
-
-ARG HWLOC_REPO
-ARG HWLOC_VERSION
-
-ARG MPICH_SOURCE
-ARG MPICH_VERSION
-ARG MPICH_GPU_ARCH
-
-ARG OSU_SOURCE
-ARG OSU_VERSION
-
-ARG RCCL_TESTS_COMMIT
-ARG RCCL_TESTS_GPU_ARCHS
-ARG RCCL_TESTS_REPO
-ARG RCCL_TESTS_VERSION
-
 
 #
 # Install FPM package builder using GEM (only for the builder image)
 #
 
 RUN set -ue; \
-  export DEBIAN_FRONTEND=noninteractive; \
-  apt-get update; \
-  apt-get install -y ruby ruby-dev; \
-  gem install --no-document fpm; \
+  export DEBIAN_FRONTEND=noninteractive && \
+  apt-get update && \
+  apt-get install -y ruby ruby-dev && \
+  gem install --no-document fpm && \
   mkdir /debs;
 
 
 #
 # Build and install hwloc (with rocm/amdgpu support) into the builder container
 #
+ARG HWLOC_REPO
+ARG HWLOC_VERSION
 
 RUN set -ue; \
     TMPROOT=$(mktemp -d); \
@@ -47,7 +29,8 @@ RUN set -ue; \
     cd  "$TMPROOT/hwloc"; \
     git checkout "hwloc-${HWLOC_VERSION}"; \
     ./autogen.sh; \
-    ./configure --with-rocm=/opt/rocm --with-amdgpu=/opt/amdgpu --prefix=/usr --libdir /usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH) --disable-opencl --disable-gl --enable-plugins=pci; \
+    # https://hwloc.readthedocs.io/en/v2.x/doxygen/html/faq.html
+    ./configure --with-rocm=/opt/rocm --disable-rsmi-rocm --prefix=/usr --libdir /usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH) --disable-opencl --disable-gl --enable-plugins=pci; \
     make -j $(nproc) DESTDIR="$TMPROOT" install; \
     cd /debs; \
     fpm -s dir -t deb -n libhwloc15 -v "${HWLOC_VERSION}" --description "LUMI-AIF-$(date -u +'%Y%m%d%H%M%S')" --prefix / -C "$TMPROOT" \
@@ -65,6 +48,9 @@ RUN set -ue; \
 #
 # Build and install MPICH package into the builder container
 #
+ARG MPICH_SOURCE
+ARG MPICH_VERSION
+ARG MPICH_GPU_ARCH
 
 RUN set -ue; \
   TMPROOT=$(mktemp -d); \
@@ -85,6 +71,8 @@ RUN set -ue; \
 #
 # Build and install OSU Benchmarks package into the builder container
 #
+ARG OSU_SOURCE
+ARG OSU_VERSION
 
 RUN set -ue; \
     TMPROOT=$(mktemp -d); \
@@ -105,6 +93,9 @@ RUN set -ue; \
 #
 # Build and install AWS-OFI-NCCL package into the builder container
 #
+ARG AWS_OFI_NCCL_COMMIT
+ARG AWS_OFI_NCCL_REPO
+ARG AWS_OFI_NCCL_VERSION
 
 RUN set -ue; \
     TMPROOT=$(mktemp -d); \
@@ -123,6 +114,10 @@ RUN set -ue; \
 #
 # Build and install rccl-tests package into the builder container
 #
+ARG RCCL_TESTS_COMMIT
+ARG RCCL_TESTS_GPU_ARCHS
+ARG RCCL_TESTS_REPO
+ARG RCCL_TESTS_VERSION
 
 RUN set -ue; \
     TMPROOT=$(mktemp -d); \
