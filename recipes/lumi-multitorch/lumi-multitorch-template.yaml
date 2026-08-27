@@ -403,12 +403,14 @@ steps:
       #
       - MULTI_IMAGE_GPU_ARCH={{multi_image_gpu_arch}}
       #
+      - VLLM_VERSION={{vllm_version}}
       - VLLM_COMMIT={{vllm_commit}}
       - VLLM_REPO={{vllm_repo}}
       #
       - XFORMERS_COMMIT={{xformers_commit}}
       - XFORMERS_REPO={{xformers_repo}}
       #
+      - WRETAG_URL={{wretag_url}}
     export:
       def:
 
