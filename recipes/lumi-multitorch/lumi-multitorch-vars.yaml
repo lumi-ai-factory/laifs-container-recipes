@@ -94,14 +94,6 @@ torch_gpu_arch: "gfx90a"
 torch_pip_dependencies:
   - mkl-include
   - mkl-static
-  - ninja
-  - numpy
-  - packaging
-  - pyyaml
-  - requests
-  - setuptools
-  - six
-  - typing_extensions
 #
 torch_apt_dependencies:
   - ccache
@@ -175,7 +167,6 @@ extra_pip_packages:
   - mlflow
   - mpi4py
   - numba
-  - numpy
   - pandas
   - peft
   - scipy
@@ -186,11 +177,11 @@ extra_pip_packages:
   - ultralytics-opencv-headless
 dependency_pip_packages:
   # DeepSpeed OPS build
-  - impi-devel
-  - oneccl-devel
+  # - impi-devel
+  # - oneccl-devel
   # Flash-attention build
-  - ninja
-  - packaging
+  # - ninja
+  # - packaging
   # Megatron-LM
   - flask-restful
   - nltk
@@ -201,7 +192,7 @@ dependency_pip_packages:
   - wrapt
   - zarr
   # vLLM build
-  - jinja2
+  # - jinja2
   - setuptools_rust
   - setuptools_scm
 

@@ -51,15 +51,12 @@ ARG TORCH_ROCM_VERSION
 ARG TORCH_GPU_ARCH
 ARG TORCH_PATCHES
 
-ARG FAKE_TRITON_URL
-ARG TORCHAUDIO_URL
-ARG TORCHVISION_URL
+ENV PYTORCH_ROCM_ARCH=${TORCH_GPU_ARCH}
 
 RUN set -ue; \
   # Build PyTorch
   export GPU_ARCH_TYPE=rocm; \
   export ROCM_HOME=/opt/rocm; \
-  export PYTORCH_ROCM_ARCH=${TORCH_GPU_ARCH}; \
   export DESIRED_CUDA=${TORCH_ROCM_VERSION}; \
   #
   export MAX_JOBS="$(nproc)"; \
@@ -95,17 +92,22 @@ RUN set -ue; \
   #
   . /opt/venv/bin/activate && \
   cd ${SRC_DIR} && \
+  pip install -r requirements-build.txt && \
   python tools/amd_build/build_amd.py && \
   python -m pip wheel --no-build-isolation --no-deps -v -w ${WHEEL_DIR} .; \
   #
   wheel_path="$(find ${WHEEL_DIR}  -mindepth 1 -maxdepth 1 -type f -name '*.whl')" && \
   test $(echo $wheel_path | wc -w) = 1 && \
-  pip install $wheel_path; \
-  #
+  cd .. && pip install $wheel_path
+
+ARG FAKE_TRITON_URL
+ARG TORCHAUDIO_URL
+ARG TORCHVISION_URL
+
+RUN set -e; \
+  . /opt/venv/bin/activate && \
   pip install $TORCHAUDIO_URL $TORCHVISION_URL $FAKE_TRITON_URL && \
   python -c "import torch; print(torch.__version__)"; \
-  #
-  pip cache purge; \
   #
   rm -rf ${SRC_DIR} && \
   rm -rf ${WHEEL_DIR}; \
@@ -116,8 +118,9 @@ RUN set -ue; \
   pip_json="$(pip list --format=json)"; \
   jq -n --argjson apt "$apt_json"  --argjson pip "$pip_json" '{apt: $apt, pip: $pip}' > /.sbom.json;
 
+ENV VIRTUAL_ENV="/opt/venv"
 ENV PATH="/opt/venv/bin:$PATH"
-ENV PYTHONPATH="/opt/venv/lib/python3.12/site-packages:$PYTHONPATH"
+# ENV PYTHONPATH="/opt/venv/lib/python3.12/site-packages:$PYTHONPATH"
 
 RUN printf '#!/usr/bin/env bash\n\
 if [ "${SLURM_NNODES}" = 1 ] && [ -z "${SLURM_GPUS_ON_NODE}" ]; then\n\
