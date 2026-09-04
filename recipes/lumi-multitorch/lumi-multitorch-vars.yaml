@@ -89,6 +89,11 @@ rccl_tests_version_prefix: "2.27.7" # Set version prefix to NCCL_TESTS_VERSION
 torch_repo: "https://github.com/pytorch/pytorch"
 torch_version: "2.11.0"
 torch_gpu_arch: "gfx90a"
+#
+pytorch_triton_version: "3.6.0"
+torchaudio_version: "2.11.0"
+torchvision_version: "0.26.0"
+
 # torch_patches:
 #   - "https://github.com/viahlgre/pytorch/commit/f0374f296279f6fbdb3437a144b226521d00b788.patch" # Disabled for PyTorch 2.13
 #
@@ -105,9 +110,6 @@ torch_apt_dependencies:
   - numactl
 #
 fake_triton_url: "git+https://github.com/viahlgre/fake-triton.git@d35f4ca"
-pytorch_triton_url: "https://download.pytorch.org/whl/triton_rocm-3.6.0-cp312-cp312-linux_x86_64.whl"
-torchaudio_url: "https://download-r2.pytorch.org/whl/rocm7.1/torchaudio-2.11.0%2Brocm7.1-cp312-cp312-manylinux_2_28_x86_64.whl"
-torchvision_url: "https://download-r2.pytorch.org/whl/rocm7.1/torchvision-0.26.0%2Brocm7.1-cp312-cp312-manylinux_2_28_x86_64.whl"
 
 #
 # ubuntu-rocm-libfabric-mpich-torch-full

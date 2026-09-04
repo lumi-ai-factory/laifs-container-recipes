@@ -44,6 +44,9 @@
   {{- release_registry ~ ':' ~  short_name -}}
 {% endmacro %}
 
+{#- Convert ROCM version to a format suitable for the pip wheel URLs -#}
+{%- set rocm_wheel_version = 'rocm' ~ (rocm_version.split('.')[:2] | join('.')) -%}
+
 {#- List of image variants for convenience with generating the documentation -#}
 {% set image_variants = ["plus", "full", "torch", "mpich", "libfabric", "rocm"] %}
 
@@ -323,24 +326,24 @@ steps:
       PyTorch version: {{torch_version}}
       PyTorch packages and sources:
         - PyTorch: "{{torch_repo}} @ tag v{{torch_version}}"
-        - TorchVision: {{torchvision_url}}
-        - TorchAudio: {{torchaudio_url}}
-        - PyTorch Triton: {{pytorch_triton_url}}
+        - TorchVision: {{torchvision_version}} from https://download.pytorch.org/whl/{{rocm_wheel_version}}/
+        - TorchAudio: {{torchaudio_version}} from https://download.pytorch.org/whl/{{rocm_wheel_version}}/
+        - PyTorch Triton: {{pytorch_triton_version}} from https://download.pytorch.org/whl/{{rocm_wheel_version}}/
     template: torch/Venv_Torch_From_Src
     force: False
     env:
       - TORCH_REPO={{torch_repo}}
       - TORCH_VERSION={{torch_version}}
-      - TORCH_ROCM_VERSION=rocm{{ rocm_version.split('.')[:2] | join('.') }}
+      - TORCH_ROCM_VERSION={{rocm_wheel_version}}
       - TORCH_GPU_ARCH={{torch_gpu_arch}}
       - TORCH_PATCHES="{{torch_patches | join(' ')}}"
       #
       - TORCH_PIP_DEPENDENCIES="{{torch_pip_dependencies | join(' ')}}"
       - TORCH_APT_DEPENDENCIES="{{torch_apt_dependencies | join(' ')}}"
       #
-      - PYTORCH_TRITON_URL={{pytorch_triton_url}}
-      - TORCHAUDIO_URL={{torchaudio_url}}
-      - TORCHVISION_URL={{torchvision_url}}
+      - PYTORCH_TRITON_VERSION={{pytorch_triton_version}}
+      - TORCHAUDIO_VERSION={{torchaudio_version}}
+      - TORCHVISION_VERSION={{torchvision_version}}
       #
       - FAKE_TRITON_URL={{fake_triton_url}}
       #

@@ -2,11 +2,11 @@
 
 FROM $BASE_IMAGE:$BASE_IMAGE_TAG
 
-ARG BASE_IMAGE
-ARG BASE_IMAGE_TAG
+ARG BASE_IMAGE \
+    BASE_IMAGE_TAG
 
-ARG SRC_DIR="/opt/pytorch/src"
-ARG WHEEL_DIR="/opt/pytorch/wheels"
+ARG SRC_DIR="/opt/pytorch/src" \
+    WHEEL_DIR="/opt/pytorch/wheels"
 
 ARG TORCH_APT_DEPENDENCIES
 
@@ -17,21 +17,23 @@ RUN set -ue; \
   apt-get clean && \
   rm -rf /var/lib/apt/lists/*
 
-ARG TORCH_PIP_DEPENDENCIES
-ARG PYTORCH_TRITON_URL
+ARG TORCH_PIP_DEPENDENCIES \
+    TORCH_ROCM_VERSION \
+    PYTORCH_TRITON_VERSION
 
 RUN set -ue; \
   # Install Python dependencies
   python3.12 -m venv /opt/venv && \
   . /opt/venv/bin/activate; \
   #
-  # pip install --no-cache-dir "${WRETAG_URL}"; \
-  pip install --no-cache-dir ${TORCH_PIP_DEPENDENCIES}; \
-  pip install --no-cache-dir ${PYTORCH_TRITON_URL}; \
-  pip install --no-cache-dir /opt/rocm/share/amd_smi
+  pip install ${TORCH_PIP_DEPENDENCIES} && \
+  pip install \
+    triton-rocm==${PYTORCH_TRITON_VERSION} \
+    --index-url https://download.pytorch.org/whl/${TORCH_ROCM_VERSION}/ && \
+  pip install /opt/rocm/share/amd_smi
 
-ARG TORCH_REPO
-ARG TORCH_VERSION
+ARG TORCH_REPO \
+    TORCH_VERSION
 
 RUN set -ue; \
   # Get PyTorch
@@ -41,15 +43,14 @@ RUN set -ue; \
   git clone --branch "v${TORCH_VERSION}" --depth 1 "${TORCH_REPO}" "${SRC_DIR}" && \
   cd "${SRC_DIR}" && \
   git submodule sync --recursive && \
-  git submodule update --init --recursive -j "$(nproc)"; \
+  git submodule update --init --recursive; \
   #
   # for PATCH_URL in ${TORCH_PATCHES}; do curl -s $PATCH_URL | git apply; done; \
   #
   git status
 
-ARG TORCH_ROCM_VERSION
-ARG TORCH_GPU_ARCH
-ARG TORCH_PATCHES
+ARG TORCH_GPU_ARCH \
+    TORCH_PATCHES
 
 ENV PYTORCH_ROCM_ARCH=${TORCH_GPU_ARCH}
 
@@ -100,13 +101,18 @@ RUN set -ue; \
   test $(echo $wheel_path | wc -w) = 1 && \
   cd .. && pip install $wheel_path
 
-ARG FAKE_TRITON_URL
-ARG TORCHAUDIO_URL
-ARG TORCHVISION_URL
+ARG FAKE_TRITON_URL \
+    TORCHAUDIO_VERSION \
+    TORCHVISION_VERSION
 
 RUN set -e; \
   . /opt/venv/bin/activate && \
-  pip install $TORCHAUDIO_URL $TORCHVISION_URL $FAKE_TRITON_URL && \
+  #
+  pip install \
+    torchvision==${TORCHVISION_VERSION}+${TORCH_ROCM_VERSION} \
+    torchaudio==${TORCHAUDIO_VERSION}+${TORCH_ROCM_VERSION} \
+    --index-url https://download.pytorch.org/whl/${TORCH_ROCM_VERSION} && \
+  pip install ${FAKE_TRITON_URL} && \
   python -c "import torch; print(torch.__version__)"; \
   #
   rm -rf ${SRC_DIR} && \
@@ -114,9 +120,12 @@ RUN set -e; \
   #
   # Add SBOM
   #
-  apt_json="$(dpkg-query -W -f='${Package}\t${Version}\n' | jq -R -s 'split("\n")[:-1] | map(split("\t") | {name: .[0], version: .[1]})')"; \
-  pip_json="$(pip list --format=json)"; \
-  jq -n --argjson apt "$apt_json"  --argjson pip "$pip_json" '{apt: $apt, pip: $pip}' > /.sbom.json;
+  apt_json="$(dpkg-query -W -f='${Package}\t${Version}\n' | jq -R -s 'split("\n")[:-1] | map(split("\t") | {name: .[0], version: .[1]})')" && \
+  pip_json="$(pip list --format=json)" && \
+  jq -n \
+    --argjson apt "$apt_json" \
+    --argjson pip "$pip_json" \
+    '{apt: $apt, pip: $pip}' > /.sbom.json
 
 ENV VIRTUAL_ENV="/opt/venv"
 ENV PATH="/opt/venv/bin:$PATH"
