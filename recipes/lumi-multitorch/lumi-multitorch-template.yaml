@@ -47,6 +47,11 @@
 {#- Convert ROCM version to a format suitable for the pip wheel URLs -#}
 {%- set rocm_wheel_version = 'rocm' ~ (rocm_version.split('.')[:2] | join('.')) -%}
 
+{#- Set pip wheel URLs -#}
+{%- set torchvision_url = 'https://download.pytorch.org/whl/' ~ rocm_wheel_version -%}
+{%- set torchaudio_url = 'https://download.pytorch.org/whl/' ~ rocm_wheel_version -%}
+{%- set pytorch_triton_url = 'https://download.pytorch.org/whl/' ~ rocm_wheel_version -%}
+
 {#- List of image variants for convenience with generating the documentation -#}
 {% set image_variants = ["plus", "full", "torch", "mpich", "libfabric", "rocm"] %}
 
@@ -105,7 +110,7 @@ desc: |
     - AWS-OFI-NCCL {{aws_ofi_nccl_version}} (from {{aws_ofi_nccl_repo}} commit {{aws_ofi_nccl_commit}})
     - RCCL (from {{rccl_tests_repo}} commit {{rccl_tests_commit}})
     - OSU micro-benchmarks {{osu_version}} (from {{osu_source}} release tgz for {{osu_version}})
-    - PyTorch {{torch_version}} (from {{torch_url}} tag v{{torch_version}})
+    - PyTorch {{torch_version}} (from {{torch_repo}} tag v{{torch_version}})
     - TorchVision (from {{torchvision_url}})
     - TorchAudio (from {{torchaudio_url}})
     - PyTorch Triton (from {{pytorch_triton_url}})
