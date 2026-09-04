@@ -65,8 +65,8 @@ xpmem_kernel_id: "linux-headers-6.8.0-136-generic"
 # ubuntu-rocm-libfabric-mpich
 #
 aws_ofi_nccl_repo: "https://github.com/aws/aws-ofi-nccl"
-aws_ofi_nccl_commit: "a2a6d08" # Tagged as latest release (v1.20.0) as of 2026-07-13
-aws_ofi_nccl_version: "1.20.0-git-a2a6d08"
+aws_ofi_nccl_commit: "2475c4c" # Tagged as latest release (v1.21.1) as of 2026-09-04
+aws_ofi_nccl_version: "v1.21.1"
 #
 hwloc_repo: "https://github.com/open-mpi/hwloc"
 hwloc_version: "2.14.0" # Latest version as of 2026-07-13
@@ -79,9 +79,9 @@ osu_source: "https://mvapich.cse.ohio-state.edu/download/mvapich"
 osu_version: "7.5.2" # Latest version as of 2026-07-13
 #
 rccl_tests_repo: "https://github.com/ROCm/rocm-systems"
-rccl_tests_commit: "81a5a30" # Tagged as latest release (therock-7.13) as of 2026-07-13
+rccl_tests_commit: "485afdf" # Tagged as release (therock-7.14.1) as of 2026-09-04
 rccl_tests_gpu_archs: "gfx90a"
-rccl_tests_version_prefix: "2.18.3" # Set version prefix to NCCL_TESTS_VERSION
+rccl_tests_version_prefix: "2.27.7" # Set version prefix to NCCL_TESTS_VERSION
 
 #
 # ubuntu-rocm-libfabric-mpich-torch
