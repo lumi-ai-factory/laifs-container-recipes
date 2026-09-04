@@ -11,8 +11,6 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 ENV GIT_TERMINAL_PROMPT=0
 
-RUN git config --global advice.detachedHead false
-
 ARG EXTRA_LOCALES \
     EXTRA_PACKAGES
 
@@ -20,6 +18,7 @@ RUN set -e;\
   #
   # Enable man pages with unminimize and install additional locales
   #
+  printf '%s\n' 'Dpkg::Use-Pty "0";' > /etc/apt/apt.conf.d/99no-progress; \
   apt-get update && \
   yes | unminimize && \
   apt-get -y --no-install-recommends install man locales && \
@@ -30,6 +29,8 @@ RUN set -e;\
   apt-get install -y --no-install-recommends ca-certificates curl gnupg \
     build-essential cmake kmod libelf1 libnuma-dev \
     pkgconf zstd ${EXTRA_PACKAGES}
+
+RUN git config --global advice.detachedHead false
 
 ARG AMDGPU_REPO \
     AMDGPU_VERSION
