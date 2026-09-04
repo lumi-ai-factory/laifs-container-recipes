@@ -81,7 +81,6 @@ osu_version: "7.5.2" # Latest version as of 2026-07-13
 rccl_tests_repo: "https://github.com/ROCm/rocm-systems"
 rccl_tests_commit: "485afdf" # Tagged as release (therock-7.14.1) as of 2026-09-04
 rccl_tests_gpu_archs: "gfx90a"
-rccl_tests_version_prefix: "2.27.7" # Set version prefix to NCCL_TESTS_VERSION
 
 #
 # ubuntu-rocm-libfabric-mpich-torch

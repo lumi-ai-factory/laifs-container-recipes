@@ -310,7 +310,6 @@ steps:
       - RCCL_TESTS_COMMIT={{rccl_tests_commit}}
       - RCCL_TESTS_GPU_ARCHS={{rccl_tests_gpu_archs}}
       - RCCL_TESTS_REPO={{rccl_tests_repo}}
-      - RCCL_TESTS_VERSION={{rccl_tests_version_prefix}}-{{rccl_tests_commit}}
     export:
       def:
 

@@ -2,9 +2,6 @@
 
 FROM $BASE_IMAGE:$BASE_IMAGE_TAG AS builder
 
-ARG BASE_IMAGE
-ARG BASE_IMAGE_TAG
-
 #
 # Install FPM package builder using GEM (only for the builder image)
 #
@@ -117,7 +114,6 @@ RUN set -ue; \
 ARG RCCL_TESTS_COMMIT
 ARG RCCL_TESTS_GPU_ARCHS
 ARG RCCL_TESTS_REPO
-ARG RCCL_TESTS_VERSION
 
 RUN set -ue; \
     TMPROOT=$(mktemp -d); \
@@ -131,6 +127,7 @@ RUN set -ue; \
     install -d "${TMPROOT}/libexec/rccl-tests"; \
     cp build/*_perf "${TMPROOT}/libexec/rccl-tests"; \
     cd /debs; \
+    export RCCL_TESTS_VERSION=$(dpkg -l rccl | awk '$2=="rccl" { print $3 }')-${RCCL_TESTS_COMMIT}; \
     fpm -s dir -t deb -n rccl-tests -v "${RCCL_TESTS_VERSION}" --description "LUMI-AIF-$(date -u +'%Y%m%d%H%M%S')" --prefix /usr -C "$TMPROOT" libexec; \
     rm -rf "$TMPROOT"; \
     dpkg -i "rccl-tests_${RCCL_TESTS_VERSION}_amd64.deb"
@@ -140,6 +137,8 @@ RUN set -ue; \
 # Copy the Debian packages created in the previous steps from the builder image to
 # the final image and install them.
 #
+ARG BASE_IMAGE
+ARG BASE_IMAGE_TAG
 
 FROM $BASE_IMAGE:$BASE_IMAGE_TAG
 
