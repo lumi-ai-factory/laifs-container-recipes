@@ -27,7 +27,7 @@ RUN set -ue; \
     git checkout "hwloc-${HWLOC_VERSION}"; \
     ./autogen.sh; \
     # https://hwloc.readthedocs.io/en/v2.x/doxygen/html/faq.html
-    ./configure --with-rocm=/opt/rocm --disable-rsmi-rocm --prefix=/usr --libdir /usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH) --disable-opencl --disable-gl --enable-plugins=pci; \
+    ./configure --with-rocm=/opt/rocm --disable-rsmi-amd --prefix=/usr --libdir /usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH) --disable-opencl --disable-gl --enable-plugins=pci; \
     make -j $(nproc) DESTDIR="$TMPROOT" install; \
     cd /debs; \
     fpm -s dir -t deb -n libhwloc15 -v "${HWLOC_VERSION}" --description "LUMI-AIF-$(date -u +'%Y%m%d%H%M%S')" --prefix / -C "$TMPROOT" \
