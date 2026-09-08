@@ -160,6 +160,10 @@ ENV MPIR_CVAR_CH4_OFI_ENABLE_HMEM=1
 ENV MPIR_CVAR_CH4_OFI_ENABLE_MR_HMEM=1
 ENV MPIR_CVAR_ENABLE_GPU=1
 
+# Note: RCCL contains a known bug where it may search for libnccl-net.so instead of librccl-net.so when loading the network plugin.
+# To work around this, explicitly point RCCL at the correct plugin
+ENV NCCL_NET_PLUGIN="/usr/lib/x86_64-linux-gnu/librccl-net.so"
+
 RUN printf '#!/usr/bin/env bash\n\
 if [ "${SLURM_NNODES}" = 1 ] && [ -z "${SLURM_GPUS_ON_NODE}" ]; then\n\
     export FI_HMEM_DISABLE_P2P=1\n\
