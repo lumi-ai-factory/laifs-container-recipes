@@ -54,7 +54,7 @@ RUN set -ue; \
   MPICH_TGZ="mpich-${MPICH_VERSION}.tar.gz"; \
   MPICH_URL="${MPICH_SOURCE}/${MPICH_VERSION}/${MPICH_TGZ}"; \
   install -d "$TMPROOT/usr" "$TMPROOT/src"; \
-  curl -L -o "${TMPROOT}/src/${MPICH_TGZ}" "${MPICH_URL}"; \
+  curl -sSL -o "${TMPROOT}/src/${MPICH_TGZ}" "${MPICH_URL}"; \
   tar -C "${TMPROOT}/src" -xf "${TMPROOT}/src/${MPICH_TGZ}" --no-same-owner; \
   cd "${TMPROOT}/src/mpich-${MPICH_VERSION}"; \
   ./configure --disable-fortran --enable-fast=O3 --enable-threads=multiple --prefix=/usr --libdir /usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH) --with-device=ch4:ofi --with-hip=/opt/rocm --with-libfabric --with-xpmem=/usr --without-cuda --without-ucx --with-hip-sm=${MPICH_GPU_ARCH}; \
@@ -76,7 +76,7 @@ RUN set -ue; \
     OSU_TGZ="osu-micro-benchmarks-${OSU_VERSION}.tar.gz"; \
     OSU_URL="${OSU_SOURCE}/${OSU_TGZ}"; \
     install -d "$TMPROOT/libexec" "$TMPROOT/src"; \
-    curl -L -o "${TMPROOT}/src/${OSU_TGZ}" "${OSU_URL}"; \
+    curl -sSL -o "${TMPROOT}/src/${OSU_TGZ}" "${OSU_URL}"; \
     tar -C "${TMPROOT}/src" -xf "${TMPROOT}/src/${OSU_TGZ}" --no-same-owner; \
     cd "${TMPROOT}/src/osu-micro-benchmarks-${OSU_VERSION}"; \
     ./configure --prefix=/usr CC=mpicc CXX=mpicxx --enable-rocm --with-rocm=/opt/rocm; \
