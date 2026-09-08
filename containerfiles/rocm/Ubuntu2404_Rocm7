@@ -30,7 +30,8 @@ RUN set -e;\
     build-essential cmake kmod libelf1 libnuma-dev \
     pkgconf zstd ${EXTRA_PACKAGES}
 
-RUN git config --global advice.detachedHead false
+RUN git config --global advice.detachedHead false && \
+    git config --global http.version HTTP/1.1
 
 ARG AMDGPU_REPO \
     AMDGPU_VERSION
