@@ -164,6 +164,15 @@ ENV MPIR_CVAR_ENABLE_GPU=1
 # To work around this, explicitly point RCCL at the correct plugin
 ENV NCCL_NET_PLUGIN="/usr/lib/x86_64-linux-gnu/librccl-net.so"
 
+# Set recommended flags for RCCL
+# More info at
+#  - https://support.hpe.com/hpesc/public/docDisplay?docId=dp00005991en_us&page=user/memory_cache_monitor_settings.html&docLocale=en_US
+#  - https://github.com/HewlettPackard/shs-ccl-docs/blob/main/rccl/rccl_tuning_guide.md#essential-libfabric-environment-settings
+#
+ENV FI_MR_CACHE_MONITOR=userfaultfd
+# Avoid data corruption/mismatch issue that exists in versions before ROCm 7.13
+ENV RCCL_MSCCL_ENABLE=0
+
 RUN printf '#!/usr/bin/env bash\n\
 if [ "${SLURM_NNODES}" = 1 ] && [ -z "${SLURM_GPUS_ON_NODE}" ]; then\n\
     export FI_HMEM_DISABLE_P2P=1\n\
