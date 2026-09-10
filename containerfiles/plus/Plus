@@ -1,13 +1,15 @@
 @@ BUILD_ARGS @@
 
-FROM $BASE_IMAGE:$BASE_IMAGE_TAG
-
 ARG BASE_IMAGE
 ARG BASE_IMAGE_TAG
+
+FROM $BASE_IMAGE:$BASE_IMAGE_TAG
 
 ARG TRANSFORMER_ENGINE_ARCH
 ARG TRANSFORMER_ENGINE_COMMIT
 ARG TRANSFORMER_ENGINE_REPO
+
+ARG SRC_DIR="/opt/src"
 
 RUN set -ue; \
   #
@@ -21,16 +23,17 @@ RUN set -ue; \
   export NVTE_ROCM_ARCH=${TRANSFORMER_ENGINE_ARCH}; \
   export NVTE_FRAMEWORK=pytorch; \
   export NVTE_FUSED_ATTN=0; \
+  export NVTE_USE_ROCM=1; \
   #
-  git clone ${TRANSFORMER_ENGINE_REPO} /opt/src/transformer_engine; \
+  git clone ${TRANSFORMER_ENGINE_REPO} ${SRC_DIR}/transformer_engine; \
   #
-  cd /opt/src/transformer_engine; \
+  cd ${SRC_DIR}/transformer_engine; \
   git checkout ${TRANSFORMER_ENGINE_COMMIT}; \
   git submodule update --init --recursive; \
-  #
-  . /opt/venv/bin/activate; \
   # --no-build-isolation needed for pytorch HIP support detection
-  pip install . --no-build-isolation;
+  pip install . -v --no-build-isolation; \
+  #
+  cd .. && rm -rf ${SRC_DIR}/transformer_engine
 
 RUN printf '#!/usr/bin/env bash\n\
 if [ "${SLURM_NNODES}" = 1 ] && [ -z "${SLURM_GPUS_ON_NODE}" ]; then\n\
