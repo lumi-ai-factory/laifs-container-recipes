@@ -116,7 +116,9 @@ RUN set -ue; \
   new_wheel="$(wretag -d -q lumi_aif_${MULTI_IMAGE_GPU_ARCH}_${XFORMERS_COMMIT} $wheel_path)"; \
   #
   cd .. && pip install --no-cache-dir $new_wheel; \
-  rm -rf ${SRC_DIR}/xformers;
+  rm -rf ${SRC_DIR}/xformers; \
+  #
+  python -m xformers.info
 
 #
 # Install Apex
