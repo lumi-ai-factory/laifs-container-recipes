@@ -119,7 +119,7 @@ apex_git_repo: "https://github.com/ROCm/apex"
 causal_conv1d_commit: "4f6ae4e" # Latest commit as of 2026-07-13
 causal_conv1d_repo: "https://github.com/Dao-AILab/causal-conv1d"
 #
-deepspeed_version: "0.19.5" # Latest release as of 2026-08-26
+deepspeed_version: "0.19.6" # Latest release as of 2026-09-11
 #
 flash_attention_repo_commit: "b664ea0" # Last commit with version 2.8.3 (supported by Transformer Engine) as of 2026-07-31
 flash_attention_repo_url: "https://github.com/ROCm/flash-attention"
