@@ -57,8 +57,8 @@ RUN set -ue; \
     #
     install -d "$TMPROOT/src" "$TMPROOT/src/kernel"  "$TMPROOT/usr"; \
     cd "$TMPROOT/src"; \
-    wget http://archive.ubuntu.com/ubuntu/pool/main/l/linux/${XPMEM_KERNEL_BASE_SRC}; \
-    wget http://archive.ubuntu.com/ubuntu/pool/main/l/linux/${XPMEM_KERNEL_GENERIC_SRC}; \
+    wget -nv http://archive.ubuntu.com/ubuntu/pool/main/l/linux/${XPMEM_KERNEL_BASE_SRC}; \
+    wget -nv http://archive.ubuntu.com/ubuntu/pool/main/l/linux/${XPMEM_KERNEL_GENERIC_SRC}; \
     dpkg-deb -x ${XPMEM_KERNEL_BASE_SRC} kernel/; \
     dpkg-deb -x ${XPMEM_KERNEL_GENERIC_SRC} kernel/; \
     #
@@ -81,7 +81,7 @@ RUN set -ue; \
     CASSINI_HEADERS_TGZ="shs-${CASSINI_HEADERS_VERSION}.tar.gz"; \
     CASSINI_HEADERS_URL="${CASSINI_HEADERS_SOURCE}/archive/refs/tags/release/${CASSINI_HEADERS_TGZ}"; \
     install -d "$TMPROOT/usr/share/cassini-headers" "$TMPROOT/usr/include" "$TMPROOT/src"; \
-    curl -L -o "${TMPROOT}/src/${CASSINI_HEADERS_TGZ}" "${CASSINI_HEADERS_URL}"; \
+    curl -sSL -o "${TMPROOT}/src/${CASSINI_HEADERS_TGZ}" "${CASSINI_HEADERS_URL}"; \
     tar --transform='s|shs-cassini-headers-release-shs-[^/]*||' -C "${TMPROOT}/src" -xzf "${TMPROOT}/src/${CASSINI_HEADERS_TGZ}"; \
     cp "${TMPROOT}/src/share/cassini-headers/csr_defs.json" "$TMPROOT/usr/share/cassini-headers/"; \
     cp -r "${TMPROOT}"/src/include/* "$TMPROOT/usr/include/"; \
