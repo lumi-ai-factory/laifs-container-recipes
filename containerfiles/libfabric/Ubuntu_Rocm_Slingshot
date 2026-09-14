@@ -2,28 +2,6 @@
 
 FROM $BASE_IMAGE:$BASE_IMAGE_TAG AS builder
 
-ARG CASSINI_HEADERS_SOURCE
-ARG CASSINI_HEADERS_VERSION
-
-ARG CXI_HEADERS_CLONE_URL
-ARG CXI_HEADERS_GIT_COMMIT
-ARG CXI_HEADERS_VERSION
-
-ARG LIBCXI_CLONE_URL
-ARG LIBCXI_GIT_COMMIT
-ARG LIBCXI_VERSION
-
-ARG LIBFABRIC_CLONE_URL
-ARG LIBFABRIC_GIT_COMMIT
-ARG LIBFABRIC_VERSION
-
-ARG XPMEM_CLONE_URL
-ARG XPMEM_GIT_COMMIT
-ARG XPMEM_KERNEL_BASE_SRC
-ARG XPMEM_KERNEL_GENERIC_SRC
-ARG XPMEM_KERNEL_ID
-ARG XPMEM_VERSION
-
 RUN set -ue; \
     #
     # Build requisites
@@ -46,6 +24,13 @@ RUN set -ue; \
         ruby-dev; \
     gem install --no-document fpm; \
     mkdir /debs;
+
+ARG XPMEM_CLONE_URL
+ARG XPMEM_GIT_COMMIT
+ARG XPMEM_KERNEL_BASE_SRC
+ARG XPMEM_KERNEL_GENERIC_SRC
+ARG XPMEM_KERNEL_ID
+ARG XPMEM_VERSION
 
 RUN set -ue; \
     #
@@ -73,6 +58,9 @@ RUN set -ue; \
     fpm -s dir -t deb -n xpmem -v "${XPMEM_VERSION}" --description "LUMI-AIF-$(date -u +'%Y%m%d%H%M%S')" --prefix / -C "$TMPROOT" usr/include usr/lib; \
     dpkg -i "xpmem_${XPMEM_VERSION}_amd64.deb";
 
+ARG CASSINI_HEADERS_SOURCE
+ARG CASSINI_HEADERS_VERSION
+
 RUN set -ue; \
     #
     # Cassini headers
@@ -90,6 +78,10 @@ RUN set -ue; \
     rm -rf "$TMPROOT"; \
     dpkg -i "shs-cassini-headers_${CASSINI_HEADERS_VERSION}_amd64.deb";
 
+ARG CXI_HEADERS_CLONE_URL
+ARG CXI_HEADERS_GIT_COMMIT
+ARG CXI_HEADERS_VERSION
+
 RUN set -ue; \
     #
     # CXI headers
@@ -104,6 +96,10 @@ RUN set -ue; \
     fpm -s dir -t deb -n shs-cxi-driver-dev -v ${CXI_HEADERS_VERSION} --description "LUMI-AIF-$(date -u +'%Y%m%d%H%M%S')" --prefix / -C "$TMPROOT" usr/include; \
     rm -rf "$TMPROOT"; \
     dpkg -i shs-cxi-driver-dev_${CXI_HEADERS_VERSION}_amd64.deb;
+
+ARG LIBCXI_CLONE_URL
+ARG LIBCXI_GIT_COMMIT
+ARG LIBCXI_VERSION
 
 RUN set -ue; \
     #
@@ -122,6 +118,29 @@ RUN set -ue; \
     rm -rf "$TMPROOT"; \
     dpkg -i libcxi_${LIBCXI_VERSION}_amd64.deb;
 
+ARG KDREG2_HEADERS_CLONE_URL
+ARG KDREG2_HEADERS_GIT_COMMIT
+ARG KDREG2_HEADERS_VERSION
+
+RUN set -ue; \
+    #
+    # kdreg2 headers
+    #
+    TMPROOT=$(mktemp -d); \
+    install -d "$TMPROOT/src" "$TMPROOT/usr"; \
+    git clone ${KDREG2_HEADERS_CLONE_URL} "$TMPROOT/src/shs-kdreg2"; \
+    cd "$TMPROOT/src/shs-kdreg2"; \
+    git checkout "${KDREG2_HEADERS_GIT_COMMIT}"; \
+    install -Dm644 include/kdreg2.h "$TMPROOT/usr/include/linux/kdreg2.h"; \
+    cd /debs; \
+    fpm -s dir -t deb -n shs-kdreg2-dev -v ${KDREG2_HEADERS_VERSION} --description "LUMI-AIF-$(date -u +'%Y%m%d%H%M%S')" --prefix / -C "$TMPROOT" usr; \
+    rm -rf "$TMPROOT"; \
+    dpkg -i "shs-kdreg2-dev_${KDREG2_HEADERS_VERSION}_amd64.deb";
+
+ARG LIBFABRIC_CLONE_URL
+ARG LIBFABRIC_GIT_COMMIT
+ARG LIBFABRIC_VERSION
+
 RUN set -ue; \
     #
     # Libfabric
@@ -132,7 +151,19 @@ RUN set -ue; \
     cd "$TMPROOT/src/libfabric"; \
     git checkout "${LIBFABRIC_GIT_COMMIT}"; \
     ./autogen.sh; \
-    ./configure LDFLAGS=-Wl,--build-id --prefix=/usr --enable-only --enable-rxm  --enable-rxd --enable-shm --enable-hook_hmem --enable-dmabuf_peer_mem --enable-cxi=/usr --enable-lnx --enable-xpmem=/usr --with-rocr=/opt/rocm --libdir /usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH); \
+    ./configure LDFLAGS=-Wl,--build-id --prefix=/usr \
+        --enable-only \
+        --enable-rxm  \
+        --enable-rxd \
+        --enable-shm \
+        --enable-kdreg2 \
+        --enable-hook_hmem \
+        --enable-dmabuf_peer_mem \
+        --enable-cxi=/usr \
+        --enable-lnx \
+        --enable-xpmem=/usr \
+        --with-rocr=/opt/rocm \
+        --libdir /usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH); \
     make -j "$(nproc)" DESTDIR="$TMPROOT" install; \
     cd /debs; \
     fpm -s dir -t deb -n libfabric -v ${LIBFABRIC_VERSION} --description "LUMI-AIF-$(date -u +'%Y%m%d%H%M%S')" --prefix / -C "$TMPROOT" usr; \

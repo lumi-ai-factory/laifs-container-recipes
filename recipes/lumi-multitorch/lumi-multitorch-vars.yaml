@@ -46,6 +46,10 @@ cxi_headers_version_prefix: "1.0.0-SHS12.0.2"
 cxi_headers_clone_url: "https://github.com/HewlettPackard/shs-cxi-driver"
 cxi_headers_git_commit: "27f7be5" # Based on version LUMI's versions since Jan 2026 maint break
 #
+kdreg2_headers_version_prefix: "0.4-SHS12.0.2"
+kdreg2_headers_clone_url: "https://github.com/HewlettPackard/shs-kdreg2"
+kdreg2_headers_git_commit: "746483b"
+#
 libcxi_version_prefix: "1.0.2-SHS12.0.2"
 libcxi_clone_url: "https://github.com/HewlettPackard/shs-libcxi"
 libcxi_git_commit: "30fa2dd" # Based on version LUMI's versions since Jan 2026 maint break

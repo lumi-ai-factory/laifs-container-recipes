@@ -267,6 +267,10 @@ steps:
       - CXI_HEADERS_CLONE_URL={{cxi_headers_clone_url}}
       - CXI_HEADERS_GIT_COMMIT={{cxi_headers_git_commit}}
       #
+      - KDREG2_HEADERS_VERSION={{kdreg2_headers_version_prefix}}-{{kdreg2_headers_git_commit}}
+      - KDREG2_HEADERS_CLONE_URL={{kdreg2_headers_clone_url}}
+      - KDREG2_HEADERS_GIT_COMMIT={{kdreg2_headers_git_commit}}
+      #
       - LIBCXI_VERSION={{libcxi_version_prefix}}-{{libcxi_git_commit}}
       - LIBCXI_CLONE_URL={{libcxi_clone_url}}
       - LIBCXI_GIT_COMMIT={{libcxi_git_commit}}
