@@ -9,3 +9,6 @@
 
 # Vim swap files
 *.swp
+
+# GitHub authentication
+.github/auth
