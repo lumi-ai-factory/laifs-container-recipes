@@ -221,10 +221,11 @@ parse_step() {
 
     local BUILD_COMMAND=(
         podman build -f "$BUILD_DIR/${STEP_DATA['CF_NAME']}"
-        --cgroup-manager cgroupfs
+        --secret=id=github-netrc,src=".github/auth/build.netrc"
         --label cf_lineage="${STEP_DATA['CF_LINEAGE']}"
         -t "${STEP_DATA['IMAGE_NAME']}:${STEP_DATA['IMAGE_TAG']}"
         -t "${STEP_DATA['IMAGE_NAME']}:latest"
+        "$BUILD_DIR/"
     )
 
     STEP_DATA["BUILD_COMMAND"]="${BUILD_COMMAND[@]}"
