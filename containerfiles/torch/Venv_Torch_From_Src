@@ -3,7 +3,10 @@
 ARG SRC_DIR="/opt/pytorch/src"
 ARG WHEEL_DIR="/opt/pytorch/wheels"
 
-FROM docker.io/alpine/git:latest AS src
+# Use recent git version and authentication with GitHub if needed (2026-09-16)
+# https://github.com/orgs/community/discussions/206581#discussioncomment-18269083
+#
+FROM docker.io/alpine/git:2.54.0 AS src
 
 ARG SRC_DIR
 
