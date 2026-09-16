@@ -1,12 +1,36 @@
 @@ BUILD_ARGS @@
 
+ARG SRC_DIR="/opt/pytorch/src"
+ARG WHEEL_DIR="/opt/pytorch/wheels"
+
+FROM docker.io/alpine/git:latest AS src
+
+ARG SRC_DIR
+
+ARG TORCH_REPO
+ARG TORCH_VERSION
+ARG TORCH_PATCHES
+
+RUN git config --global advice.detachedHead false
+
+RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
+    set -ue; \
+    # Get PyTorch
+    mkdir -p ${SRC_DIR}; \
+    #
+    git clone --branch "v${TORCH_VERSION}" --depth 1 "${TORCH_REPO}" "${SRC_DIR}" && \
+    cd "${SRC_DIR}" && \
+    git submodule sync --recursive && \
+    git submodule update --init --recursive; \
+    #
+    # for PATCH_URL in ${TORCH_PATCHES}; do curl -s $PATCH_URL | git apply; done; \
+    #
+    git status
+
+ARG BASE_IMAGE
+ARG BASE_IMAGE_TAG
+
 FROM $BASE_IMAGE:$BASE_IMAGE_TAG
-
-ARG BASE_IMAGE \
-    BASE_IMAGE_TAG
-
-ARG SRC_DIR="/opt/pytorch/src" \
-    WHEEL_DIR="/opt/pytorch/wheels"
 
 ARG TORCH_APT_DEPENDENCIES
 
@@ -32,27 +56,15 @@ RUN set -ue; \
     --index-url https://download.pytorch.org/whl/${TORCH_ROCM_VERSION}/ && \
   pip install /opt/rocm/share/amd_smi
 
-ARG TORCH_REPO \
-    TORCH_VERSION
-
-RUN set -ue; \
-  # Get PyTorch
-  mkdir -p ${SRC_DIR} && \
-  mkdir -p ${WHEEL_DIR}; \
-  #
-  git clone --branch "v${TORCH_VERSION}" --depth 1 "${TORCH_REPO}" "${SRC_DIR}" && \
-  cd "${SRC_DIR}" && \
-  git submodule sync --recursive && \
-  git submodule update --init --recursive; \
-  #
-  # for PATCH_URL in ${TORCH_PATCHES}; do curl -s $PATCH_URL | git apply; done; \
-  #
-  git status
-
-ARG TORCH_GPU_ARCH \
-    TORCH_PATCHES
+ARG TORCH_GPU_ARCH
+ARG TORCH_VERSION
 
 ENV PYTORCH_ROCM_ARCH=${TORCH_GPU_ARCH}
+
+ARG SRC_DIR
+ARG WHEEL_DIR
+
+COPY --from=src "${SRC_DIR}" "${SRC_DIR}"
 
 RUN set -ue; \
   # Build PyTorch
@@ -92,6 +104,7 @@ RUN set -ue; \
   export PYTORCH_BUILD_NUMBER=1; \
   #
   . /opt/venv/bin/activate && \
+  mkdir -p ${WHEEL_DIR} && \
   cd ${SRC_DIR} && \
   pip install -r requirements-build.txt && \
   python tools/amd_build/build_amd.py && \
@@ -101,9 +114,9 @@ RUN set -ue; \
   test $(echo $wheel_path | wc -w) = 1 && \
   cd .. && pip install $wheel_path
 
-ARG FAKE_TRITON_URL \
-    TORCHAUDIO_VERSION \
-    TORCHVISION_VERSION
+ARG FAKE_TRITON_URL
+ARG TORCHAUDIO_VERSION
+ARG TORCHVISION_VERSION
 
 RUN set -e; \
   . /opt/venv/bin/activate && \
@@ -126,6 +139,9 @@ RUN set -e; \
     --argjson apt "$apt_json" \
     --argjson pip "$pip_json" \
     '{apt: $apt, pip: $pip}' > /.sbom.json
+
+# force all RCCL streams to be high priority
+ENV TORCH_NCCL_HIGH_PRIORITY=1
 
 ENV VIRTUAL_ENV="/opt/venv"
 ENV PATH="/opt/venv/bin:$PATH"
