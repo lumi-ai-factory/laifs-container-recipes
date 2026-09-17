@@ -1,0 +1,11 @@
+#!/bin/bash
+
+set -euo pipefail
+
+template=".github/auth/github.netrc"
+output=".github/auth/build.netrc"
+
+: "${GITHUB_TOKEN:?GITHUB_TOKEN must be set}"
+
+sed "s/^password$/password ${GITHUB_TOKEN}/" "$template" > "$output"
+chmod 600 "$output"
