@@ -169,7 +169,9 @@ ENV NCCL_NET_PLUGIN="/usr/lib/x86_64-linux-gnu/librccl-net.so"
 #  - https://support.hpe.com/hpesc/public/docDisplay?docId=dp00005991en_us&page=user/memory_cache_monitor_settings.html&docLocale=en_US
 #  - https://github.com/HewlettPackard/shs-ccl-docs/blob/main/rccl/rccl_tuning_guide.md#essential-libfabric-environment-settings
 #
-ENV FI_MR_CACHE_MONITOR=userfaultfd
+ENV FI_MR_CACHE_MONITOR=kdreg2
+ENV FI_MR_CUDA_CACHE_MONITOR_ENABLED=0
+ENV FI_MR_ZE_CACHE_MONITOR_ENABLED=0
 # Avoid data corruption/mismatch issue that exists in versions before ROCm 7.13
 ENV RCCL_MSCCL_ENABLE=0
 
