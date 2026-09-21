@@ -11,7 +11,8 @@ ARG TRANSFORMER_ENGINE_REPO
 
 ARG SRC_DIR="/opt/src"
 
-RUN set -ue; \
+RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
+  set -ue; \
   #
   export AOTRITON_TARGET_ARCH=${TRANSFORMER_ENGINE_ARCH}; \
   #
