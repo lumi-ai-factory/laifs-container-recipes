@@ -67,9 +67,8 @@ ENV PYTORCH_ROCM_ARCH=${TORCH_GPU_ARCH}
 ARG SRC_DIR
 ARG WHEEL_DIR
 
-COPY --from=src "${SRC_DIR}" "${SRC_DIR}"
-
-RUN set -ue; \
+RUN --mount=from=src,source=${SRC_DIR},target=${SRC_DIR},rw \
+  set -ue; \
   # Build PyTorch
   export GPU_ARCH_TYPE=rocm; \
   export ROCM_HOME=/opt/rocm; \
@@ -115,7 +114,10 @@ RUN set -ue; \
   #
   wheel_path="$(find ${WHEEL_DIR}  -mindepth 1 -maxdepth 1 -type f -name '*.whl')" && \
   test $(echo $wheel_path | wc -w) = 1 && \
-  cd .. && pip install $wheel_path
+  cd .. && pip install $wheel_path \
+  #
+  rm -rf ${SRC_DIR} && \
+  rm -rf ${WHEEL_DIR}
 
 ARG FAKE_TRITON_URL
 ARG TORCHAUDIO_VERSION
@@ -130,9 +132,6 @@ RUN set -e; \
     --index-url https://download.pytorch.org/whl/${TORCH_ROCM_VERSION} && \
   pip install ${FAKE_TRITON_URL} && \
   python -c "import torch; print(torch.__version__)"; \
-  #
-  rm -rf ${SRC_DIR} && \
-  rm -rf ${WHEEL_DIR}; \
   #
   # Add SBOM
   #
