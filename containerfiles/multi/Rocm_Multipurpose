@@ -50,7 +50,8 @@ RUN set -ue; \
 ARG FLASH_ATTENTION_REPO_COMMIT
 ARG FLASH_ATTENTION_REPO_URL
 
-RUN set -ue; \
+RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
+  set -ue; \
   export MAX_JOBS="${MAX_JOBS:-$(nproc)}"; \
   #
   git clone $FLASH_ATTENTION_REPO_URL ${SRC_DIR}/flash-attention; \
@@ -74,7 +75,8 @@ RUN set -ue; \
 ARG CAUSAL_CONV1D_COMMIT
 ARG CAUSAL_CONV1D_REPO
 
-RUN set -ue; \
+RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
+  set -ue; \
   export MAX_JOBS="${MAX_JOBS:-$(nproc)}"; \
   #
   git clone $CAUSAL_CONV1D_REPO ${SRC_DIR}/causal-conv1d; \
@@ -99,7 +101,8 @@ RUN set -ue; \
 ARG XFORMERS_COMMIT
 ARG XFORMERS_REPO
 
-RUN set -ue; \
+RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
+  set -ue; \
   export MAX_JOBS="${MAX_JOBS:-$(nproc)}"; \
   #
   git clone $XFORMERS_REPO ${SRC_DIR}/xformers && \
@@ -126,7 +129,8 @@ RUN set -ue; \
 ARG APEX_GIT_COMMIT
 ARG APEX_GIT_REPO
 
-RUN set -ue; \
+RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
+  set -ue; \
   export MAX_JOBS="${MAX_JOBS:-$(nproc)}"; \
   #
   git clone "${APEX_GIT_REPO}" ${SRC_DIR}/apex;\
@@ -150,7 +154,8 @@ ARG VLLM_COMMIT
 ARG VLLM_REPO
 ARG VLLM_VERSION
 
-RUN set -ue; \
+RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
+  set -ue; \
   export MAX_JOBS="${MAX_JOBS:-$(nproc)}"; \
   #
   git clone ${VLLM_REPO} ${SRC_DIR}/vllm; \
