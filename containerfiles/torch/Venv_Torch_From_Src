@@ -116,7 +116,6 @@ RUN --mount=from=src,source=${SRC_DIR},target=${SRC_DIR},rw \
   test $(echo $wheel_path | wc -w) = 1 && \
   cd .. && pip install $wheel_path; \
   #
-  rm -rf ${SRC_DIR} && \
   rm -rf ${WHEEL_DIR}
 
 ARG FAKE_TRITON_URL
