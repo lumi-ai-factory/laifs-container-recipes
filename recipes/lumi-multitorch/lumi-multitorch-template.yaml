@@ -297,7 +297,7 @@ steps:
       Components:
         - MPICH {{mpich_version}} (from {{mpich_source}} release tgz for {{mpich_version}})
         - AWS-OFI-NCCL {{aws_ofi_nccl_version}} (from {{aws_ofi_nccl_repo}} commit {{aws_ofi_nccl_commit}})
-        - RCCL (from {{rccl_tests_repo}} commit {{rccl_tests_commit}})
+        - RCCL Tests (from {{rccl_tests_repo}} commit {{rccl_tests_commit}})
         - OSU micro-benchmarks {{osu_version}} (from {{osu_source}} release tgz for {{osu_version}})
     template: mpich/Ubuntu_Rocm_Slingshot
     force: False
@@ -377,8 +377,8 @@ steps:
         - Causal Conv1D (from {{causal_conv1d_repo}} commit {{causal_conv1d_commit}})
         - DeepSpeed {{deepspeed_version}} (with locally built ops addons)
         - Flash Attention (from {{flash_attention_repo_url}} commit {{flash_attention_repo_commit}})
-        - LLM Compressor: (from {{llmcompressor_repo}} commit {{llmcompressor_commit}})
-        - Megatron LM (experimental): (from {{megatron_lm_repo_url}} commit {{megatron_lm_commit}})
+        - LLM Compressor (from {{llmcompressor_repo}} commit {{llmcompressor_commit}})
+        - Megatron LM (experimental) (from {{megatron_lm_repo_url}} commit {{megatron_lm_commit}})
         - vLLM {{vllm_version}} (from {{vllm_repo}} commit {{vllm_commit}})
         - xFormers (from {{xformers_repo}} commit {{xformers_commit}})
 
@@ -401,7 +401,7 @@ steps:
       - DEPENDENCY_PIP_PACKAGES="{{dependency_pip_packages | join(' ')}}"
       #
       - EXTRA_APT_PACKAGES="{{extra_apt_packages | join(' ')}}"
-      - EXTRA_PIP_PACKAGES="{{extra_pip_packages | join(' ')}}"
+      - EXTRA_PIP_PACKAGES="{{extra_pip_packages | join(' ')}}"
       #
       - FLASH_ATTENTION_REPO_COMMIT={{flash_attention_repo_commit}}
       - FLASH_ATTENTION_REPO_URL={{flash_attention_repo_url}}
@@ -500,7 +500,7 @@ files:
       printf '%s\n\n' "$image_meta" >> "$readme_file"
       printf '## Description\n\n%s\n\n' "$image_desc"  >> "$readme_file"
       printf '## Files\n\n' >> "$readme_file"
-      sha256sum {{image_build_name(type)}}.{Containerfile,def,json,log,sif} >> "$readme_file"
+      sha256sum {{image_build_name(type)}}.{Containerfile,json,log,sif} >> "$readme_file"
       {% endfor %}
 
       # Run image tests
