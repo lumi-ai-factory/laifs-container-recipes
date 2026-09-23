@@ -1,11 +1,18 @@
 #!/bin/bash
 
-set -euo pipefail
+set -eu
 
-template=".github/auth/github.netrc"
-output=".github/auth/build.netrc"
+output="${1:-.github/auth/build.netrc}"
 
-: "${GITHUB_TOKEN:?GITHUB_TOKEN must be set}"
+if [[ -z "${GITHUB_TOKEN:-}" ]]; then
+  read -rsp "GitHub token: " GITHUB_TOKEN < /dev/tty
+  echo >&2
+fi
 
-sed "s/^password$/password ${GITHUB_TOKEN}/" "$template" > "$output"
+[[ -n "$GITHUB_TOKEN" ]] || { echo "No token provided" >&2; exit 1; }
+
+printf 'machine github.com\nlogin oauth2\npassword %s\n' "$GITHUB_TOKEN" > "$output"
+
 chmod 600 "$output"
+
+echo "GitHub credentials saved to $output"
