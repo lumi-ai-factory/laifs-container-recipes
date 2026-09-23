@@ -11,7 +11,11 @@ fi
 
 [[ -n "$GITHUB_TOKEN" ]] || { echo "No token provided" >&2; exit 1; }
 
-printf 'machine github.com\nlogin oauth2\npassword %s\n' "$GITHUB_TOKEN" > "$output"
+(
+  umask 077
+  mkdir -p "$(dirname "$output")"
+  printf 'machine github.com\nlogin oauth2\npassword %s\n' "$GITHUB_TOKEN" > "$output"
+)
 
 chmod 600 "$output"
 
