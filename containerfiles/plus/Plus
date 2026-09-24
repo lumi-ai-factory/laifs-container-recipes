@@ -11,6 +11,8 @@ ARG TRANSFORMER_ENGINE_REPO
 
 ARG SRC_DIR="/opt/src"
 
+ENV NVTE_FRAMEWORK=pytorch
+
 RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
   set -ue; \
   #
@@ -22,7 +24,6 @@ RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
   export GPU_TARGETS=${TRANSFORMER_ENGINE_ARCH}; \
   #
   export NVTE_ROCM_ARCH=${TRANSFORMER_ENGINE_ARCH}; \
-  export NVTE_FRAMEWORK=pytorch; \
   export NVTE_FUSED_ATTN=0; \
   export NVTE_USE_ROCM=1; \
   #
