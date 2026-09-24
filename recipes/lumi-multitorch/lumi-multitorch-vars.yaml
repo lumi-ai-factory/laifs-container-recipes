@@ -131,8 +131,8 @@ flash_attention_repo_url: "https://github.com/ROCm/flash-attention"
 llmcompressor_commit: "6d2a090" # Tagged as latest release (v0.12.0) as of 2026-07-13
 llmcompressor_repo: "https://github.com/vllm-project/llm-compressor"
 #
-megatron_lm_repo_url: "https://github.com/viahlgre/Megatron-LM"
-megatron_lm_commit: "c333868" # c333868@viahlgre/Megatron-LM is d85dd3c@ROCm/Megatron-LM with Numpy 2+ patch
+megatron_lm_repo_url: "https://github.com/ROCm/Megatron-LM/"
+megatron_lm_commit: "9784f40" # Latest from branch rocm_dev as of 2026-09-24
 #
 multi_image_gpu_arch: "gfx90a"
 #
