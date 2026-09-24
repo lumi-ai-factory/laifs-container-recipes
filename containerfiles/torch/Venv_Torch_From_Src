@@ -146,7 +146,7 @@ ENV TORCH_NCCL_HIGH_PRIORITY=1
 
 ENV VIRTUAL_ENV="/opt/venv"
 ENV PATH="/opt/venv/bin:$PATH"
-# ENV PYTHONPATH="/opt/venv/lib/python3.12/site-packages:$PYTHONPATH"
+ENV PYTHONPATH="/opt/venv/lib/python3.12/site-packages:$PYTHONPATH"
 
 RUN printf '#!/usr/bin/env bash\n\
 if [ "${SLURM_NNODES}" = 1 ] && [ -z "${SLURM_GPUS_ON_NODE}" ]; then\n\
