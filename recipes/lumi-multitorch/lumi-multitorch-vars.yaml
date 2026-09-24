@@ -8,7 +8,7 @@ rocm_repo: "https://repo.radeon.com/rocm"
 rocm_version: "7.2.4"
 #
 ubuntu_release: "24.04"
-ubuntu_tag: "noble-20260810"
+ubuntu_tag: "noble-20260911"
 #
 extra_locales:
   - cs_CZ.UTF-8
