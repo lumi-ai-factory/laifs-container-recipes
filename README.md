@@ -31,17 +31,23 @@ The workflow is designed to make it easy to update software versions, rebuild im
 │   ├── libfabric/
 │   ├── mpich/
 │   ├── multi/
+│   ├── plus/
 │   ├── rocm/
+│   ├── simple/
 │   └── torch/
 ├── recipes/                 # Recipe templates and variable files
-│   ├── <recipe>-template.yaml
-│   ├── <recipe>-vars.yaml
-│   └── <recipe>-readme.j2
+│   └── <recipe>/            # For example lumi-multitorch/ or simple-example/
+│       ├── <recipe>-template.yaml
+│       ├── <recipe>-vars.yaml
+│       └── <recipe>-readme.j2
 └── scripts/                 # Build and rendering scripts
     ├── build-images
     ├── build-wrapper
+    ├── create-github-login
     ├── j2render
-    └── render-recipe
+    ├── package_version_diff.py
+    ├── render-recipe
+    └── test-image-example.sh
 ```
 
 ---
@@ -78,9 +84,9 @@ The build environment requires:
 Render a recipe from a template and variable file:
 ```bash
 scripts/render-recipe $(date +"%Y%m%d_%H%M%S") \
-  recipes/<recipe>-template.yaml \
-  recipes/<recipe>-vars.yaml \
-  [ recipes/<recipe>-readme.j2 ] \
+  recipes/<recipe>/<recipe>-template.yaml \
+  recipes/<recipe>/<recipe>-vars.yaml \
+  [ recipes/<recipe>/<recipe>-readme.j2 ] \
   > <recipe>-rendered.yaml
 ```
 
@@ -89,9 +95,9 @@ scripts/render-recipe $(date +"%Y%m%d_%H%M%S") \
 Use the `build-wrapper` script to render, build, and document a recipe:
 ```bash
 scripts/build-wrapper \
-  recipes/<recipe>-template.yaml \
-  recipes/<recipe>-vars.yaml \
-  recipes/<recipe>-readme.j2
+  recipes/<recipe>/<recipe>-template.yaml \
+  recipes/<recipe>/<recipe>-vars.yaml \
+  recipes/<recipe>/<recipe>-readme.j2
 ```
 This is the de-facto way for building a release and will:
 - Create a timestamped build directory in `builds/`.
@@ -99,7 +105,7 @@ This is the de-facto way for building a release and will:
 - Build all images defined in the recipe.
 - Generate per-image documentation and SBOM files.
 
-### 3. Build Commands
+### Build Commands
 
 The `build-images` script can be also used  directly:
 ```bash
@@ -136,4 +142,3 @@ We welcome contributions! Please open an [issue](https://github.com/lumi-ai-fact
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
-
