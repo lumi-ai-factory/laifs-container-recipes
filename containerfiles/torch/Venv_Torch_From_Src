@@ -89,7 +89,7 @@ RUN --mount=from=src,source=${SRC_DIR},target=${SRC_DIR},rw \
   export USE_ROCM=1; \
   # Composable Kernel Enforcements
   export USE_ROCM_CK_SDPA=0; \
-  export USE_ROCM_CK_GEMM=0: \
+  export USE_ROCM_CK_GEMM=0; \
   #
   # MPI disabled for PyTorch 2.11.0 to avoid memory corruption at torch library exit
   export USE_MPI=0; \
