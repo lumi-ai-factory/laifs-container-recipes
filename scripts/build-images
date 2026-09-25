@@ -225,7 +225,7 @@ parse_step() {
         --label cf_lineage="${STEP_DATA['CF_LINEAGE']}"
         -t "${STEP_DATA['IMAGE_NAME']}:${STEP_DATA['IMAGE_TAG']}"
         -t "${STEP_DATA['IMAGE_NAME']}:latest"
-        "$BUILD_DIR/"
+        .
     )
 
     STEP_DATA["BUILD_COMMAND"]="${BUILD_COMMAND[@]}"
