@@ -25,6 +25,7 @@ extra_packages:
   - git
   - jq
   - less
+  - libdw1t64
   - lsof
   - nano
   - neovim
