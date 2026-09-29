@@ -256,6 +256,10 @@ RUN set -ue; \
   new_wheel="$(wretag -d -q lumi_aif_${MEGATRON_LM_COMMIT} $wheel_path)"; \
   pip install $new_wheel; \
   #
+  # Fix python -c "from megatron.core.datasets.utils import compile_helpers; compile_helpers()"
+  DIR=/opt/venv/lib/python3.12/site-packages/megatron/core/datasets && \
+  printf 'all:\n\t@ls helpers_cpp*.so >/dev/null 2>&1 || { echo "helpers_cpp .so missing" >&2; exit 1; }\n' > "$DIR/Makefile"; \
+  #
   rm -rf ${SRC_DIR}/megatronlm;
 
 #
