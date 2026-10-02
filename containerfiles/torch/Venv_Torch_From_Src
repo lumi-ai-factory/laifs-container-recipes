@@ -68,6 +68,8 @@ ARG SRC_DIR
 ARG WHEEL_DIR
 
 RUN --mount=from=src,source=${SRC_DIR},target=${SRC_DIR},rw \
+    --mount=type=cache,id=torch-ccache,target=/build/.cache/ccache \
+  #
   set -ue; \
   # Build PyTorch
   export GPU_ARCH_TYPE=rocm; \
@@ -81,7 +83,11 @@ RUN --mount=from=src,source=${SRC_DIR},target=${SRC_DIR},rw \
   # Pass the silent flag directly to PyTorch's CMake configuration engine
   export CMAKE_C_FLAGS="-w"; \
   export CMAKE_CXX_FLAGS="-w"; \
-  export CMAKE_CUDA_FLAGS="-w"; \
+  export CMAKE_HIP_FLAGS="-w"; \
+  # hipcc adds these flags to every compile it runs, whatever CMake passes
+  export HIPCC_COMPILE_FLAGS_APPEND="-w"; \
+  # Set ccache path
+  export CCACHE_DIR=/build/.cache/ccache CCACHE_MAXSIZE=5G; \
   #
   export USE_CUDA=0; \
   export USE_XCCL=0; \
@@ -115,6 +121,8 @@ RUN --mount=from=src,source=${SRC_DIR},target=${SRC_DIR},rw \
   wheel_path="$(find ${WHEEL_DIR}  -mindepth 1 -maxdepth 1 -type f -name '*.whl')" && \
   test $(echo $wheel_path | wc -w) = 1 && \
   cd .. && pip install $wheel_path; \
+  #
+  ccache -s; \
   #
   rm -rf ${WHEEL_DIR}
 
