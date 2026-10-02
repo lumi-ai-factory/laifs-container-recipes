@@ -1,17 +1,15 @@
 @@ BUILD_ARGS @@
 
-FROM $BASE_IMAGE:$BASE_IMAGE_TAG AS builder
-
+FROM $BASE_IMAGE:$BASE_IMAGE_TAG as base
+#
 RUN set -ue; \
     #
-    # Build requisites
+    # Install the Ubuntu packages and dependencies
     #
-    export DEBIAN_FRONTEND=noninteractive; \
-    apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
+    apt-get update && apt-get install -y \
         autoconf \
         libconfig-dev \
         libcurl4-openssl-dev \
-        libdw-dev \
         libfuse-dev \
         libjson-c-dev \
         libnl-3-dev \
@@ -20,6 +18,16 @@ RUN set -ue; \
         libuv1-dev \
         libyaml-dev \
         pkg-config \
+        strace
+
+FROM base AS builder
+
+RUN set -ue; \
+    #
+    # Build requisites
+    #
+    apt-get update && apt-get install -y \
+        libdw-dev \
         ruby \
         ruby-dev; \
     gem install --no-document fpm; \
@@ -170,29 +178,13 @@ RUN set -ue; \
     rm -rf "$TMPROOT"; \
     dpkg -i libfabric_${LIBFABRIC_VERSION}_amd64.deb
 
-FROM $BASE_IMAGE:$BASE_IMAGE_TAG
+FROM base as libfabric
 
-COPY --from=builder /debs/*.deb /tmp/debs/
-
-RUN set -ue; \
+RUN --mount=from=builder,source=/debs,target=/debs,ro \
     #
-    # Install the built Ubuntu packages and dependencies
+    set -ue; \
     #
-    apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
-        autoconf \
-        libconfig-dev \
-        libcurl4-openssl-dev \
-        libfuse-dev \
-        libjson-c-dev \
-        libnl-3-dev \
-        libsensors-dev \
-        libtool \
-        libuv1-dev \
-        libyaml-dev \
-        pkg-config \
-        strace; \
-    dpkg -i /tmp/debs/*.deb; \
-    rm -rf /tmp/debs; \
+    dpkg -i /debs/*.deb; \
     ln -s /usr/lib/x86_64-linux-gnu/libcurl.so.4.8.0 /usr/lib64/libcurl.so.4; \
     ldconfig; \
     #
