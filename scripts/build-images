@@ -71,10 +71,6 @@ get_latest_image_by_lineage() {
     '
 
     podman images --format json | jq -r --arg name "$IMAGE_NAME" --arg lineage "$IMAGE_LINEAGE" --arg pattern "$TAG_PATTERN" "$JQ_COMMAND"
-
-    if [[ -n "$LATEST_TAG" ]]; then
-        echo "${IMAGE_NAME}:${LATEST_TAG}"
-    fi
 }
 
 
