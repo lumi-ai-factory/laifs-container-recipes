@@ -206,16 +206,16 @@ steps:
   - name: {{image_digest_name("rocm")}}
     base: ubuntu:{{ubuntu_tag}}
     desc: |
-      **Overview**
+      **Overview**<br>
       This is a base image building on Ubuntu {{ubuntu_release}} LTS upstream image
       with ROCm software from AMD's official Ubuntu repositories installed on top of
       it. The image also adds a few commonly used extra Ubuntu packages and enables
       man pages.
 
-      **Details**
-      Ubuntu base image: ubuntu:{{ubuntu_tag}}
-      AMD ROCm repository: {{rocm_repo}}
-      AMD ROCm release: {{rocm_version}}
+      **Details**<br>
+      Ubuntu base image: ubuntu:{{ubuntu_tag}}<br>
+      AMD ROCm repository: {{rocm_repo}}<br>
+      AMD ROCm release: {{rocm_version}}<br>
       Additional Ubuntu packages:
       {%- for pkg in extra_packages %}
         - {{ pkg }}
@@ -235,15 +235,15 @@ steps:
   - name: {{image_digest_name("libfabric")}}
     base: {{image_digest_name("rocm")}}
     desc: |
-      **Overview**
+      **Overview**<br>
       This image builds on top of its base image by adding locally built Ubuntu
       packages to enable xpmem as well as libfabric functionality for HPE's Slingshot
       interconnect. It serves as a starting point for adding MPI capability to images
       built on top of it and can be a useful foundation for creating images with
       custom MPI stacks.
 
-      **Details**
-      Base image: {{image_digest_name("rocm")}}
+      **Details**<br>
+      Base image: {{image_digest_name("rocm")}}<br>
       Components:
         - xpmem (from {{xpmem_clone_url}} commit {{xpmem_git_commit}})
         - Cassini headers (from {{cassini_headers_source}} release tgz for {{cassini_headers_version}})
@@ -284,16 +284,16 @@ steps:
   - name: {{image_digest_name("mpich")}}
     base: {{image_digest_name("libfabric")}}
     desc: |
-      **Overview**
+      **Overview**<br>
       This image builds on top of its base image by adding an MPI library with GPU
       support, based on an MPICH build. It also includes the AWS-OFI-NCCL plugin to
       enable RCCL communication over the interconnect network using libfabric. The
       rccl-tests and OSU micro-benchmarks suite are included for performance and
       functionality validation.
 
-      **Details**
-      Base image: {{image_digest_name("libfabric")}}
-      MPI implementation: MPICH {{mpich_version}}
+      **Details**<br>
+      Base image: {{image_digest_name("libfabric")}}<br>
+      MPI implementation: MPICH {{mpich_version}}<br>
       Components:
         - MPICH {{mpich_version}} (from {{mpich_source}} release tgz for {{mpich_version}})
         - AWS-OFI-NCCL {{aws_ofi_nccl_version}} (from {{aws_ofi_nccl_repo}} commit {{aws_ofi_nccl_commit}})
@@ -325,13 +325,13 @@ steps:
   - name: {{image_digest_name("torch")}}
     base: {{image_digest_name("mpich")}}
     desc: |
-      **Overview**
+      **Overview**<br>
       This image builds on top of its base image by adding PyTorch for AMD GPUs and
       ROCm, along with few related packages from PyTorch's upstream repositories.
 
-      **Details**
-      Base image: {{image_digest_name("mpich")}}
-      PyTorch version: {{torch_version}}
+      **Details**<br>
+      Base image: {{image_digest_name("mpich")}}<br>
+      PyTorch version: {{torch_version}}<br>
       PyTorch packages and sources:
         - PyTorch: "{{torch_repo}} @ tag v{{torch_version}}"
         - TorchVision: {{torchvision_version}} from https://download.pytorch.org/whl/{{rocm_wheel_version}}/
@@ -363,15 +363,15 @@ steps:
   - name: {{image_digest_name("full")}}
     base: {{image_digest_name("torch")}}
     desc: |
-      **Overview**
+      **Overview**<br>
       This is a multipurpose ML/AI image that builds on its base image by adding a
       comprehensive selection of tools and libraries for machine learning and AI
       workloads. The image is optimized to run on LUMI but should also work on other
       systems with MI250x GPUs and Slingshot interconnect.
 
-      **Details**
-      Base image: {{image_digest_name("torch")}}
-      GPU architectures: {{multi_image_gpu_arch}}
+      **Details**<br>
+      Base image: {{image_digest_name("torch")}}<br>
+      GPU architectures: {{multi_image_gpu_arch}}<br>
       Components:
         - Apex (from {{apex_git_repo}} commit {{apex_git_commit}})
         - Causal Conv1D (from {{causal_conv1d_repo}} commit {{causal_conv1d_commit}})
@@ -428,7 +428,7 @@ steps:
   - name: {{image_digest_name("plus")}}
     base: {{image_digest_name("full")}}
     desc: |
-      **Overview**
+      **Overview**<br>
       This experimental image builds on the full image by adding various additional
       ML/AI libraries for testing purposes. It serves as a technology preview for
       evaluating potential future additions to the full image and as a home for some
@@ -437,11 +437,11 @@ steps:
       the image is not intended for long-term use. To satisfy dependencies, some
       libraries of the full image may be also downgraded in this image.
 
-      **Details**
-      Base image: {{image_digest_name("full")}}
-      GPU architectures: {{multi_image_gpu_arch}}
+      **Details**<br>
+      Base image: {{image_digest_name("full")}}<br>
+      GPU architectures: {{multi_image_gpu_arch}}<br>
       Components:
-        - TransformerEngine (from {{transformer_engine_repo}} commit {{transformer_engine_commit}})
+        - Transformer Engine (from {{transformer_engine_repo}} commit {{transformer_engine_commit}})
     template: plus/Plus
     force: False
     env:
