@@ -36,6 +36,18 @@ main() {
     echo "git diff:" | sed 's/^/    /' | tee -a $build_log
     git diff | sed 's/^/        /' | tee -a $build_log
 
+    # Check GitHub authentication
+    netrc=".github/auth/build.netrc"
+
+    if [[ ! -s "$netrc" ]]; then
+    echo "GitHub token in $netrc not found, creating empty file without credentials" | tee -a $build_log
+    (
+        umask 077
+        mkdir -p "$(dirname "$netrc")"
+        touch "$netrc"
+    )
+    fi
+
     echo "$(date +'%Y%m%d %H:%M:%S') generating recipe from template and vars file" | tee -a $build_log
     scripts/render-recipe $BUILD_TAG $TEMPLATE $VARS $README_J2 > $recipe_file
 
