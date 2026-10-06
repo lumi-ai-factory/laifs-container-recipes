@@ -96,6 +96,7 @@ torch_gpu_arch: "gfx90a"
 #
 pytorch_triton_version: "3.6.0"
 torchaudio_version: "2.11.0"
+torchcodec_version: "0.17.0"
 torchvision_version: "0.26.0"
 
 # torch_patches:
