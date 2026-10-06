@@ -1,4 +1,5 @@
-@@ BUILD_ARGS @@
+ARG BASE_IMAGE
+ARG BASE_IMAGE_TAG
 
 ARG SRC_DIR="/opt/pytorch/src"
 ARG WHEEL_DIR="/opt/pytorch/wheels"
@@ -30,9 +31,6 @@ RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
     #
     git status
 
-ARG BASE_IMAGE
-ARG BASE_IMAGE_TAG
-
 FROM $BASE_IMAGE:$BASE_IMAGE_TAG
 
 ARG TORCH_APT_DEPENDENCIES
@@ -44,9 +42,9 @@ RUN set -ue; \
   apt-get clean && \
   rm -rf /var/lib/apt/lists/*
 
-ARG TORCH_PIP_DEPENDENCIES \
-    TORCH_ROCM_VERSION \
-    PYTORCH_TRITON_VERSION
+ARG TORCH_PIP_DEPENDENCIES
+ARG TORCH_ROCM_VERSION
+ARG PYTORCH_TRITON_VERSION
 
 RUN set -ue; \
   # Install Python dependencies

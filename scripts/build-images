@@ -150,7 +150,7 @@ parse_step() {
     # the base image tag (as it's pre-determined), but for all other images
     # the tag is determined at build time. This means that for these images
     # the cf_hash is the sha1 of the final Containerfile content without
-    # the line specifying the BASE_IMAGE_TAG. The 'first-in-the-chain'
+    # the value of the BASE_IMAGE_TAG ARG. The 'first-in-the-chain'
     # images also have another speciality, which is that their cf_lineage
     # and cf_hash are the same as there's no parent Containerfile for them.
 
@@ -189,12 +189,15 @@ parse_step() {
             STEP_DATA["BASE_IMAGE_TAG"]=${BUILD_TAG}
         fi
 
-        local CF_HEADER="# Start of dynamically injected content"
-        local CF_EXTRA="ARG BASE_IMAGE_TAG=${STEP_DATA["BASE_IMAGE_TAG"]}"
-        local CF_FOOTER="# End of dynamically injected content"
         local CF_TEXT=$(jq -r '.cf_text' <<< "$STEP_JSON")
+        local ARG_PATTERN='^ARG BASE_IMAGE_TAG[[:space:]]*$'
 
-        STEP_DATA["CF_CONTENT"]="$CF_HEADER"$'\n'"$CF_EXTRA"$'\n'"$CF_FOOTER"$'\n'"$CF_TEXT"
+        if ! grep -qE "$ARG_PATTERN" <<< "$CF_TEXT"; then
+            fail "Containerfile for ${STEP_DATA['IMAGE_NAME']} has no 'ARG BASE_IMAGE_TAG' line to set the base image tag"
+        fi
+
+        # Set the base image tag determined at build time as the default value
+        STEP_DATA["CF_CONTENT"]=$(sed -E "s/${ARG_PATTERN}/ARG BASE_IMAGE_TAG=${STEP_DATA['BASE_IMAGE_TAG']}/" <<< "$CF_TEXT")
 
     fi
 
@@ -205,9 +208,6 @@ parse_step() {
     else
         STEP_DATA["FORCE_NEW"]=$(jq -r '.force // "false"' <<< "$STEP_JSON")
     fi
-
-    local ENV_ARGS=$(jq -r '.env.[]|split("=")|"ARG \(.[0])=\(.[1])"' <<< "$STEP_JSON")
-    local BUILD_ARGS=$(printf "%s\n%s" "$BASE_ARGS" "$ENV_ARGS")
 
     if [[ -n "${STEP_DATA['EXISTING_IMAGE']}" && "${STEP_DATA["FORCE_NEW"]}" != "true" ]]; then
         STEP_DATA["SKIP_BUILD"]="true"

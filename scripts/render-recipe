@@ -7,9 +7,15 @@ from ruamel.yaml import YAML
 import argparse
 import hashlib
 import jinja2
+import re
+import sys
 
 yaml = YAML()
 yaml.preserve_quotes = True
+
+ARG_WITHOUT_VALUE = re.compile(
+    r"^(\s*ARG\s+)([A-Za-z_][A-Za-z0-9_]*)[ \t]*$", re.MULTILINE
+)
 
 
 def render_template_with_vars(build_tag, template_file, data):
@@ -34,6 +40,27 @@ def get_parent_lineage(data, parent_name):
     return None
 
 
+def fill_arg_values(template_text, values):
+    """Set values as the defaults of the matching ARG instructions in a
+    Containerfile template
+
+    Each ARG is filled where the template declares it, so a changed value
+    only invalidates the layer cache from that point onwards. ARGs without
+    a matching value and ARGs that already have a default are kept as is.
+    Returns the filled text and the set of names that were used.
+    """
+    used = set()
+
+    def fill(match):
+        prefix, name = match.groups()
+        if name not in values:
+            return match.group(0)
+        used.add(name)
+        return f"{prefix}{name}={values[name]}"
+
+    return ARG_WITHOUT_VALUE.sub(fill, template_text), used
+
+
 def add_containerfile_content(recipe, containerfile_root="containerfiles"):
     """Render Containerfile templates into recipe
     """
@@ -45,24 +72,24 @@ def add_containerfile_content(recipe, containerfile_root="containerfiles"):
         template_path = root / template_name
         template_text = template_path.read_text()
 
-        # This should only be the case for first-in-chain images, where their
-        # base image points to external image such as ubuntu:noble-123456
-        if ":" in step["base"]:
-            image, tag = step["base"].split(":", 1)
-            build_args_text = (
-                f"ARG BASE_IMAGE={image}\n"
-                f"ARG BASE_IMAGE_TAG={tag}\n"
-            )
-        else:
-            build_args_text = f"ARG BASE_IMAGE={step['base']}\n"
+        # Only first-in-chain images, whose base image points to an external
+        # image such as ubuntu:noble-123456, have a pre-determined tag. For
+        # other images build-images injects BASE_IMAGE_TAG at build time.
+        image, _, tag = step["base"].partition(":")
+        values = {"BASE_IMAGE": image}
+        if tag:
+            values["BASE_IMAGE_TAG"] = tag
+        values.update(line.split("=", 1) for line in step.get("env", []))
 
-        build_args_text += "\n".join(
-            f"ARG {line}" for line in step.get("env", [])
-        )
+        containerfile_filled, used = fill_arg_values(template_text, values)
 
-        containerfile_filled = template_text.replace(
-            "@@ BUILD_ARGS @@", build_args_text
-        )
+        for name in values:
+            if name not in used:
+                print(
+                    f"Warning: step {step['name']}: {name} has no matching"
+                    f" ARG in {template_path}, value ignored",
+                    file=sys.stderr,
+                )
         containerfile_fingerprint = hashlib.sha1(
             containerfile_filled.encode()
         ).hexdigest()
