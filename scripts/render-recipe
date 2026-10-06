@@ -10,6 +10,7 @@ import jinja2
 
 yaml = YAML()
 yaml.preserve_quotes = True
+yaml.width = 1000000000000000
 
 
 def render_template_with_vars(build_tag, template_file, data):
