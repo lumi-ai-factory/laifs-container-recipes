@@ -178,6 +178,8 @@ RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
   test $(echo $wheel_path | wc -w) = 1; \
   #
   cd .. && pip install $wheel_path; \
+  # Install vLLM audio libraries
+  pip install vllm[audio]==${VLLM_VERSION}; \
   rm -rf ${SRC_DIR}/vllm;
 
 #
