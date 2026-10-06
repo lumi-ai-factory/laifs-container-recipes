@@ -108,7 +108,7 @@ desc: |
     - Libfabric {{libfabric_version_prefix}} (from {{libfabric_clone_url}} commit {{libfabric_git_commit}})
     - MPICH {{mpich_version}} (from {{mpich_source}} release tgz for {{mpich_version}})
     - AWS-OFI-NCCL {{aws_ofi_nccl_version}} (from {{aws_ofi_nccl_repo}} commit {{aws_ofi_nccl_commit}})
-    - RCCL (from {{rccl_tests_repo}} commit {{rccl_tests_commit}})
+    - RCCL Tests (from {{rccl_tests_repo}} commit {{rccl_tests_commit}})
     - OSU micro-benchmarks {{osu_version}} (from {{osu_source}} release tgz for {{osu_version}})
     - PyTorch {{torch_version}} (from {{torch_repo}} tag v{{torch_version}})
     - TorchVision (from {{torchvision_url}})
@@ -354,8 +354,6 @@ steps:
       - TORCHVISION_VERSION={{torchvision_version}}
       #
       - FAKE_TRITON_URL={{fake_triton_url}}
-      #
-      - WRETAG_URL={{wretag_url}}
 
     export:
       def:
