@@ -177,7 +177,7 @@ parse_step() {
         # Deleting everything after the last comma gives us the parent cf_lineage.
         STEP_DATA["CF_PARENT"]=$(sed 's/,[^,]*$//' <<< "${STEP_DATA['CF_LINEAGE']}")
 
-        local EXISTING_PARENT="$(get_latest_image_by_lineage ${STEP_DATA["IMAGE_NAME"]} ${STEP_DATA['CF_PARENT']})"
+        local EXISTING_PARENT="$(get_latest_image_by_lineage ${STEP_DATA["BASE_IMAGE"]} ${STEP_DATA['CF_PARENT']})"
 
         if [[ -n "$EXISTING_PARENT" ]]; then
             # We may or may not be using this exact image. To be sure, we would need to peek at the previous steps.
@@ -242,6 +242,11 @@ build_image() {
     if [[ ${STEP['SKIP_BUILD']} == "true" ]]; then
         log "Skipping build for ${STEP['IMAGE_NAME']}. Using existing image ${STEP['EXISTING_IMAGE']}:"
         podman image inspect ${STEP['EXISTING_IMAGE']} | log
+
+        # Give the reused image the tag of this build, so that the images
+        # built on top of it and the post-build scripts can refer to it.
+        podman tag "${STEP['EXISTING_IMAGE']}" "${STEP['IMAGE_NAME']}:${STEP['IMAGE_TAG']}" "${STEP['IMAGE_NAME']}:latest"
+        log "*** Tagged ${STEP['EXISTING_IMAGE']} as ${STEP['IMAGE_NAME']}:${STEP['IMAGE_TAG']} and ${STEP['IMAGE_NAME']}:latest"
         return
     fi
 
