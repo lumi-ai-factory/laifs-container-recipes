@@ -127,6 +127,44 @@ export_image() {
 }
 
 
+tag_build_stages() {
+    # Tag the intermediate stages of a multi-stage build as
+    # <image name>-<stage name>:<image tag>. Re-running the build up to each
+    # stage only hits the layer cache, so this tags the existing stage images
+    # without building or copying anything. Tagged stage images are also kept
+    # by "podman image prune", which keeps their cached layers available.
+    #
+    local CF_FILE=$1
+    local IMAGE_NAME=$2
+    local IMAGE_TAG=$3
+
+    # Names of all stages except the last one, which is the image itself
+    local STAGES=$(grep -iE '^FROM\s' "$CF_FILE" | head -n -1 | grep -ioP '\sAS\s+\K\S+' || true)
+
+    for stage in $STAGES; do
+        local STAGE_IMAGE="${IMAGE_NAME}-${stage}:${IMAGE_TAG}"
+        local OUTPUT
+
+        log "*** Tagging build stage ${stage} as ${STAGE_IMAGE}"
+
+        # No --label here, as it would add a new image layer on top of the stage
+        OUTPUT=$(podman build -f "$CF_FILE" --target "$stage" \
+            --secret=id=github-netrc,src=".github/auth/build.netrc" \
+            -t "$STAGE_IMAGE" . 2>&1) || fail "Tagging build stage ${stage} of ${IMAGE_NAME} failed."
+        sed -e 's/^/    /' <<< "$OUTPUT" | log
+
+        # Every step after FROM must have come from the cache
+        local STEPS=$(grep -cE 'STEP [0-9]+/[0-9]+: ' <<< "$OUTPUT" || true)
+        local FROMS=$(grep -ciE 'STEP [0-9]+/[0-9]+: FROM ' <<< "$OUTPUT" || true)
+        local CACHED=$(grep -c -- '--> Using cache ' <<< "$OUTPUT" || true)
+
+        if [[ $((STEPS - FROMS)) -ne $CACHED ]]; then
+            fail "Build stage ${stage} of ${IMAGE_NAME} was not fully cached and was rebuilt, see ${LOG_FILE}"
+        fi
+    done
+}
+
+
 parse_step() {
     local STEP_JSON=$1
     local -n STEP_DATA=$2
@@ -277,6 +315,8 @@ build_image() {
 
     log "*** Image info:"
     podman image inspect $image_id| sed -e 's/^/    /' | log
+
+    tag_build_stages "${BUILD_DIR}/${STEP['CF_NAME']}" "${STEP['IMAGE_NAME']}" "${STEP['IMAGE_TAG']}"
 
     if [[ -n "${STEP['IMAGE_DEF']}" ]]; then
         export_image "${STEP['IMAGE_NAME']}" "${STEP['IMAGE_TAG']}" "${STEP['IMAGE_DEF']}"
