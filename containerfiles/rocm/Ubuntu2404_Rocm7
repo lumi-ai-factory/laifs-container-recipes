@@ -1,34 +1,24 @@
 ARG BASE_IMAGE
 ARG BASE_IMAGE_TAG
 
-FROM $BASE_IMAGE:$BASE_IMAGE_TAG
+FROM $BASE_IMAGE:$BASE_IMAGE_TAG as base
 
 ENV DEBIAN_FRONTEND=noninteractive
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PIP_NO_CACHE_DIR=1
 
-ENV GIT_TERMINAL_PROMPT=0
-
-ARG EXTRA_LOCALES
-ARG EXTRA_PACKAGES
+ARG BASE_PACKAGES
 
 RUN set -e;\
   #
-  # Enable man pages with unminimize and install additional locales
+  # Enable man pages with unminimize and install the packages needed
+  # before ROCm
   #
   printf '%s\n' 'Dpkg::Use-Pty "0";' > /etc/apt/apt.conf.d/99no-progress; \
   apt-get update && \
   yes | unminimize && \
-  apt-get -y --no-install-recommends install man locales && \
-  locale-gen ${EXTRA_LOCALES}; \
-  #
-  # Install extra packages
-  #
-  apt-get install -y --no-install-recommends ca-certificates curl gnupg \
-    build-essential cmake kmod libelf1 libnuma-dev \
-    pkgconf zstd ${EXTRA_PACKAGES}
+  apt-get -y --no-install-recommends install man locales ${BASE_PACKAGES} && \
+  rm -rf /var/lib/apt/lists/*
 
-RUN git config --global advice.detachedHead false
+FROM base as rocm
 
 ARG AMDGPU_REPO
 ARG AMDGPU_VERSION
@@ -43,7 +33,7 @@ RUN set -ue;\
   printf "Package: *\nPin: release o=repo.radeon.com\nPin-Priority: 800\n" > /etc/apt/preferences.d/rocm-pin-prio-800 && \
   #
   mkdir -p --mode=0755 /etc/apt/keyrings && \
-  curl -sL ${ROCM_REPO}/rocm.gpg.key | gpg --dearmor | tee /etc/apt/keyrings/rocm.gpg > /dev/null && \
+  curl -sSL ${ROCM_REPO}/rocm.gpg.key | gpg --dearmor | tee /etc/apt/keyrings/rocm.gpg > /dev/null && \
   #
   printf "deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] ${ROCM_REPO}/apt/${ROCM_VERSION}/ noble main\n" | tee /etc/apt/sources.list.d/rocm.list && \
   printf "deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] ${AMDGPU_REPO}/${AMDGPU_VERSION}/ubuntu noble main\n" | tee /etc/apt/sources.list.d/amdgpu.list && \
@@ -52,15 +42,36 @@ RUN set -ue;\
   #
   apt-get update && \
   apt-get install -y --no-install-recommends libdrm-amdgpu-dev rocm-dev rocm-libs && \
+  rm -rf /var/lib/apt/lists/* && \
   #
   echo /opt/rocm/lib > /etc/ld.so.conf.d/rocm-30.conf && \
   ldconfig
+
+ARG EXTRA_LOCALES
+ARG EXTRA_PACKAGES
+
+RUN set -e;\
+  #
+  # Install extra packages and additional locales after ROCm, so that
+  # changing them doesn't reinstall ROCm
+  #
+  apt-get update && \
+  apt-get install -y --no-install-recommends ${EXTRA_PACKAGES} && \
+  locale-gen ${EXTRA_LOCALES} && \
+  rm -rf /var/lib/apt/lists/*
+
+RUN git config --global advice.detachedHead false
 
 RUN set -e;\
   #
   # Add SBOM
   #
   apt_json="$(dpkg-query -W -f='${Package}\t${Version}\n' | jq -R -s 'split("\n")[:-1] | map(split("\t") | {name: .[0], version: .[1]})')"; \
-  jq -n --argjson apt "$apt_json"  '{apt: $apt}' > /.sbom.json;
+  jq -n \
+    --argjson apt "$apt_json" \
+    '{apt: $apt}' > /.sbom.json;
 
 ENV ROCM_PATH=/opt/rocm
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PIP_NO_CACHE_DIR=1
+ENV GIT_TERMINAL_PROMPT=0

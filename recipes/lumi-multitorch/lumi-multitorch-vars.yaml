@@ -20,23 +20,37 @@ extra_locales:
   - nb_NO.UTF-8
   - nn_NO.UTF-8
   - pl_PL.UTF-8
+# Installed before ROCm: needed for adding the ROCm repository and as the
+# build and runtime base. Changing this list reinstalls ROCm.
+base_packages:
+  - build-essential
+  - ca-certificates
+  - cmake
+  - curl
+  - gnupg
+  - kmod
+  - libdw1t64
+  - libnuma-dev
+  - pkgconf
+  - python3-dev
+  - python3-packaging
+  - python3-pip
+  - python3-venv
+  - zstd
+# Installed after ROCm, so changing this list doesn't reinstall ROCm.
 extra_packages:
   - file
   - git
   - jq
   - less
-  - libdw1t64
   - lsof
   - nano
   - neovim
-  - python3-dev
-  - python3-packaging
-  - python3-pip
-  - python3-venv
   - screen
   - tmux
   - unzip
   - wget
+  - yq
 #
 # ubuntu-rocm-libfabric
 #
@@ -108,7 +122,6 @@ torch_pip_dependencies:
 #
 torch_apt_dependencies:
   - ccache
-  - cmake
   - libjpeg-dev
   - libopenblas-dev
   - libpng-dev

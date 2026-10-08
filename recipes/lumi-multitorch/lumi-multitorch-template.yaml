@@ -217,7 +217,7 @@ steps:
       AMD ROCm repository: {{rocm_repo}}<br>
       AMD ROCm release: {{rocm_version}}<br>
       Additional Ubuntu packages:
-      {%- for pkg in extra_packages %}
+      {%- for pkg in (base_packages + extra_packages) | sort %}
         - {{ pkg }}
       {%- endfor %}
     template: rocm/Ubuntu2404_Rocm7
@@ -227,6 +227,7 @@ steps:
       - AMDGPU_VERSION={{amdgpu_version}}
       - ROCM_REPO={{rocm_repo}}
       - ROCM_VERSION={{rocm_version}}
+      - BASE_PACKAGES="{{base_packages | join(' ')}}"
       - EXTRA_LOCALES="{{extra_locales | join(' ')}}"
       - EXTRA_PACKAGES="{{extra_packages | join(' ')}}"
     export:
