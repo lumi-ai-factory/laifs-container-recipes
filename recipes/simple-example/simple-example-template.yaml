@@ -1,3 +1,5 @@
+{%- from "recipes/components.j2" import comps, component_env with context -%}
+
 name: "{{ recipe_name }}"
 tag: "{{ build_tag }}"
 release: "{{ recipe_name }}-{{ build_tag }}"
@@ -5,28 +7,23 @@ desc: "This is a simple example image collection recipe"
 
 steps:
   - name: simple-example-base
-    base: "ubuntu:{{ubuntu_tag}}"
-    template: simple/Ubuntu2404_packages
+    base: "ubuntu:{{ images.base.ubuntu_tag }}"
+    template: {{ images.base.template }}
     desc: |
       This is a simple example base image which builds on its base image
-      ubuntu:{{ubuntu_tag}} by adding these Ubuntu packages:
+      ubuntu:{{ images.base.ubuntu_tag }} by adding these Ubuntu packages:
 
-      {%- for pkg in ubuntu_packages %}
+      {%- for pkg in comps.ubuntu.apt_packages %}
         - {{ pkg }}
       {%- endfor %}
     env:
-      - UBUNTU_PACKAGES="{{ubuntu_packages | join(' ')}}"
-    export:
-      name: simple-example-base
+      {{- component_env("base") }}
 
   - name: simple-example-venv
     base: simple-example-base
-    template: simple/Ubuntu2404_venv
+    template: {{ images.venv.template }}
     desc: |
       This image builds on its base image by creating a Python venv under
-      directory {{ venv_path }} and adding a few python packages.
+      directory {{ comps.venv.path }} and adding a few python packages.
     env:
-      - VENV_PACKAGES="{{venv_packages | join(' ')}}"
-      - VENV_PATH="{{ venv_path }}"
-    export:
-      name: simple-example-venv
+      {{- component_env("venv") }}

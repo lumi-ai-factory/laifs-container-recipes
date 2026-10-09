@@ -3,15 +3,15 @@ ARG BASE_IMAGE_TAG
 
 FROM $BASE_IMAGE:$BASE_IMAGE_TAG
 
-ARG VENV_PACKAGES
+ARG VENV_PIP_PACKAGES
 ARG VENV_PATH
 
 RUN set -ue; \
   #
   # Create a new venv and install some packages
   #
-  python3.12 -m venv ${VENV_PATH}; \
-  . /opt/venv/bin/activate; \
-  pip install ${VENV_PACKAGES};
+  python3 -m venv ${VENV_PATH}; \
+  . ${VENV_PATH}/bin/activate; \
+  pip install ${VENV_PIP_PACKAGES};
 
 CMD ["/bin/bash"]

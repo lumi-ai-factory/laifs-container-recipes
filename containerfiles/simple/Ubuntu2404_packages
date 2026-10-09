@@ -3,9 +3,9 @@ ARG BASE_IMAGE_TAG
 
 FROM $BASE_IMAGE:$BASE_IMAGE_TAG
 
-ARG UBUNTU_PACKAGES
+ARG UBUNTU_APT_PACKAGES
 
 RUN set -ue; \
   export DEBIAN_FRONTEND=noninteractive; \
   apt-get update; \
-  apt-get -y --no-install-recommends install ${UBUNTU_PACKAGES};
+  apt-get -y --no-install-recommends install ${UBUNTU_APT_PACKAGES};

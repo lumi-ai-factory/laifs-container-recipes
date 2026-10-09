@@ -1,20 +1,33 @@
 #
 # Recipe simple-example
 #
+# Each component field becomes a build ARG named <NAME>_<FIELD>, for example
+# UBUNTU_APT_PACKAGES. Lists are joined with spaces. Image-level keys next to
+# "components" are settings of the image itself and don't become build ARGs.
+#
 recipe_name: simple-example
 
+images:
 #
 # Image simple-example-base
 #
-ubuntu_tag: 24.04
-ubuntu_packages:
-  - less
-  - python3-pip
-  - python3-venv
+  base:
+    template: "simple/Ubuntu2404_packages"
+    ubuntu_tag: "24.04"
+    components:
+      - name: ubuntu
+        apt_packages:
+          - less
+          - python3-pip
+          - python3-venv
 
 #
 # Image simple-example-venv
 #
-venv_path: /opt/venv
-venv_packages:
-  - zstandard
+  venv:
+    template: "simple/Ubuntu2404_venv"
+    components:
+      - name: venv
+        path: "/opt/venv"
+        pip_packages:
+          - zstandard

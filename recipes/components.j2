@@ -1,0 +1,34 @@
+{#- Shared helpers for recipe templates. Import them in a recipe template with
+    {%- from "recipes/components.j2" import comps, component_env, component with context -%}
+    The recipe variables must define images.<image>.components. -#}
+
+{#- Look up components defined under images.<image>.components by name, e.g. comps.torch.version -#}
+{%- set comps = {} -%}
+{%- for image in images.values() -%}
+  {%- for comp in image.components -%}
+    {%- set _ = comps.update({comp.name: comp}) -%}
+  {%- endfor -%}
+{%- endfor -%}
+
+{#- Convert the components of an image into env entries named <NAME>_<FIELD>, joining lists with spaces -#}
+{%- macro component_env(image) -%}
+  {%- for comp in images[image].components -%}
+    {%- for field, value in comp.items() if field != "name" %}
+      - {{ (comp.name ~ "_" ~ field) | upper | replace("-", "_") }}=
+      {%- if value is string %}{{ value }}{% else %}"{{ value | join(' ') }}"{% endif %}
+    {%- endfor -%}
+  {%- endfor -%}
+{%- endmacro -%}
+
+{#- Document a component as "<label> <version> (from <where>)", for example
+    "Libfabric 2.1 (from <repo> commit <commit>)". Set version=false to leave
+    out the version, or give a note to replace the "from ..." part -#}
+{%- macro component(name, label, version=true, note=none) -%}
+  {%- set comp = comps[name] -%}
+  {{- label }}{% if version and comp.version is defined %} {{ comp.version }}{% endif %} (
+  {%- if note %}{{ note }}
+  {%- elif comp.commit is defined %}from {{ comp.repo }} commit {{ comp.commit }}
+  {%- elif comp.source is defined %}from {{ comp.source }} release tgz for {{ comp.version }}
+  {%- else %}from {{ comp.repo }}
+  {%- endif %})
+{%- endmacro -%}

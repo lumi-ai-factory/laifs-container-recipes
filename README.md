@@ -36,6 +36,7 @@ The workflow is designed to make it easy to update software versions, rebuild im
 │   ├── simple/
 │   └── torch/
 ├── recipes/                 # Recipe templates and variable files
+│   ├── components.j2        # Shared Jinja2 macros for recipe templates
 │   └── <recipe>/            # For example lumi-multitorch/ or simple-example/
 │       ├── <recipe>-template.yaml
 │       ├── <recipe>-vars.yaml
