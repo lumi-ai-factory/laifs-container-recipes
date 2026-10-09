@@ -51,6 +51,20 @@ main() {
     echo "$(date +'%Y%m%d %H:%M:%S') generating recipe from template and vars file" | tee -a $build_log
     scripts/render-recipe $BUILD_TAG $TEMPLATE $VARS $README_J2 > $recipe_file
 
+    # TODO: Implement previous release detection inside scripts/render-recipe, 
+    # so that the release notes template can be updated with the previous release ID.
+    # For now, we do it here.
+    #
+    # Update previous release in the release notes template. The recipe
+    # name ends with the software digest, so drop it to match all releases
+    # of this recipe (e.g. lumi-multitorch-*).
+    PREV_RELEASE_ID=$(git tag --list "${NAME%-*}-*" --sort=-creatordate | head -n 1)
+    if [[ -n "$PREV_RELEASE_ID" ]]; then
+        sed -i "s/<PREVIOUS-RELEASE-ID>/${PREV_RELEASE_ID}/" "$recipe_file"
+    else
+        echo "Warning: no previous release tag found for ${NAME%-*}, run 'git fetch --tags'?" | tee -a $build_log
+    fi
+
     echo "$(date +'%Y%m%d %H:%M:%S') sha256 sums for the template, vars and final recipe are:" | tee -a $build_log
     sha256sum $TEMPLATE $VARS $recipe_file | sed -e 's/^/    /' | tee -a $build_log
 
