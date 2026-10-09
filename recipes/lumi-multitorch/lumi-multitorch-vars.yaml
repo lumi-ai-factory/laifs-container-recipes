@@ -1,225 +1,276 @@
+# Each component field becomes a build ARG named <NAME>_<FIELD>, for example
+#  template: "torch/Containerfile"
+#  components:
+#      - name: torch
+#        gpu_arch: "gfx90a"
+# becomes ARG TORCH_GPU_ARCH=gfx90a when rendered to torch/Containerfile.
+#
+# Lists are joined with spaces. Use "repo" for git repositories and "source"
+# for release tarball download URLs.
+#
+# Image-level keys next to "components" are settings of the image itself and
+# don't become build ARGs, e.g. "template", the Containerfile template used
+# for building the image.
+#
+# GPU architecture of all images, used below as "gpu_arch: *gpu_arch"
+#
+gpu_arch: &gpu_arch "gfx90a"
+#
+images:
 #
 #  ubuntu-rocm
 #
-amdgpu_repo: "https://repo.radeon.com/amdgpu"
-amdgpu_version: "6.4.4"
-#
-rocm_repo: "https://repo.radeon.com/rocm"
-rocm_version: "7.2.4"
-#
-ubuntu_release: "24.04"
-ubuntu_tag: "noble-20260917"
-#
-extra_locales:
-  - cs_CZ.UTF-8
-  - da_DK.UTF-8
-  - en_DK.UTF-8
-  - en_US.UTF-8
-  - et_EE.UTF-8
-  - fi_FI.UTF-8
-  - nb_NO.UTF-8
-  - nn_NO.UTF-8
-  - pl_PL.UTF-8
-# Installed before ROCm: needed for adding the ROCm repository and as the
-# build and runtime base. Changing this list reinstalls ROCm.
-base_packages:
-  - build-essential
-  - ca-certificates
-  - cmake
-  - curl
-  - gnupg
-  - kmod
-  - libdw1t64
-  - libnuma-dev
-  - pkgconf
-  - python3-dev
-  - python3-packaging
-  - python3-pip
-  - python3-venv
-  - zstd
-# Installed after ROCm, so changing this list doesn't reinstall ROCm.
-extra_packages:
-  - file
-  - git
-  - jq
-  - less
-  - lsof
-  - nano
-  - neovim
-  - screen
-  - tmux
-  - unzip
-  - wget
-  - yq
+  rocm:
+    template: "rocm/Ubuntu2404_Rocm7"
+    ubuntu_release: "24.04"
+    ubuntu_tag: "noble-20260917"
+    components:
+      # Installed before ROCm: needed for adding the ROCm repository and as
+      # the build and runtime base. Changing this list reinstalls ROCm.
+      - name: base
+        apt_packages:
+          - build-essential
+          - ca-certificates
+          - cmake
+          - curl
+          - gnupg
+          - kmod
+          - libdw1t64
+          - libnuma-dev
+          - pkgconf
+          - python3-dev
+          - python3-packaging
+          - python3-pip
+          - python3-venv
+          - zstd
+      - name: amdgpu
+        repo: "https://repo.radeon.com/amdgpu"
+        version: "6.4.4"
+      - name: rocm
+        repo: "https://repo.radeon.com/rocm"
+        version: "7.2.4"
+      # Installed after ROCm, so changing these doesn't reinstall ROCm.
+      - name: extra
+        apt_packages:
+          - file
+          - git
+          - jq
+          - less
+          - lsof
+          - nano
+          - neovim
+          - screen
+          - tmux
+          - unzip
+          - wget
+          - yq
+        locales:
+          - cs_CZ.UTF-8
+          - da_DK.UTF-8
+          - en_DK.UTF-8
+          - en_US.UTF-8
+          - et_EE.UTF-8
+          - fi_FI.UTF-8
+          - nb_NO.UTF-8
+          - nn_NO.UTF-8
+          - pl_PL.UTF-8
+
 #
 # ubuntu-rocm-libfabric
 #
-cassini_headers_source: "https://github.com/HewlettPackard/shs-cassini-headers"
-cassini_headers_version: "12.0.1" # Based on version LUMI's versions since Jan 2026 maint break
+# For packages built from a git commit, "version" is the version prefix and
+# the Ubuntu package version becomes <version>-<commit>.
 #
-cxi_headers_version_prefix: "1.0.0-SHS12.0.2"
-cxi_headers_clone_url: "https://github.com/HewlettPackard/shs-cxi-driver"
-cxi_headers_git_commit: "27f7be5" # Based on version LUMI's versions since Jan 2026 maint break
-#
-kdreg2_headers_version_prefix: "0.4-SHS12.0.2"
-kdreg2_headers_clone_url: "https://github.com/HewlettPackard/shs-kdreg2"
-kdreg2_headers_git_commit: "746483b"
-#
-libcxi_version_prefix: "1.0.2-SHS12.0.2"
-libcxi_clone_url: "https://github.com/HewlettPackard/shs-libcxi"
-libcxi_git_commit: "30fa2dd" # Based on version LUMI's versions since Jan 2026 maint break
-#
-libfabric_git_commit: "78d6e03"
-libfabric_version_prefix: "2.1"
-libfabric_clone_url: "https://github.com/ofiwg/libfabric"
-#
-xpmem_clone_url: "https://github.com/hpc/xpmem"
-xpmem_git_commit: "3bcab55"
-xpmem_version_prefix: "0.1"
-xpmem_kernel_base_src: "linux-headers-6.8.0-136_6.8.0-136.136_all.deb"
-xpmem_kernel_generic_src: "linux-headers-6.8.0-136-generic_6.8.0-136.136_amd64.deb"
-xpmem_kernel_id: "linux-headers-6.8.0-136-generic"
+  libfabric:
+    template: "libfabric/Ubuntu_Rocm_Slingshot"
+    components:
+      - name: cassini-headers
+        source: "https://github.com/HewlettPackard/shs-cassini-headers"
+        version: "12.0.1" # Based on version LUMI's versions since Jan 2026 maint break
+      - name: cxi-headers
+        repo: "https://github.com/HewlettPackard/shs-cxi-driver"
+        commit: "27f7be5" # Based on version LUMI's versions since Jan 2026 maint break
+        version: "1.0.0-SHS12.0.2"
+      - name: kdreg2-headers
+        repo: "https://github.com/HewlettPackard/shs-kdreg2"
+        commit: "746483b"
+        version: "0.4-SHS12.0.2"
+      - name: libcxi
+        repo: "https://github.com/HewlettPackard/shs-libcxi"
+        commit: "30fa2dd" # Based on version LUMI's versions since Jan 2026 maint break
+        version: "1.0.2-SHS12.0.2"
+      - name: libfabric
+        repo: "https://github.com/ofiwg/libfabric"
+        commit: "78d6e03"
+        version: "2.1"
+      - name: xpmem
+        repo: "https://github.com/hpc/xpmem"
+        commit: "3bcab55"
+        version: "0.1"
+        kernel_base_src: "linux-headers-6.8.0-136_6.8.0-136.136_all.deb"
+        kernel_generic_src: "linux-headers-6.8.0-136-generic_6.8.0-136.136_amd64.deb"
+        kernel_id: "linux-headers-6.8.0-136-generic"
 
 #
 # ubuntu-rocm-libfabric-mpich
 #
-aws_ofi_nccl_repo: "https://github.com/aws/aws-ofi-nccl"
-aws_ofi_nccl_commit: "2475c4c" # Tagged as latest release (v1.21.1) as of 2026-09-04
-aws_ofi_nccl_version: "1.21.1"
-#
-hwloc_repo: "https://github.com/open-mpi/hwloc"
-hwloc_version: "2.14.0" # Latest version as of 2026-07-13
-#
-mpich_source: "http://www.mpich.org/static/downloads"
-mpich_version: "5.0.1" # Latest version as of 2026-07-13
-mpich_gpu_arch: "gfx90a"
-#
-osu_source: "https://mvapich.cse.ohio-state.edu/download/mvapich"
-osu_version: "7.5.2" # Latest version as of 2026-07-13
-#
-rccl_tests_repo: "https://github.com/ROCm/rocm-systems"
-rccl_tests_commit: "485afdf" # Tagged as release (therock-7.14.1) as of 2026-09-04
-rccl_tests_gpu_archs: "gfx90a"
+  mpich:
+    template: "mpich/Ubuntu_Rocm_Slingshot"
+    components:
+      - name: aws-ofi-nccl
+        repo: "https://github.com/aws/aws-ofi-nccl"
+        commit: "2475c4c" # Tagged as latest release (v1.21.1) as of 2026-09-04
+        version: "1.21.1"
+      - name: hwloc
+        repo: "https://github.com/open-mpi/hwloc"
+        version: "2.14.0" # Latest version as of 2026-07-13
+      - name: mpich
+        source: "http://www.mpich.org/static/downloads"
+        version: "5.0.1" # Latest version as of 2026-07-13
+        gpu_arch: *gpu_arch
+      - name: osu
+        source: "https://mvapich.cse.ohio-state.edu/download/mvapich"
+        version: "7.5.2" # Latest version as of 2026-07-13
+      - name: rccl-tests
+        repo: "https://github.com/ROCm/rocm-systems"
+        commit: "485afdf" # Tagged as release (therock-7.14.1) as of 2026-09-04
+        gpu_arch: *gpu_arch
 
 #
 # ubuntu-rocm-libfabric-mpich-torch
 #
-torch_repo: "https://github.com/pytorch/pytorch"
-torch_version: "2.11.0"
-torch_gpu_arch: "gfx90a"
-#
-pytorch_triton_version: "3.6.0"
-torchaudio_version: "2.11.0"
-torchcodec_version: "0.17.0"
-torchvision_version: "0.26.0"
-
-# torch_patches:
-#   - "https://github.com/viahlgre/pytorch/commit/f0374f296279f6fbdb3437a144b226521d00b788.patch" # Disabled for PyTorch 2.13
-#
-torch_pip_dependencies:
-  - mkl-include
-  - mkl-static
-#
-torch_apt_dependencies:
-  - ccache
-  - libjpeg-dev
-  - libopenblas-dev
-  - libpng-dev
-  - numactl
-#
-fake_triton_url: "git+https://github.com/viahlgre/fake-triton.git@d35f4ca"
+  torch:
+    template: "torch/Venv_Torch_From_Src"
+    components:
+      - name: torch
+        repo: "https://github.com/pytorch/pytorch"
+        version: "2.11.0"
+        gpu_arch: *gpu_arch
+        # patches:
+        #   - "https://github.com/viahlgre/pytorch/commit/f0374f296279f6fbdb3437a144b226521d00b788.patch" # Disabled for PyTorch 2.13
+        pip_packages:
+          - mkl-include
+          - mkl-static
+        apt_packages:
+          - ccache
+          - libjpeg-dev
+          - libopenblas-dev
+          - libpng-dev
+          - numactl
+      - name: triton
+        version: "3.6.0"
+      - name: torchaudio
+        version: "2.11.0"
+      - name: torchcodec
+        version: "0.17.0"
+      - name: torchvision
+        version: "0.26.0"
+      - name: fake-triton
+        repo: "https://github.com/viahlgre/fake-triton.git"
+        commit: "d35f4ca"
 
 #
 # ubuntu-rocm-libfabric-mpich-torch-full
 #
-apex_git_commit: "c0f56f7" # Latest from branch release/1.11.0 (this branch is specifically for Pytorch 2.11.0) as of 2026-08-24
-apex_git_repo: "https://github.com/ROCm/apex"
-#
-causal_conv1d_commit: "4f6ae4e" # Latest commit as of 2026-07-13
-causal_conv1d_repo: "https://github.com/Dao-AILab/causal-conv1d"
-#
-deepspeed_version: "0.19.6" # Latest release as of 2026-09-11
-#
-flash_attention_repo_commit: "b664ea0" # Last commit with version 2.8.3 (supported by Transformer Engine) as of 2026-07-31
-flash_attention_repo_url: "https://github.com/ROCm/flash-attention"
-#
-llmcompressor_commit: "6d2a090" # Tagged as latest release (v0.12.0) as of 2026-07-13
-llmcompressor_repo: "https://github.com/vllm-project/llm-compressor"
-#
-megatron_lm_repo_url: "https://github.com/ROCm/Megatron-LM"
-megatron_lm_commit: "9784f40" # Latest from branch rocm_dev as of 2026-09-24
-#
-multi_image_gpu_arch: "gfx90a"
-#
-vllm_version: "v0.26.0" # "v0.26.0" is build against PyTorch 2.11.0 as of 2026-08-25
-vllm_commit: "568afb3"  # Tagged as release "v0.26.0"
-vllm_repo: "https://github.com/vllm-project/vllm"
-#
-xformers_commit: "03b91d7" # Tagged as latest release (v0.0.35) as of 2026-07-13
-xformers_repo: "https://github.com/facebookresearch/xformers"
-#
-wretag_url: "git+https://github.com/lumi-ai-factory/wretag.git@0da1af0"
-#
-extra_apt_packages:
-  # DeepSpeed
-  - libaio-dev
-  - libaio1t64
-  # Ultralytics dependencies
-  - ffmpeg
-  # vLLM build
-  - apt-transport-https
-  - ca-certificates
-  - libfmt-dev
-  - libmsgpack-dev
-  - libsqlite3-dev
-  - libsuitesparse-dev
-  - sqlite3
-extra_pip_packages:
-  - accelerate
-  - bitsandbytes
-  - datasets
-  - evaluate
-  - h5py
-  - huggingface-hub
-  - jupyter
-  - lightning
-  - marimo
-  - matplotlib
-  - mlflow
-  - mpi4py
-  - numba
-  - pandas
-  - peft
-  - scipy
-  - sentence-transformers
-  - sentencepiece
-  - tensorboard
-  - trl
-  - ultralytics-opencv-headless
-dependency_pip_packages:
-  # DeepSpeed OPS build
-  # - impi-devel
-  # - oneccl-devel
-  # Flash-attention build
-  # - ninja
-  # - packaging
-  # Megatron-LM
-  - flask-restful
-  - nltk
-  - pybind11
-  - pynvml
-  - tensorstore
-  - wandb
-  - wrapt
-  - zarr
-  # vLLM build
-  # - jinja2
-  - setuptools_rust
-  - setuptools_scm
+  multi:
+    template: "multi/Rocm_Multipurpose"
+    components:
+      # Image-wide GPU architecture and the extra Ubuntu and Python packages
+      - name: full
+        gpu_arch: *gpu_arch
+        apt_packages:
+          # DeepSpeed
+          - libaio-dev
+          - libaio1t64
+          # Ultralytics dependencies
+          - ffmpeg
+          # vLLM build
+          - apt-transport-https
+          - ca-certificates
+          - libfmt-dev
+          - libmsgpack-dev
+          - libsqlite3-dev
+          - libsuitesparse-dev
+          - sqlite3
+        pip_packages:
+          - accelerate
+          - bitsandbytes
+          - datasets
+          - evaluate
+          - h5py
+          - huggingface-hub
+          - jupyter
+          - lightning
+          - marimo
+          - matplotlib
+          - mlflow
+          - mpi4py
+          - numba
+          - pandas
+          - peft
+          - scipy
+          - sentence-transformers
+          - sentencepiece
+          - tensorboard
+          - trl
+          - ultralytics-opencv-headless
+      # Python packages needed for building the packages below
+      - name: build
+        pip_packages:
+          # DeepSpeed OPS build
+          # - impi-devel
+          # - oneccl-devel
+          # Flash-attention build
+          # - ninja
+          # - packaging
+          # Megatron-LM
+          - flask-restful
+          - nltk
+          - pybind11
+          - pynvml
+          - tensorstore
+          - wandb
+          - wrapt
+          - zarr
+          # vLLM build
+          # - jinja2
+          - setuptools_rust
+          - setuptools_scm
+      - name: wretag
+        repo: "https://github.com/lumi-ai-factory/wretag.git"
+        commit: "0da1af0"
+      - name: apex
+        repo: "https://github.com/ROCm/apex"
+        commit: "c0f56f7" # Latest from branch release/1.11.0 (this branch is specifically for Pytorch 2.11.0) as of 2026-08-24
+      - name: causal-conv1d
+        repo: "https://github.com/Dao-AILab/causal-conv1d"
+        commit: "4f6ae4e" # Latest commit as of 2026-07-13
+      - name: deepspeed
+        version: "0.19.6" # Latest release as of 2026-09-11
+      - name: flash-attention
+        repo: "https://github.com/ROCm/flash-attention"
+        commit: "b664ea0" # Last commit with version 2.8.3 (supported by Transformer Engine) as of 2026-07-31
+      - name: llmcompressor
+        repo: "https://github.com/vllm-project/llm-compressor"
+        commit: "6d2a090" # Tagged as latest release (v0.12.0) as of 2026-07-13
+      - name: megatron-lm
+        repo: "https://github.com/ROCm/Megatron-LM"
+        commit: "9784f40" # Latest from branch rocm_dev as of 2026-09-24
+      - name: vllm
+        repo: "https://github.com/vllm-project/vllm"
+        commit: "568afb3"  # Tagged as release "v0.26.0"
+        version: "v0.26.0" # "v0.26.0" is build against PyTorch 2.11.0 as of 2026-08-25
+      - name: xformers
+        repo: "https://github.com/facebookresearch/xformers"
+        commit: "03b91d7" # Tagged as latest release (v0.0.35) as of 2026-07-13
 
 #
 # ubuntu-rocm-libfabric-mpich-torch-full-plus
 #
-transformer_engine_arch: "gfx90a"
-transformer_engine_repo: "https://github.com/ROCm/TransformerEngine"
-transformer_engine_commit: "e7835ed" # v2.15 ROCm
+  plus:
+    template: "plus/Plus"
+    components:
+      - name: transformer-engine
+        repo: "https://github.com/ROCm/TransformerEngine"
+        commit: "e7835ed" # v2.15 ROCm
+        gpu_arch: *gpu_arch

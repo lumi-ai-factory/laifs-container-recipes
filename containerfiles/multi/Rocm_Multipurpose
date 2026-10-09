@@ -3,13 +3,14 @@ ARG BASE_IMAGE_TAG
 
 FROM $BASE_IMAGE:$BASE_IMAGE_TAG
 
-ARG EXTRA_APT_PACKAGES
+ARG FULL_APT_PACKAGES
 
-ARG DEPENDENCY_PIP_PACKAGES
-ARG EXTRA_PIP_PACKAGES
-ARG WRETAG_URL
+ARG BUILD_PIP_PACKAGES
+ARG FULL_PIP_PACKAGES
+ARG WRETAG_REPO
+ARG WRETAG_COMMIT
 
-ARG MULTI_IMAGE_GPU_ARCH
+ARG FULL_GPU_ARCH
 
 ARG SRC_DIR="/opt/src"
 ARG MAX_JOBS
@@ -32,34 +33,34 @@ RUN set -ue; \
   #
   test -f /opt/rocm/lib/llvm/bin/amdgpu-arch.really && { echo "error: amdgpu-arch.really already exists"; false; } || true; \
   mv /opt/rocm/lib/llvm/bin/amdgpu-arch /opt/rocm/lib/llvm/bin/amdgpu-arch.really; \
-  printf "#!/bin/bash\necho ${MULTI_IMAGE_GPU_ARCH}\n" > /opt/rocm/lib/llvm/bin/amdgpu-arch; \
+  printf "#!/bin/bash\necho ${FULL_GPU_ARCH}\n" > /opt/rocm/lib/llvm/bin/amdgpu-arch; \
   chmod a+rx /opt/rocm/lib/llvm/bin/amdgpu-arch; \
   #
   apt-get update && \
-  apt-get -y --no-install-recommends install ${EXTRA_APT_PACKAGES} && \
+  apt-get -y --no-install-recommends install ${FULL_APT_PACKAGES} && \
   rm -rf /var/lib/apt/lists/*; \
   #
-  pip install --upgrade-strategy=only-if-needed --no-cache-dir ${DEPENDENCY_PIP_PACKAGES} ${EXTRA_PIP_PACKAGES} && \
-  pip install --no-cache-dir "${WRETAG_URL}";
+  pip install --upgrade-strategy=only-if-needed --no-cache-dir ${BUILD_PIP_PACKAGES} ${FULL_PIP_PACKAGES} && \
+  pip install --no-cache-dir "git+${WRETAG_REPO}@${WRETAG_COMMIT}";
 
 #
 # Compile and install Flash Attention
 #
-ARG FLASH_ATTENTION_REPO_COMMIT
-ARG FLASH_ATTENTION_REPO_URL
+ARG FLASH_ATTENTION_COMMIT
+ARG FLASH_ATTENTION_REPO
 
 RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
   set -ue; \
   export MAX_JOBS="${MAX_JOBS:-$(nproc)}"; \
   #
-  git clone $FLASH_ATTENTION_REPO_URL ${SRC_DIR}/flash-attention; \
+  git clone $FLASH_ATTENTION_REPO ${SRC_DIR}/flash-attention; \
   cd ${SRC_DIR}/flash-attention; \
-  git checkout $FLASH_ATTENTION_REPO_COMMIT; \
+  git checkout $FLASH_ATTENTION_COMMIT; \
   #
-  export FLASH_ATTN_LOCAL_VERSION="lumi_aif_${MULTI_IMAGE_GPU_ARCH}_${FLASH_ATTENTION_REPO_COMMIT}"; \
+  export FLASH_ATTN_LOCAL_VERSION="lumi_aif_${FULL_GPU_ARCH}_${FLASH_ATTENTION_COMMIT}"; \
   export FLASH_ATTENTION_FORCE_BUILD=1; \
   #
-  BUILD_TARGET=rocm GPU_ARCHS=$MULTI_IMAGE_GPU_ARCH \
+  BUILD_TARGET=rocm GPU_ARCHS=$FULL_GPU_ARCH \
     python -m pip wheel --no-build-isolation --no-deps -v -w dist/ .; \
   wheel_path="$(find ${SRC_DIR}/flash-attention/dist  -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
   test $(echo $wheel_path | wc -w) = 1; \
@@ -81,9 +82,9 @@ RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
   cd ${SRC_DIR}/causal-conv1d; \
   git checkout $CAUSAL_CONV1D_COMMIT; \
   #
-  export PYTORCH_ROCM_ARCH_OVERRIDE="${MULTI_IMAGE_GPU_ARCH}"; \
-  export HIP_ARCHITECTURES="${MULTI_IMAGE_GPU_ARCH}"; \
-  export CAUSAL_CONV1D_LOCAL_VERSION="lumi_aif_${MULTI_IMAGE_GPU_ARCH}_${CAUSAL_CONV1D_COMMIT}"; \
+  export PYTORCH_ROCM_ARCH_OVERRIDE="${FULL_GPU_ARCH}"; \
+  export HIP_ARCHITECTURES="${FULL_GPU_ARCH}"; \
+  export CAUSAL_CONV1D_LOCAL_VERSION="lumi_aif_${FULL_GPU_ARCH}_${CAUSAL_CONV1D_COMMIT}"; \
   export CAUSAL_CONV1D_FORCE_BUILD=1; \
   #
   pip wheel --no-deps --no-build-isolation -v -w ${SRC_DIR}/causal-conv1d/dist .; \
@@ -109,12 +110,12 @@ RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
   git submodule update --init --recursive; \
   #
   export XFORMERS_CK_FLASH_ATTN=1; \
-  export HIP_ARCHITECTURES="${MULTI_IMAGE_GPU_ARCH}"; \
+  export HIP_ARCHITECTURES="${FULL_GPU_ARCH}"; \
   #
   pip wheel --no-deps --no-build-isolation -v -w ${SRC_DIR}/xformers/dist .; \
   wheel_path="$(find ${SRC_DIR}/xformers/dist -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
   test $(echo $wheel_path | wc -w) = 1; \
-  new_wheel="$(wretag -d -q lumi_aif_${MULTI_IMAGE_GPU_ARCH}_${XFORMERS_COMMIT} $wheel_path)"; \
+  new_wheel="$(wretag -d -q lumi_aif_${FULL_GPU_ARCH}_${XFORMERS_COMMIT} $wheel_path)"; \
   #
   cd .. && pip install --no-cache-dir $new_wheel; \
   rm -rf ${SRC_DIR}/xformers; \
@@ -124,23 +125,23 @@ RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
 #
 # Install Apex
 #
-ARG APEX_GIT_COMMIT
-ARG APEX_GIT_REPO
+ARG APEX_COMMIT
+ARG APEX_REPO
 
 RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
   set -ue; \
   export MAX_JOBS="${MAX_JOBS:-$(nproc)}"; \
   #
-  git clone "${APEX_GIT_REPO}" ${SRC_DIR}/apex;\
+  git clone "${APEX_REPO}" ${SRC_DIR}/apex;\
   cd ${SRC_DIR}/apex; \
-  git checkout "${APEX_GIT_COMMIT}"; \
+  git checkout "${APEX_COMMIT}"; \
   #
-  export PYTORCH_ROCM_ARCH="${MULTI_IMAGE_GPU_ARCH}"; \
+  export PYTORCH_ROCM_ARCH="${FULL_GPU_ARCH}"; \
   APEX_BUILD_CPP_OPS=1 APEX_BUILD_CUDA_OPS=1 \
     pip wheel --no-deps --no-build-isolation -v -w ${SRC_DIR}/apex/dist .; \
   wheel_path="$(find ${SRC_DIR}/apex/dist  -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
   test $(echo $wheel_path | wc -w) = 1; \
-  new_wheel="$(wretag -d -q lumi_aif_${MULTI_IMAGE_GPU_ARCH}_${APEX_GIT_COMMIT} $wheel_path)"; \
+  new_wheel="$(wretag -d -q lumi_aif_${FULL_GPU_ARCH}_${APEX_COMMIT} $wheel_path)"; \
   #
   cd .. && pip install --no-cache-dir $new_wheel; \
   rm -rf ${SRC_DIR}/apex;
@@ -163,13 +164,13 @@ RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
   #
   export MAKEFLAGS="-j${MAX_JOBS}"; \
   # revisit: which of the arch defs really makes a difference
-  # export AMDGPU_TARGETS=$MULTI_IMAGE_GPU_ARCH; \
-  # export GPU_ARCHS=$MULTI_IMAGE_GPU_ARCH; \
-  # export GPU_TARGETS=$MULTI_IMAGE_GPU_ARCH; \
-  # export HIP_ARCHITECTURES=$MULTI_IMAGE_GPU_ARCH; \
+  # export AMDGPU_TARGETS=$FULL_GPU_ARCH; \
+  # export GPU_ARCHS=$FULL_GPU_ARCH; \
+  # export GPU_TARGETS=$FULL_GPU_ARCH; \
+  # export HIP_ARCHITECTURES=$FULL_GPU_ARCH; \
   export VLLM_TARGET_DEVICE=rocm; \
-  export PYTORCH_ROCM_ARCH=$MULTI_IMAGE_GPU_ARCH; \
-  export VLLM_VERSION_OVERRIDE=${VLLM_VERSION}+lumi_aif_${MULTI_IMAGE_GPU_ARCH}_${VLLM_COMMIT}; \
+  export PYTORCH_ROCM_ARCH=$FULL_GPU_ARCH; \
+  export VLLM_VERSION_OVERRIDE=${VLLM_VERSION}+lumi_aif_${FULL_GPU_ARCH}_${VLLM_COMMIT}; \
   #
   python setup.py bdist_wheel -v --dist-dir=dist; \
   wheel_path="$(find ${SRC_DIR}/vllm/dist  -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
@@ -215,7 +216,7 @@ RUN set -ue; \
     --no-binary=:all: \
     -d "$src"; \
   #
-  export PYTORCH_ROCM_ARCH=$MULTI_IMAGE_GPU_ARCH; \
+  export PYTORCH_ROCM_ARCH=$FULL_GPU_ARCH; \
   export DS_ACCELERATOR=cuda; \
   export DS_BUILD_OPS=1; \
   #
@@ -244,13 +245,13 @@ RUN set -ue; \
 #
 # Install Megatron LM (experimental for testing)
 #
-ARG MEGATRON_LM_REPO_URL
+ARG MEGATRON_LM_REPO
 ARG MEGATRON_LM_COMMIT
 
 RUN set -ue; \
   export MAX_JOBS="${MAX_JOBS:-$(nproc)}"; \
   #
-  pip wheel --no-deps -w ${SRC_DIR}/megatronlm git+${MEGATRON_LM_REPO_URL}.git@${MEGATRON_LM_COMMIT}; \
+  pip wheel --no-deps -w ${SRC_DIR}/megatronlm git+${MEGATRON_LM_REPO}.git@${MEGATRON_LM_COMMIT}; \
   wheel_path="$(find ${SRC_DIR}/megatronlm -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
   test $(echo $wheel_path | wc -w) = 1; \
   new_wheel="$(wretag -d -q lumi_aif_${MEGATRON_LM_COMMIT} $wheel_path)"; \

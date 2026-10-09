@@ -1,9 +1,40 @@
+{#- Look up components defined under images.<image>.components by name, e.g. comps.torch.version -#}
+{%- set comps = {} -%}
+{%- for image in images.values() -%}
+  {%- for comp in image.components -%}
+    {%- set _ = comps.update({comp.name: comp}) -%}
+  {%- endfor -%}
+{%- endfor -%}
+
+{#- Convert the components of an image into env entries named <NAME>_<FIELD>, joining lists with spaces -#}
+{%- macro component_env(image) -%}
+  {%- for comp in images[image].components -%}
+    {%- for field, value in comp.items() if field != "name" %}
+      - {{ (comp.name ~ "_" ~ field) | upper | replace("-", "_") }}=
+      {%- if value is string %}{{ value }}{% else %}"{{ value | join(' ') }}"{% endif %}
+    {%- endfor -%}
+  {%- endfor -%}
+{%- endmacro -%}
+
+{#- Document a component as "<label> <version> (from <where>)", for example
+    "Libfabric 2.1 (from <repo> commit <commit>)". Set version=false to leave
+    out the version, or give a note to replace the "from ..." part -#}
+{%- macro component(name, label, version=true, note=none) -%}
+  {%- set comp = comps[name] -%}
+  {{- label }}{% if version and comp.version is defined %} {{ comp.version }}{% endif %} (
+  {%- if note %}{{ note }}
+  {%- elif comp.commit is defined %}from {{ comp.repo }} commit {{ comp.commit }}
+  {%- elif comp.source is defined %}from {{ comp.source }} release tgz for {{ comp.version }}
+  {%- else %}from {{ comp.repo }}
+  {%- endif %})
+{%- endmacro -%}
+
 {#- Derive software digest string for the recipe from variables to keep the digest automatically updated -#}
-{%- set ubuntu_id = 'u' ~ ubuntu_release.split('.')[0] -%}
-{%- set rocm_id = 'r' ~ rocm_version.split('.')[0] ~ rocm_version.split('.')[1] -%}
-{%- set libfabric_id = 'f' ~ libfabric_version_prefix.split('.')[0] ~ libfabric_version_prefix.split('.')[1] -%}
-{%- set mpich_id = 'm' ~ mpich_version.split('.')[0] ~ mpich_version.split('.')[1] -%}
-{%- set torch_id = 't' ~ torch_version.split('.')[0] ~ torch_version.split('.')[1] -%}
+{%- set ubuntu_id = 'u' ~ images.rocm.ubuntu_release.split('.')[0] -%}
+{%- set rocm_id = 'r' ~ comps.rocm.version.split('.')[0] ~ comps.rocm.version.split('.')[1] -%}
+{%- set libfabric_id = 'f' ~ comps.libfabric.version.split('.')[0] ~ comps.libfabric.version.split('.')[1] -%}
+{%- set mpich_id = 'm' ~ comps.mpich.version.split('.')[0] ~ comps.mpich.version.split('.')[1] -%}
+{%- set torch_id = 't' ~ comps.torch.version.split('.')[0] ~ comps.torch.version.split('.')[1] -%}
 {%- set software_digest = ubuntu_id ~ rocm_id ~ libfabric_id ~ mpich_id ~ torch_id -%}
 
 {#- Enable rendering the template without build_tag set in the jinja2 context -#}
@@ -45,7 +76,7 @@
 {% endmacro %}
 
 {#- Convert ROCM version to a format suitable for the pip wheel URLs -#}
-{%- set rocm_wheel_version = 'rocm' ~ (rocm_version.split('.')[:2] | join('.')) -%}
+{%- set rocm_wheel_version = 'rocm' ~ (comps.rocm.version.split('.')[:2] | join('.')) -%}
 
 {#- Set pip wheel URLs -#}
 {%- set torchvision_url = 'https://download.pytorch.org/whl/' ~ rocm_wheel_version -%}
@@ -81,50 +112,50 @@ desc: |
     - lumi: The primary target system for the images (LUMI)
     - multitorch: Image type (a multipurpose PyTorch image)
     - {{software_digest}}: Major software versions digest, consisting of:
-      - {{ubuntu_id}}: Digest from Ubuntu {{ubuntu_release}} LTS
-      - {{rocm_id}}: Digest from ROCm {{rocm_version}}
-      - {{libfabric_id}}: Digest from libfabric {{libfabric_version_prefix}}
-      - {{mpich_id}}: Digest from MPICH {{mpich_version}}
-      - {{torch_id}}: Digest from PyTorch {{torch_version}}
+      - {{ubuntu_id}}: Digest from Ubuntu {{images.rocm.ubuntu_release}} LTS
+      - {{rocm_id}}: Digest from ROCm {{comps.rocm.version}}
+      - {{libfabric_id}}: Digest from libfabric {{comps.libfabric.version}}
+      - {{mpich_id}}: Digest from MPICH {{comps.mpich.version}}
+      - {{torch_id}}: Digest from PyTorch {{comps.torch.version}}
     - {{build_tag}}: Timestamp-based build tag
 
   This release includes six images, each building on the previous one by adding
   new major functionality in the following order:
-    - `{{image_digest_name("rocm")}}`: Starts from Ubuntu base image and adds ROCm {{rocm_version}}
-    - `{{image_digest_name("libfabric")}}`: Adds libfabric {{libfabric_version_prefix}} to the ROCm image
-    - `{{image_digest_name("mpich")}}`: Adds MPICH {{mpich_version}} with GPU support to the libfabric image
-    - `{{image_digest_name("torch")}}`: Adds PyTorch {{torch_version}} to the MPICH image
+    - `{{image_digest_name("rocm")}}`: Starts from Ubuntu base image and adds ROCm {{comps.rocm.version}}
+    - `{{image_digest_name("libfabric")}}`: Adds libfabric {{comps.libfabric.version}} to the ROCm image
+    - `{{image_digest_name("mpich")}}`: Adds MPICH {{comps.mpich.version}} with GPU support to the libfabric image
+    - `{{image_digest_name("torch")}}`: Adds PyTorch {{comps.torch.version}} to the MPICH image
     - `{{image_digest_name("full")}}`: Adds selection of AI and ML libraries to the PyTorch image
     - `{{image_digest_name("plus")}}`: Adds experimental software to the Full image
 
   The final image, `{{image_build_name("full")}}`,
   includes these key software components:
-    - Ubuntu {{ubuntu_release}} LTS (from https://hub.docker.com/layers/library/ubuntu/{{ubuntu_tag}})
-    - AMD ROCm {{rocm_version}} (from {{rocm_repo}})
-    - Xpmem (from {{xpmem_clone_url}} commit {{xpmem_git_commit}})
-    - Cassini headers (from {{cassini_headers_source}} release tgz for {{cassini_headers_version}})
-    - CXI headers (from {{cxi_headers_clone_url}} commit {{cxi_headers_git_commit}})
-    - Libcxi (from {{libcxi_clone_url}} commit {{libcxi_git_commit}})
-    - Libfabric {{libfabric_version_prefix}} (from {{libfabric_clone_url}} commit {{libfabric_git_commit}})
-    - MPICH {{mpich_version}} (from {{mpich_source}} release tgz for {{mpich_version}})
-    - AWS-OFI-NCCL {{aws_ofi_nccl_version}} (from {{aws_ofi_nccl_repo}} commit {{aws_ofi_nccl_commit}})
-    - RCCL Tests (from {{rccl_tests_repo}} commit {{rccl_tests_commit}})
-    - OSU micro-benchmarks {{osu_version}} (from {{osu_source}} release tgz for {{osu_version}})
-    - PyTorch {{torch_version}} (from {{torch_repo}} tag v{{torch_version}})
+    - Ubuntu {{images.rocm.ubuntu_release}} LTS (from https://hub.docker.com/layers/library/ubuntu/{{images.rocm.ubuntu_tag}})
+    - {{ component("rocm", "AMD ROCm") }}
+    - {{ component("xpmem", "Xpmem", version=false) }}
+    - {{ component("cassini-headers", "Cassini headers", version=false) }}
+    - {{ component("cxi-headers", "CXI headers", version=false) }}
+    - {{ component("libcxi", "Libcxi", version=false) }}
+    - {{ component("libfabric", "Libfabric") }}
+    - {{ component("mpich", "MPICH") }}
+    - {{ component("aws-ofi-nccl", "AWS-OFI-NCCL") }}
+    - {{ component("rccl-tests", "RCCL Tests") }}
+    - {{ component("osu", "OSU micro-benchmarks") }}
+    - PyTorch {{comps.torch.version}} (from {{comps.torch.repo}} tag v{{comps.torch.version}})
     - TorchVision (from {{torchvision_url}})
     - TorchAudio (from {{torchaudio_url}})
     - PyTorch Triton (from {{pytorch_triton_url}})
-    - Apex (from {{apex_git_repo}} commit {{apex_git_commit}})
-    - Causal Conv1D (from {{causal_conv1d_repo}} commit {{causal_conv1d_commit}})
-    - DeepSpeed {{deepspeed_version}} (with locally built ops addons)
-    - Flash Attention (from {{flash_attention_repo_url}} commit {{flash_attention_repo_commit}})
-    - LLM Compressor: (from {{llmcompressor_repo}} commit {{llmcompressor_commit}})
-    - Megatron LM (experimental): (from {{megatron_lm_repo_url}} commit {{megatron_lm_commit}})
-    - vLLM {{vllm_version}} (from {{vllm_repo}} commit {{vllm_commit}})
-    - xFormers (from {{xformers_repo}} commit {{xformers_commit}})
+    - {{ component("apex", "Apex") }}
+    - {{ component("causal-conv1d", "Causal Conv1D") }}
+    - {{ component("deepspeed", "DeepSpeed", note="with locally built ops addons") }}
+    - {{ component("flash-attention", "Flash Attention") }}
+    - {{ component("llmcompressor", "LLM Compressor") }}
+    - {{ component("megatron-lm", "Megatron LM (experimental)") }}
+    - {{ component("vllm", "vLLM") }}
+    - {{ component("xformers", "xFormers") }}
 
   These additional packages from PyPI are also included in the final image:
-    {%- for pkg in extra_pip_packages %}
+    {%- for pkg in comps.full.pip_packages %}
     - {{ pkg }}
     {%- endfor %}
 
@@ -204,32 +235,25 @@ desc: |
 
 steps:
   - name: {{image_digest_name("rocm")}}
-    base: ubuntu:{{ubuntu_tag}}
+    base: ubuntu:{{images.rocm.ubuntu_tag}}
     desc: |
       **Overview**<br>
-      This is a base image building on Ubuntu {{ubuntu_release}} LTS upstream image
+      This is a base image building on Ubuntu {{images.rocm.ubuntu_release}} LTS upstream image
       with ROCm software from AMD's official Ubuntu repositories installed on top of
       it. The image also adds a few commonly used extra Ubuntu packages and enables
       man pages.
 
       **Details**<br>
-      Ubuntu base image: ubuntu:{{ubuntu_tag}}<br>
-      AMD ROCm repository: {{rocm_repo}}<br>
-      AMD ROCm release: {{rocm_version}}<br>
+      Ubuntu base image: ubuntu:{{images.rocm.ubuntu_tag}}<br>
+      AMD ROCm repository: {{comps.rocm.repo}}<br>
+      AMD ROCm release: {{comps.rocm.version}}<br>
       Additional Ubuntu packages:
-      {%- for pkg in (base_packages + extra_packages) | sort %}
+      {%- for pkg in (comps.base.apt_packages + comps.extra.apt_packages) | sort %}
         - {{ pkg }}
       {%- endfor %}
-    template: rocm/Ubuntu2404_Rocm7
-    force: False
+    template: {{ images.rocm.template }}
     env:
-      - AMDGPU_REPO={{amdgpu_repo}}
-      - AMDGPU_VERSION={{amdgpu_version}}
-      - ROCM_REPO={{rocm_repo}}
-      - ROCM_VERSION={{rocm_version}}
-      - BASE_PACKAGES="{{base_packages | join(' ')}}"
-      - EXTRA_LOCALES="{{extra_locales | join(' ')}}"
-      - EXTRA_PACKAGES="{{extra_packages | join(' ')}}"
+      {{- component_env("rocm") }}
     export:
       def:
 
@@ -246,39 +270,14 @@ steps:
       **Details**<br>
       Base image: {{image_digest_name("rocm")}}<br>
       Components:
-        - xpmem (from {{xpmem_clone_url}} commit {{xpmem_git_commit}})
-        - Cassini headers (from {{cassini_headers_source}} release tgz for {{cassini_headers_version}})
-        - CXI headers (from {{cxi_headers_clone_url}} commit {{cxi_headers_git_commit}})
-        - libcxi (from {{libcxi_clone_url}} commit {{libcxi_git_commit}})
-        - Libfabric {{libfabric_version_prefix}} (from {{libfabric_clone_url}} commit {{libfabric_git_commit}})
-    template: libfabric/Ubuntu_Rocm_Slingshot
-    force: False
+        - {{ component("xpmem", "xpmem", version=false) }}
+        - {{ component("cassini-headers", "Cassini headers", version=false) }}
+        - {{ component("cxi-headers", "CXI headers", version=false) }}
+        - {{ component("libcxi", "libcxi", version=false) }}
+        - {{ component("libfabric", "Libfabric") }}
+    template: {{ images.libfabric.template }}
     env:
-      - XPMEM_CLONE_URL={{xpmem_clone_url}}
-      - XPMEM_GIT_COMMIT={{xpmem_git_commit}}
-      - XPMEM_VERSION={{xpmem_version_prefix}}-{{xpmem_git_commit}}
-      - XPMEM_KERNEL_BASE_SRC={{xpmem_kernel_base_src}}
-      - XPMEM_KERNEL_GENERIC_SRC={{xpmem_kernel_generic_src}}
-      - XPMEM_KERNEL_ID={{xpmem_kernel_id}}
-      #
-      - CASSINI_HEADERS_SOURCE={{cassini_headers_source}}
-      - CASSINI_HEADERS_VERSION={{cassini_headers_version}}
-      #
-      - CXI_HEADERS_VERSION={{cxi_headers_version_prefix}}-{{cxi_headers_git_commit}}
-      - CXI_HEADERS_CLONE_URL={{cxi_headers_clone_url}}
-      - CXI_HEADERS_GIT_COMMIT={{cxi_headers_git_commit}}
-      #
-      - KDREG2_HEADERS_VERSION={{kdreg2_headers_version_prefix}}-{{kdreg2_headers_git_commit}}
-      - KDREG2_HEADERS_CLONE_URL={{kdreg2_headers_clone_url}}
-      - KDREG2_HEADERS_GIT_COMMIT={{kdreg2_headers_git_commit}}
-      #
-      - LIBCXI_VERSION={{libcxi_version_prefix}}-{{libcxi_git_commit}}
-      - LIBCXI_CLONE_URL={{libcxi_clone_url}}
-      - LIBCXI_GIT_COMMIT={{libcxi_git_commit}}
-      #
-      - LIBFABRIC_VERSION={{libfabric_version_prefix}}-{{libfabric_git_commit}}
-      - LIBFABRIC_CLONE_URL={{libfabric_clone_url}}
-      - LIBFABRIC_GIT_COMMIT={{libfabric_git_commit}}
+      {{- component_env("libfabric") }}
     export:
       def:
 
@@ -294,32 +293,15 @@ steps:
 
       **Details**<br>
       Base image: {{image_digest_name("libfabric")}}<br>
-      MPI implementation: MPICH {{mpich_version}}<br>
+      MPI implementation: MPICH {{comps.mpich.version}}<br>
       Components:
-        - MPICH {{mpich_version}} (from {{mpich_source}} release tgz for {{mpich_version}})
-        - AWS-OFI-NCCL {{aws_ofi_nccl_version}} (from {{aws_ofi_nccl_repo}} commit {{aws_ofi_nccl_commit}})
-        - RCCL Tests (from {{rccl_tests_repo}} commit {{rccl_tests_commit}})
-        - OSU micro-benchmarks {{osu_version}} (from {{osu_source}} release tgz for {{osu_version}})
-    template: mpich/Ubuntu_Rocm_Slingshot
-    force: False
+        - {{ component("mpich", "MPICH") }}
+        - {{ component("aws-ofi-nccl", "AWS-OFI-NCCL") }}
+        - {{ component("rccl-tests", "RCCL Tests") }}
+        - {{ component("osu", "OSU micro-benchmarks") }}
+    template: {{ images.mpich.template }}
     env:
-      - AWS_OFI_NCCL_COMMIT={{aws_ofi_nccl_commit}}
-      - AWS_OFI_NCCL_REPO={{aws_ofi_nccl_repo}}
-      - AWS_OFI_NCCL_VERSION={{aws_ofi_nccl_version}}
-      #
-      - HWLOC_REPO={{hwloc_repo}}
-      - HWLOC_VERSION={{hwloc_version}}
-      #
-      - MPICH_SOURCE={{mpich_source}}
-      - MPICH_VERSION={{mpich_version}}
-      - MPICH_GPU_ARCH={{mpich_gpu_arch}}
-      #
-      - OSU_SOURCE={{osu_source}}
-      - OSU_VERSION={{osu_version}}
-      #
-      - RCCL_TESTS_COMMIT={{rccl_tests_commit}}
-      - RCCL_TESTS_GPU_ARCHS={{rccl_tests_gpu_archs}}
-      - RCCL_TESTS_REPO={{rccl_tests_repo}}
+      {{- component_env("mpich") }}
     export:
       def:
 
@@ -332,32 +314,17 @@ steps:
 
       **Details**<br>
       Base image: {{image_digest_name("mpich")}}<br>
-      PyTorch version: {{torch_version}}<br>
+      PyTorch version: {{comps.torch.version}}<br>
       PyTorch packages and sources:
-        - PyTorch: "{{torch_repo}} @ tag v{{torch_version}}"
-        - TorchVision: {{torchvision_version}} from {{torchvision_url}}
-        - TorchAudio: {{torchaudio_version}} from {{torchaudio_url}}
-        - TorchCodec: {{torchcodec_version}} from https://download.pytorch.org/whl/cpu/
-        - PyTorch Triton: {{pytorch_triton_version}} from https://download.pytorch.org/whl/{{rocm_wheel_version}}/
-    template: torch/Venv_Torch_From_Src
-    force: False
+        - PyTorch: "{{comps.torch.repo}} @ tag v{{comps.torch.version}}"
+        - TorchVision: {{comps.torchvision.version}} from {{torchvision_url}}
+        - TorchAudio: {{comps.torchaudio.version}} from {{torchaudio_url}}
+        - TorchCodec: {{comps.torchcodec.version}} from https://download.pytorch.org/whl/cpu/
+        - PyTorch Triton: {{comps.triton.version}} from https://download.pytorch.org/whl/{{rocm_wheel_version}}/
+    template: {{ images.torch.template }}
     env:
-      - TORCH_REPO={{torch_repo}}
-      - TORCH_VERSION={{torch_version}}
       - TORCH_ROCM_VERSION={{rocm_wheel_version}}
-      - TORCH_GPU_ARCH={{torch_gpu_arch}}
-      # - TORCH_PATCHES="{{torch_patches | join(' ')}}"
-      #
-      - TORCH_PIP_DEPENDENCIES="{{torch_pip_dependencies | join(' ')}}"
-      - TORCH_APT_DEPENDENCIES="{{torch_apt_dependencies | join(' ')}}"
-      #
-      - PYTORCH_TRITON_VERSION={{pytorch_triton_version}}
-      - TORCHAUDIO_VERSION={{torchaudio_version}}
-      - TORCHCODEC_VERSION={{torchcodec_version}}
-      - TORCHVISION_VERSION={{torchvision_version}}
-      #
-      - FAKE_TRITON_URL={{fake_triton_url}}
-
+      {{- component_env("torch") }}
     export:
       def:
 
@@ -372,57 +339,25 @@ steps:
 
       **Details**<br>
       Base image: {{image_digest_name("torch")}}<br>
-      GPU architectures: {{multi_image_gpu_arch}}<br>
+      GPU architectures: {{comps.full.gpu_arch}}<br>
       Components:
-        - Apex (from {{apex_git_repo}} commit {{apex_git_commit}})
-        - Causal Conv1D (from {{causal_conv1d_repo}} commit {{causal_conv1d_commit}})
-        - DeepSpeed {{deepspeed_version}} (with locally built ops addons)
-        - Flash Attention (from {{flash_attention_repo_url}} commit {{flash_attention_repo_commit}})
-        - LLM Compressor (from {{llmcompressor_repo}} commit {{llmcompressor_commit}})
-        - Megatron LM (experimental) (from {{megatron_lm_repo_url}} commit {{megatron_lm_commit}})
-        - vLLM {{vllm_version}} (from {{vllm_repo}} commit {{vllm_commit}})
-        - xFormers (from {{xformers_repo}} commit {{xformers_commit}})
+        - {{ component("apex", "Apex") }}
+        - {{ component("causal-conv1d", "Causal Conv1D") }}
+        - {{ component("deepspeed", "DeepSpeed", note="with locally built ops addons") }}
+        - {{ component("flash-attention", "Flash Attention") }}
+        - {{ component("llmcompressor", "LLM Compressor") }}
+        - {{ component("megatron-lm", "Megatron LM (experimental)") }}
+        - {{ component("vllm", "vLLM") }}
+        - {{ component("xformers", "xFormers") }}
 
       Additional Python packages from PyPI:
-        {%- for pkg in extra_pip_packages %}
+        {%- for pkg in comps.full.pip_packages %}
         - {{pkg}}
         {%- endfor %}
 
-    template: multi/Rocm_Multipurpose
-    force: False
+    template: {{ images.multi.template }}
     env:
-      - APEX_GIT_REPO={{apex_git_repo}}
-      - APEX_GIT_COMMIT={{apex_git_commit}}
-      #
-      - CAUSAL_CONV1D_REPO={{causal_conv1d_repo}}
-      - CAUSAL_CONV1D_COMMIT={{causal_conv1d_commit}}
-      #
-      - DEEPSPEED_VERSION={{deepspeed_version}}
-      #
-      - DEPENDENCY_PIP_PACKAGES="{{dependency_pip_packages | join(' ')}}"
-      #
-      - EXTRA_APT_PACKAGES="{{extra_apt_packages | join(' ')}}"
-      - EXTRA_PIP_PACKAGES="{{extra_pip_packages | join(' ')}}"
-      #
-      - FLASH_ATTENTION_REPO_COMMIT={{flash_attention_repo_commit}}
-      - FLASH_ATTENTION_REPO_URL={{flash_attention_repo_url}}
-      #
-      - LLMCOMPRESSOR_REPO={{llmcompressor_repo}}
-      - LLMCOMPRESSOR_COMMIT={{llmcompressor_commit}}
-      #
-      - MEGATRON_LM_COMMIT={{megatron_lm_commit}}
-      - MEGATRON_LM_REPO_URL={{megatron_lm_repo_url}}
-      #
-      - MULTI_IMAGE_GPU_ARCH={{multi_image_gpu_arch}}
-      #
-      - VLLM_VERSION={{vllm_version}}
-      - VLLM_COMMIT={{vllm_commit}}
-      - VLLM_REPO={{vllm_repo}}
-      #
-      - XFORMERS_COMMIT={{xformers_commit}}
-      - XFORMERS_REPO={{xformers_repo}}
-      #
-      - WRETAG_URL={{wretag_url}}
+      {{- component_env("multi") }}
     export:
       def:
 
@@ -440,15 +375,12 @@ steps:
 
       **Details**<br>
       Base image: {{image_digest_name("full")}}<br>
-      GPU architectures: {{multi_image_gpu_arch}}<br>
+      GPU architectures: {{comps["transformer-engine"].gpu_arch}}<br>
       Components:
-        - Transformer Engine (from {{transformer_engine_repo}} commit {{transformer_engine_commit}})
-    template: plus/Plus
-    force: False
+        - {{ component("transformer-engine", "Transformer Engine") }}
+    template: {{ images.plus.template }}
     env:
-      - TRANSFORMER_ENGINE_ARCH={{transformer_engine_arch}}
-      - TRANSFORMER_ENGINE_COMMIT={{transformer_engine_commit}}
-      - TRANSFORMER_ENGINE_REPO={{transformer_engine_repo}}
+      {{- component_env("plus") }}
     export:
       def:
 

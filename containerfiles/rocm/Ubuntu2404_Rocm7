@@ -5,7 +5,7 @@ FROM $BASE_IMAGE:$BASE_IMAGE_TAG as base
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-ARG BASE_PACKAGES
+ARG BASE_APT_PACKAGES
 
 RUN set -e;\
   #
@@ -15,7 +15,7 @@ RUN set -e;\
   printf '%s\n' 'Dpkg::Use-Pty "0";' > /etc/apt/apt.conf.d/99no-progress; \
   apt-get update && \
   yes | unminimize && \
-  apt-get -y --no-install-recommends install man locales ${BASE_PACKAGES} && \
+  apt-get -y --no-install-recommends install man locales ${BASE_APT_PACKAGES} && \
   rm -rf /var/lib/apt/lists/*
 
 FROM base as rocm
@@ -48,7 +48,7 @@ RUN set -ue;\
   ldconfig
 
 ARG EXTRA_LOCALES
-ARG EXTRA_PACKAGES
+ARG EXTRA_APT_PACKAGES
 
 RUN set -e;\
   #
@@ -56,7 +56,7 @@ RUN set -e;\
   # changing them doesn't reinstall ROCm
   #
   apt-get update && \
-  apt-get install -y --no-install-recommends ${EXTRA_PACKAGES} && \
+  apt-get install -y --no-install-recommends ${EXTRA_APT_PACKAGES} && \
   locale-gen ${EXTRA_LOCALES} && \
   rm -rf /var/lib/apt/lists/*
 

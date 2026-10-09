@@ -33,27 +33,27 @@ RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
 
 FROM $BASE_IMAGE:$BASE_IMAGE_TAG
 
-ARG TORCH_APT_DEPENDENCIES
+ARG TORCH_APT_PACKAGES
 
 RUN set -ue; \
   # Install OS dependencies
   apt-get update && \
-  apt-get -y install --no-install-recommends ${TORCH_APT_DEPENDENCIES} && \
+  apt-get -y install --no-install-recommends ${TORCH_APT_PACKAGES} && \
   apt-get clean && \
   rm -rf /var/lib/apt/lists/*
 
-ARG TORCH_PIP_DEPENDENCIES
+ARG TORCH_PIP_PACKAGES
 ARG TORCH_ROCM_VERSION
-ARG PYTORCH_TRITON_VERSION
+ARG TRITON_VERSION
 
 RUN set -ue; \
   # Install Python dependencies
   python3 -m venv /opt/venv && \
   . /opt/venv/bin/activate; \
   #
-  pip install ${TORCH_PIP_DEPENDENCIES} && \
+  pip install ${TORCH_PIP_PACKAGES} && \
   pip install \
-    triton-rocm==${PYTORCH_TRITON_VERSION} \
+    triton-rocm==${TRITON_VERSION} \
     --index-url https://download.pytorch.org/whl/${TORCH_ROCM_VERSION}/ && \
   pip install /opt/rocm/share/amd_smi
 
@@ -124,7 +124,8 @@ RUN --mount=from=src,source=${SRC_DIR},target=${SRC_DIR},rw \
   #
   rm -rf ${WHEEL_DIR}
 
-ARG FAKE_TRITON_URL
+ARG FAKE_TRITON_REPO
+ARG FAKE_TRITON_COMMIT
 ARG TORCHAUDIO_VERSION
 ARG TORCHCODEC_VERSION
 ARG TORCHVISION_VERSION
@@ -139,7 +140,7 @@ RUN set -e; \
   pip install \
     torchcodec==${TORCHCODEC_VERSION} \
     --index-url=https://download.pytorch.org/whl/cpu && \
-  pip install ${FAKE_TRITON_URL} && \
+  pip install "git+${FAKE_TRITON_REPO}@${FAKE_TRITON_COMMIT}" && \
   python -c "import torch; print(torch.__version__)"; \
   #
   # Add SBOM

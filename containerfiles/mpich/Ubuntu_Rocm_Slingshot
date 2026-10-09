@@ -113,7 +113,7 @@ RUN set -ue; \
 # Build and install rccl-tests package into the builder container
 #
 ARG RCCL_TESTS_COMMIT
-ARG RCCL_TESTS_GPU_ARCHS
+ARG RCCL_TESTS_GPU_ARCH
 ARG RCCL_TESTS_REPO
 
 RUN set -ue; \
@@ -124,7 +124,7 @@ RUN set -ue; \
     git sparse-checkout set projects/rccl-tests; \
     git checkout "${RCCL_TESTS_COMMIT}"; \
     cd projects/rccl-tests; \
-    make -j $(nproc) MPI=1 GPU_TARGETS="${RCCL_TESTS_GPU_ARCHS}"; \
+    make -j $(nproc) MPI=1 GPU_TARGETS="${RCCL_TESTS_GPU_ARCH}"; \
     install -d "${TMPROOT}/libexec/rccl-tests"; \
     cp build/*_perf "${TMPROOT}/libexec/rccl-tests"; \
     cd /debs; \
