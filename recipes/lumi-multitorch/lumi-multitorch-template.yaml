@@ -191,7 +191,7 @@ desc: |
       {%- endfor %}
     - Latest build with specific significant software versions (using software digest):
       {%- for type in image_variants %}
-      - Image {{ type }}:  `{{image_registry_digest(type)}}`
+      - Image {{ type }}: `{{image_registry_digest(type)}}`
       {%- endfor %}
     - Floating tags for latest version (over any significant software versions / digests):
       {%- for type in image_variants %}
@@ -353,7 +353,7 @@ steps:
       #
       - PYTORCH_TRITON_VERSION={{pytorch_triton_version}}
       - TORCHAUDIO_VERSION={{torchaudio_version}}
-      - TORCHCODEC_VERSION={{torchaudio_version}}
+      - TORCHCODEC_VERSION={{torchcodec_version}}
       - TORCHVISION_VERSION={{torchvision_version}}
       #
       - FAKE_TRITON_URL={{fake_triton_url}}
