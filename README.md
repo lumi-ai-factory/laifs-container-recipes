@@ -48,7 +48,7 @@ The workflow is designed to make it easy to update software versions, rebuild im
     ├── j2render
     ├── package_version_diff.py
     ├── render-recipe
-    └── test-image-example.sh
+    └── test-image.sh        # Runs image tests remotely, settings in .env (see .env.example)
 ```
 
 ---

@@ -4,8 +4,8 @@
 # Build artifacts
 /builds/
 
-# Customized image test script
-/scripts/test-image.sh
+# Site specific settings, see .env.example
+/.env
 
 # Vim swap files
 *.swp
