@@ -42,6 +42,7 @@ The workflow is designed to make it easy to update software versions, rebuild im
 │       ├── <recipe>-vars.yaml
 │       ├── <recipe>-readme.j2
 │       └── files/           # Optional templates of files included in the recipe
+├── releases/                # Clone of laifs-container-recipes-release-artifacts (not in git)
 └── scripts/                 # Build and rendering scripts
     ├── build-images
     ├── build-wrapper

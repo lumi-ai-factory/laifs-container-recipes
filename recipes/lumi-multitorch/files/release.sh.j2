@@ -11,6 +11,7 @@
 # - Uploads OCI images to Docker Hub
 # - Uploads SIF images and release artifacts to LUMI
 # - Creates a GitHub release
+# - Copies the release artifacts to releases/ and commits them there
 
 set -eu
 
@@ -40,10 +41,22 @@ ssh -l $SSH_USER $SSH_HOST chmod 2775 /appl/local/laifs/containers/{{release_id}
 
 # Create GitHub release
 #
-# The GitHub CLI commands must be run under the root of the `laifs-container-recipes` repo,
-# as the build dir is tracked under `laifs-container-recipes-release-artifacts`.
+# Run the remaining commands in the root of the `laifs-container-recipes` repo,
+# so that the GitHub CLI targets this repository.
 cd ../..
 #
 tar -C builds/ --exclude='*.tar' --exclude '*.tgz' --exclude='*.sif' -czf builds/{{release_id}}-release.tgz {{release_id}}
 gh label create --repo https://github.com/lumi-ai-factory/laifs-container-recipes {{release_id}}
 gh release create {{release_id}} --verify-tag --notes-file builds/{{release_id}}/{{release_id}}-release.md --title {{release_id}} builds/{{release_id}}-release.tgz
+
+# Copy the text artifacts of the release to releases/, the clone of
+# `laifs-container-recipes-release-artifacts`, and commit them there. The
+# excluded files match the .gitignore of that repository.
+if [ -d releases/.git ]; then
+    rsync -a --exclude='*.def' --exclude='*.sh' --exclude='*.sha256' --exclude='*.sif' --exclude='*.tar' --exclude='*.tgz' builds/{{release_id}} releases/
+    git -C releases add {{release_id}}
+    git -C releases commit -m "Add release {{release_id}}"
+    echo "Release artifacts committed in releases/, push them with: git -C releases push"
+else
+    echo "Warning: releases/ is not a clone of laifs-container-recipes-release-artifacts, artifacts not copied" >&2
+fi

@@ -4,6 +4,10 @@
 # Build artifacts
 /builds/
 
+# Clone of laifs-container-recipes-release-artifacts with the text artifacts
+# of published releases
+/releases/
+
 # Site specific settings, see .env.example
 /.env
 
