@@ -42,6 +42,7 @@ images:
           - python3-packaging
           - python3-pip
           - python3-venv
+          - wget
           - zstd
       - name: amdgpu
         repo: "https://repo.radeon.com/amdgpu"
@@ -62,7 +63,6 @@ images:
           - screen
           - tmux
           - unzip
-          - wget
           - yq
         locales:
           - cs_CZ.UTF-8
