@@ -8,6 +8,9 @@
 # of published releases
 /releases/
 
+# Local temporary files, including the Apptainer temp dir (tmp/apptainer)
+/tmp/
+
 # Site specific settings, see .env.example
 /.env
 

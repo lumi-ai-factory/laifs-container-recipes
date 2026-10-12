@@ -96,6 +96,34 @@ get_image_name() {
     fi
 }
 
+set_apptainer_tmpdir() {
+    # Apptainer unpacks the whole image into its temp dir, which defaults to
+    # $TMPDIR or /tmp and is often a small tmpfs. If it doesn't have free
+    # space for twice the image size, use tmp/apptainer in the repository
+    # root instead. An APPTAINER_TMPDIR set by the user is always kept.
+    #
+    local IMAGE=$1
+
+    if [[ -n "${APPTAINER_TMPDIR_USER:-}" ]]; then
+        return
+    fi
+
+    local DEFAULT_TMPDIR="${TMPDIR:-/tmp}"
+    local IMAGE_SIZE=$(podman image inspect --format '{{.Size}}' "$IMAGE")
+    local NEEDED=$((IMAGE_SIZE * 2))
+    local AVAILABLE=$(df --output=avail -B1 "$DEFAULT_TMPDIR" | tail -n 1)
+
+    if (( AVAILABLE >= NEEDED )); then
+        unset APPTAINER_TMPDIR
+        log "*** Using default Apptainer temp dir $DEFAULT_TMPDIR ($((AVAILABLE / 1024**3)) GiB free, $((NEEDED / 1024**3)) GiB needed)"
+    else
+        export APPTAINER_TMPDIR="$(realpath "$(dirname "$0")/..")/tmp/apptainer"
+        mkdir -p "$APPTAINER_TMPDIR"
+        log "*** Using Apptainer temp dir $APPTAINER_TMPDIR, $DEFAULT_TMPDIR has $((AVAILABLE / 1024**3)) GiB free but $((NEEDED / 1024**3)) GiB is needed"
+    fi
+}
+
+
 export_image() {
     # Export OCI archive produced by Podman into Singularity image file.
     #
@@ -119,7 +147,9 @@ export_image() {
     log "*** Exporting image with command $OCI_COMMAND"
     ${OCI_COMMAND[@]} 2>&1 | sed -e 's/^/    /' | log
 
-    log "*** Creating sif file with command $SIF_COMMAND"
+    set_apptainer_tmpdir "${IMAGE_NAME}:${IMAGE_TAG}"
+
+    log "*** Creating sif file with command $SIF_COMMAND (APPTAINER_TMPDIR=${APPTAINER_TMPDIR:-default})"
     ${SIF_COMMAND[@]} 2>&1 | sed -e 's/^/    /' | log
 
     log "*** Image checksums:"
@@ -383,6 +413,10 @@ main() {
     # Set shell options
     set -eo pipefail  # Exit on non-zero exit status
     #set -x  # Print executed commands
+
+    # Remember whether the user set the Apptainer temp dir, as it may be
+    # changed per image later, see set_apptainer_tmpdir
+    APPTAINER_TMPDIR_USER="${APPTAINER_TMPDIR:-}"
 
     # Ensure availability of required shell features
     if ! check_bash_features; then
