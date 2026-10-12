@@ -107,9 +107,6 @@ images:
         repo: "https://github.com/hpc/xpmem"
         commit: "3bcab55"
         version: "0.1"
-        kernel_base_src: "linux-headers-6.8.0-136_6.8.0-136.136_all.deb"
-        kernel_generic_src: "linux-headers-6.8.0-136-generic_6.8.0-136.136_amd64.deb"
-        kernel_id: "linux-headers-6.8.0-136-generic"
 
 #
 # ubuntu-rocm-libfabric-mpich

@@ -36,9 +36,6 @@ RUN set -ue; \
 
 ARG XPMEM_REPO
 ARG XPMEM_COMMIT
-ARG XPMEM_KERNEL_BASE_SRC
-ARG XPMEM_KERNEL_GENERIC_SRC
-ARG XPMEM_KERNEL_ID
 ARG XPMEM_VERSION
 
 RUN set -ue; \
@@ -47,20 +44,18 @@ RUN set -ue; \
     #
     TMPROOT=$(mktemp -d); \
     #
-    XPMEM_KERNEL_PATH=${TMPROOT}/src/kernel/usr/src/${XPMEM_KERNEL_ID}; \
-    #
-    install -d "$TMPROOT/src" "$TMPROOT/src/kernel"  "$TMPROOT/usr"; \
-    cd "$TMPROOT/src"; \
-    wget -nv http://archive.ubuntu.com/ubuntu/pool/main/l/linux/${XPMEM_KERNEL_BASE_SRC}; \
-    wget -nv http://archive.ubuntu.com/ubuntu/pool/main/l/linux/${XPMEM_KERNEL_GENERIC_SRC}; \
-    dpkg-deb -x ${XPMEM_KERNEL_BASE_SRC} kernel/; \
-    dpkg-deb -x ${XPMEM_KERNEL_GENERIC_SRC} kernel/; \
+    install -d "$TMPROOT/src" "$TMPROOT/usr"; \
     #
     git clone ${XPMEM_REPO} "$TMPROOT/src/xpmem"; \
     cd "$TMPROOT/src/xpmem"; \
     git checkout "${XPMEM_COMMIT}"; \
     ./autogen.sh; \
-    ./configure --prefix=/usr --libdir /usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH) --with-kerneldir=${XPMEM_KERNEL_PATH}; \
+    # Only the library and header are needed. The kernel module comes from
+    # the host, and a container can't load one built for another kernel.
+    ./configure \
+        --prefix=/usr \
+        --libdir /usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH) \
+        --disable-kernel-module; \
     make -j "$(nproc)" DESTDIR="$TMPROOT" install; \
     #
     cd /debs; \
