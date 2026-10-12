@@ -40,7 +40,8 @@ The workflow is designed to make it easy to update software versions, rebuild im
 │   └── <recipe>/            # For example lumi-multitorch/ or simple-example/
 │       ├── <recipe>-template.yaml
 │       ├── <recipe>-vars.yaml
-│       └── <recipe>-readme.j2
+│       ├── <recipe>-readme.j2
+│       └── files/           # Optional templates of files included in the recipe
 └── scripts/                 # Build and rendering scripts
     ├── build-images
     ├── build-wrapper

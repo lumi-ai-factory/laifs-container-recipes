@@ -1,0 +1,47 @@
+{#- Post-build script of a lumi-multitorch build, included into the recipe
+    template. Uses these names defined in the recipe template: release_id,
+    build_tag, image_variants, recipe_base_name, image_digest_name() and
+    image_build_name(). -#}
+#!/bin/bash
+
+# This script is used for executing post-build tasks and should run after
+# the image builds complete and the release notes have been written.
+# Working directory needs to be the build dir.
+#
+# The script performs these actions:
+# - Extracts and saves SBOM files from the images.
+# - Generates a dedicated README file for each image.
+# - Executes image tests if the site specific settings (.env) are available.
+# - Creates a SHA256 checksum file for all generated artifacts.
+
+recipe_file="{{release_id}}.yaml"
+
+{%- for type in image_variants %}
+
+# Save per image files for {{ image_build_name(type) }}
+step_name="{{ image_digest_name(type) }}"
+image_name="{{ image_build_name(type) }}"
+
+podman run --rm "${step_name}:{{build_tag}}" cat /.sbom.json > "${image_name}.json"
+
+readme_file="${image_name}.md"
+image_desc="$(yq . $recipe_file | jq -c -r ".steps[]|select(.name == \"$step_name\")|.desc")"
+image_meta="$(podman image inspect "${step_name}:{{build_tag}}" | jq -r 'first|{Id,Created}|to_entries[]|"\(.key): \(.value)"')"
+
+printf '# Container Image %s\n\n' "$image_name" > "$readme_file"
+printf '%s\n\n' "$image_meta" >> "$readme_file"
+printf '## Description\n\n%s\n\n' "$image_desc"  >> "$readme_file"
+printf '## Files\n\n' >> "$readme_file"
+sha256sum {{image_build_name(type)}}.{Containerfile,json,log,sif} >> "$readme_file"
+{% endfor %}
+
+# Run image tests if the site specific settings are available, see
+# .env.example in the repository root
+if [ -f "${LAIFS_ENV_FILE:-../../.env}" ]; then
+    bash ../../scripts/test-image.sh {{image_build_name("full")}}.sif {{release_id}} > {{release_id ~ '-tests.md'}}
+else
+    echo "Skipping image tests: create .env from .env.example to run them"
+fi
+
+# Checksum all files created so far
+sha256sum {{recipe_base_name}}* > {{release_id}}.sha256
