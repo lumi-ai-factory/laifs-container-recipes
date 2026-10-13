@@ -6,7 +6,8 @@
 # becomes ARG TORCH_GPU_ARCH=gfx90a when rendered to torch/Containerfile.
 #
 # Lists are joined with spaces. Use "repo" for git repositories and "source"
-# for release tarball download URLs.
+# for release tarball download URLs. Values can refer to other fields of the
+# same component as {field}, e.g. "amdrocm-core-sdk{version}-{gpu_arch}".
 #
 # Image-level keys next to "components" are settings of the image itself and
 # don't become build ARGs, e.g. "template", the Containerfile template used
@@ -44,12 +45,17 @@ images:
           - python3-venv
           - wget
           - zstd
-      - name: amdgpu
-        repo: "https://repo.radeon.com/amdgpu"
-        version: "6.4.4"
       - name: rocm
-        repo: "https://repo.radeon.com/rocm"
-        version: "7.2.4"
+        repo: "https://repo.amd.com/rocm/packages-multi-arch"
+        version: "7.14"
+        gpu_arch: *gpu_arch
+        apt_packages:
+          # ROCm SDK packages for this version and GPU architecture
+          - amdrocm-core-sdk{version}-{gpu_arch}
+          - amdrocm-hpc-sdk{version}-{gpu_arch}
+          # Needed by ROCm's headers but not a dependency of its packages:
+          # rocm_smi, amd_smi and hsakmt headers include libdrm ones
+          - libdrm-dev
       # Installed after ROCm, so changing these doesn't reinstall ROCm.
       - name: extra
         apt_packages:
@@ -121,6 +127,15 @@ images:
       - name: hwloc
         repo: "https://github.com/open-mpi/hwloc"
         version: "2.14.0" # Latest version as of 2026-07-13
+        # Ubuntu packages for building hwloc: libpciaccess for the PCI plugin
+        # and libxml2 for the full XML import and export support
+        build_apt_packages:
+          - libpciaccess-dev
+          - libxml2-dev
+        # Runtime libraries of hwloc and its PCI plugin
+        apt_packages:
+          - libpciaccess0
+          - libxml2
       - name: mpich
         source: "http://www.mpich.org/static/downloads"
         version: "5.0.1" # Latest version as of 2026-07-13
@@ -151,20 +166,27 @@ images:
         apt_packages:
           - ccache
           - libjpeg-dev
+          # AOTriton, built from source when PyTorch has no prebuilt runtime for the ROCm version
+          - liblzma-dev
+          #
           - libopenblas-dev
           - libpng-dev
           - numactl
       - name: triton
         version: "3.6.0"
+        pip_url: "https://repo.amd.com/rocm/whl-multi-arch/"
       - name: torchaudio
         version: "2.11.0"
+        pip_url: "https://repo.amd.com/rocm/whl-multi-arch/"
       - name: torchcodec
         version: "0.17.0"
+        pip_url: "https://download.pytorch.org/whl/cpu/"
       - name: torchvision
         version: "0.26.0"
-      - name: fake-triton
-        repo: "https://github.com/viahlgre/fake-triton.git"
-        commit: "d35f4ca"
+        pip_url: "https://repo.amd.com/rocm/whl-multi-arch/"
+      # - name: fake-triton
+      #   repo: "https://github.com/viahlgre/fake-triton.git"
+      #   commit: "d35f4ca"
 
 #
 # ubuntu-rocm-libfabric-mpich-torch-full

@@ -9,10 +9,16 @@ ARG BASE_APT_PACKAGES
 
 RUN set -e;\
   #
+  printf '%s\n' 'Dpkg::Use-Pty "0";' > /etc/apt/apt.conf.d/99no-progress; \
+  #
+  # Retry failed downloads, e.g. temporary 503 errors from package mirrors.
+  # Applies to all apt commands in this image and the images built on it.
+  #
+  printf '%s\n' 'Acquire::Retries "5";' > /etc/apt/apt.conf.d/99retries; \
+  #
   # Enable man pages with unminimize and install the packages needed
   # before ROCm
   #
-  printf '%s\n' 'Dpkg::Use-Pty "0";' > /etc/apt/apt.conf.d/99no-progress; \
   apt-get update && \
   yes | unminimize && \
   apt-get -y --no-install-recommends install man locales ${BASE_APT_PACKAGES} && \
@@ -20,30 +26,32 @@ RUN set -e;\
 
 FROM base as rocm
 
-ARG AMDGPU_REPO
-ARG AMDGPU_VERSION
-
 ARG ROCM_REPO
 ARG ROCM_VERSION
+ARG ROCM_GPU_ARCH
+ARG ROCM_APT_PACKAGES
 
 RUN set -ue;\
   #
   # Add ROCm repository
   #
-  printf "Package: *\nPin: release o=repo.radeon.com\nPin-Priority: 800\n" > /etc/apt/preferences.d/rocm-pin-prio-800 && \
+  # Download and install GPG key
+  mkdir --parents --mode=0755 /etc/apt/keyrings; \
+  # ROCm release signing key
+  wget -nv ${ROCM_REPO}/gpg/rocm.gpg -O - \
+    | gpg --dearmor \
+    | tee /etc/apt/keyrings/amdrocm.gpg > /dev/null; \
   #
-  mkdir -p --mode=0755 /etc/apt/keyrings && \
-  curl -sSL ${ROCM_REPO}/rocm.gpg.key | gpg --dearmor | tee /etc/apt/keyrings/rocm.gpg > /dev/null && \
-  #
-  printf "deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] ${ROCM_REPO}/apt/${ROCM_VERSION}/ noble main\n" | tee /etc/apt/sources.list.d/rocm.list && \
-  printf "deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] ${AMDGPU_REPO}/${AMDGPU_VERSION}/ubuntu noble main\n" | tee /etc/apt/sources.list.d/amdgpu.list && \
+  printf "deb [arch=amd64 signed-by=/etc/apt/keyrings/amdrocm.gpg] ${ROCM_REPO}/ubuntu2404 stable main\n" \
+    | tee /etc/apt/sources.list.d/rocm.list; \
   #
   # Install ROCm packages
   #
   apt-get update && \
-  apt-get install -y --no-install-recommends libdrm-amdgpu-dev rocm-dev rocm-libs && \
-  rm -rf /var/lib/apt/lists/* && \
+  apt-get install -y --no-install-recommends ${ROCM_APT_PACKAGES} && \
+  rm -rf /var/lib/apt/lists/*; \
   #
+  # Add ROCm to the library path
   echo /opt/rocm/lib > /etc/ld.so.conf.d/rocm-30.conf && \
   ldconfig
 

@@ -10,12 +10,16 @@
   {%- endfor -%}
 {%- endfor -%}
 
-{#- Convert the components of an image into env entries named <NAME>_<FIELD>, joining lists with spaces -#}
+{#- Convert the components of an image into env entries named <NAME>_<FIELD>, joining lists with spaces.
+    Values can refer to other fields of the same component as {field}, for example
+    "amdrocm-core-sdk{version}-{gpu_arch}". Write literal braces as {{ and }}. -#}
 {%- macro component_env(image) -%}
   {%- for comp in images[image].components -%}
     {%- for field, value in comp.items() if field != "name" %}
       - {{ (comp.name ~ "_" ~ field) | upper | replace("-", "_") }}=
-      {%- if value is string %}{{ value }}{% else %}"{{ value | join(' ') }}"{% endif %}
+      {%- if value is string %}{{ value.format(**comp) }}
+      {%- else %}"{% for item in value %}{{ item.format(**comp) }}{% if not loop.last %} {% endif %}{% endfor %}"
+      {%- endif %}
     {%- endfor -%}
   {%- endfor -%}
 {%- endmacro -%}

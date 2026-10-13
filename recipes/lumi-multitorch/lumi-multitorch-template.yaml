@@ -50,9 +50,10 @@
 {%- set rocm_wheel_version = 'rocm' ~ (comps.rocm.version.split('.')[:2] | join('.')) -%}
 
 {#- Set pip wheel URLs -#}
-{%- set torchvision_url = 'https://download.pytorch.org/whl/' ~ rocm_wheel_version -%}
-{%- set torchaudio_url = 'https://download.pytorch.org/whl/' ~ rocm_wheel_version -%}
-{%- set pytorch_triton_url = 'https://download.pytorch.org/whl/' ~ rocm_wheel_version -%}
+{%- set torchvision_url = comps.torchvision.pip_url -%}
+{%- set torchaudio_url = comps.torchaudio.pip_url -%}
+{%- set torchcodec_url = comps.torchcodec.pip_url -%}
+{%- set pytorch_triton_url = comps.triton.pip_url -%}
 
 {#- List of image variants for convenience with generating the documentation -#}
 {% set image_variants = ["plus", "full", "torch", "mpich", "libfabric", "rocm"] %}
@@ -218,6 +219,11 @@ steps:
       Ubuntu base image: ubuntu:{{images.rocm.ubuntu_tag}}<br>
       AMD ROCm repository: {{comps.rocm.repo}}<br>
       AMD ROCm release: {{comps.rocm.version}}<br>
+      ROCm and its dependency Ubuntu packages:
+      {%- for pkg in comps.rocm.apt_packages %}
+        - {{ pkg.format(**comps.rocm) }}
+      {%- endfor %}
+
       Additional Ubuntu packages:
       {%- for pkg in (comps.base.apt_packages + comps.extra.apt_packages) | sort %}
         - {{ pkg }}
@@ -290,8 +296,8 @@ steps:
         - PyTorch: "{{comps.torch.repo}} @ tag v{{comps.torch.version}}"
         - TorchVision: {{comps.torchvision.version}}+{{rocm_wheel_version}} from {{torchvision_url}}
         - TorchAudio: {{comps.torchaudio.version}} from {{torchaudio_url}}
-        - TorchCodec: {{comps.torchcodec.version}} from https://download.pytorch.org/whl/cpu/
-        - PyTorch Triton: {{comps.triton.version}} from https://download.pytorch.org/whl/{{rocm_wheel_version}}/
+        - TorchCodec: {{comps.torchcodec.version}} from {{torchcodec_url}}
+        - PyTorch Triton: {{comps.triton.version}} from {{pytorch_triton_url}}
     template: {{ images.torch.template }}
     env:
       - TORCH_ROCM_VERSION={{rocm_wheel_version}}

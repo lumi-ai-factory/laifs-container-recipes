@@ -25,7 +25,7 @@ RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
     git clone --branch "v${TORCH_VERSION}" --depth 1 "${TORCH_REPO}" "${SRC_DIR}" && \
     cd "${SRC_DIR}" && \
     git submodule sync --recursive && \
-    git submodule update --init --recursive --jobs $(nproc); \
+    git submodule update --init --recursive --depth 1 --jobs $(nproc); \
     #
     # for PATCH_URL in ${TORCH_PATCHES}; do curl -s $PATCH_URL | git apply; done; \
     #
@@ -44,6 +44,8 @@ RUN set -ue; \
 
 ARG TORCH_PIP_PACKAGES
 ARG TORCH_ROCM_VERSION
+
+ARG TRITON_PIP_URL
 ARG TRITON_VERSION
 
 RUN set -ue; \
@@ -53,8 +55,8 @@ RUN set -ue; \
   #
   pip install ${TORCH_PIP_PACKAGES} && \
   pip install \
-    triton-rocm==${TRITON_VERSION} \
-    --index-url https://download.pytorch.org/whl/${TORCH_ROCM_VERSION}/ && \
+    triton==${TRITON_VERSION} \
+    --index-url ${TRITON_PIP_URL} && \
   pip install /opt/rocm/share/amd_smi
 
 ARG TORCH_GPU_ARCH
@@ -124,23 +126,31 @@ RUN --mount=from=src,source=${SRC_DIR},target=${SRC_DIR},rw \
   #
   rm -rf ${WHEEL_DIR}
 
-ARG FAKE_TRITON_REPO
-ARG FAKE_TRITON_COMMIT
+# ARG FAKE_TRITON_REPO
+# ARG FAKE_TRITON_COMMIT
+
+ARG TORCHAUDIO_PIP_URL
 ARG TORCHAUDIO_VERSION
+
+ARG TORCHCODEC_PIP_URL
 ARG TORCHCODEC_VERSION
+
+ARG TORCHVISION_PIP_URL
 ARG TORCHVISION_VERSION
 
 RUN set -e; \
   . /opt/venv/bin/activate && \
   #
   pip install \
-    torchvision==${TORCHVISION_VERSION}+${TORCH_ROCM_VERSION} \
-    torchaudio==${TORCHAUDIO_VERSION}+${TORCH_ROCM_VERSION} \
-    --index-url https://download.pytorch.org/whl/${TORCH_ROCM_VERSION} && \
+    torchvision[device-${TORCH_GPU_ARCH}]==${TORCHVISION_VERSION} \
+    --index-url ${TORCHVISION_PIP_URL} && \
+  pip install \
+    torchaudio==${TORCHAUDIO_VERSION} \
+    --index-url ${TORCHAUDIO_PIP_URL} && \
   pip install \
     torchcodec==${TORCHCODEC_VERSION} \
-    --index-url=https://download.pytorch.org/whl/cpu && \
-  pip install "git+${FAKE_TRITON_REPO}@${FAKE_TRITON_COMMIT}" && \
+    --index-url=${TORCHCODEC_PIP_URL} && \
+  # pip install "git+${FAKE_TRITON_REPO}@${FAKE_TRITON_COMMIT}" && \
   python -c "import torch; print(torch.__version__)"; \
   #
   # Add SBOM
