@@ -178,6 +178,7 @@ desc: |
       - `{{ image_build_name(type) }}.md`: Readme file for the {{ type }} image
       - `{{ image_build_name(type) }}.json`: Software Bill of materials for the {{ type }} image
       {% endfor %}
+
   Illustrative example use on LUMI:
     ```
     uan:~> srun --gpus-per-task=2 <other srun args> singularity \
