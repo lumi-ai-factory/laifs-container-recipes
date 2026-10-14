@@ -20,6 +20,10 @@ ARG MAX_JOBS
 # it applies to the build steps below but is not kept in the image.
 ARG HIPCC_COMPILE_FLAGS_APPEND="-Wno-deprecated-attributes"
 
+# The extension builds below cache compiler output in the full-ccache cache
+# mount, which persists between builds. PyTorch's extension builder runs the
+# HIP compiler given in PYTORCH_NVCC, and vLLM uses ccache whenever installed.
+
 #
 # Prepare build environment
 #
@@ -55,8 +59,13 @@ ARG FLASH_ATTENTION_COMMIT
 ARG FLASH_ATTENTION_REPO
 
 RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
+    --mount=type=cache,id=full-ccache,target=/root/.cache/ccache \
+  #
   set -ue; \
   export MAX_JOBS="${MAX_JOBS:-$(nproc)}"; \
+  #
+  export CCACHE_DIR=/root/.cache/ccache CCACHE_MAXSIZE=20G; \
+  export PYTORCH_NVCC="ccache /opt/rocm/bin/hipcc"; \
   #
   git clone $FLASH_ATTENTION_REPO ${SRC_DIR}/flash-attention; \
   cd ${SRC_DIR}/flash-attention; \
@@ -80,8 +89,13 @@ ARG CAUSAL_CONV1D_COMMIT
 ARG CAUSAL_CONV1D_REPO
 
 RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
+    --mount=type=cache,id=full-ccache,target=/root/.cache/ccache \
+  #
   set -ue; \
   export MAX_JOBS="${MAX_JOBS:-$(nproc)}"; \
+  #
+  export CCACHE_DIR=/root/.cache/ccache CCACHE_MAXSIZE=20G; \
+  export PYTORCH_NVCC="ccache /opt/rocm/bin/hipcc"; \
   #
   git clone $CAUSAL_CONV1D_REPO ${SRC_DIR}/causal-conv1d; \
   cd ${SRC_DIR}/causal-conv1d; \
@@ -106,8 +120,13 @@ ARG XFORMERS_COMMIT
 ARG XFORMERS_REPO
 
 RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
+    --mount=type=cache,id=full-ccache,target=/root/.cache/ccache \
+  #
   set -ue; \
   export MAX_JOBS="${MAX_JOBS:-$(nproc)}"; \
+  #
+  export CCACHE_DIR=/root/.cache/ccache CCACHE_MAXSIZE=20G; \
+  export PYTORCH_NVCC="ccache /opt/rocm/bin/hipcc"; \
   #
   git clone $XFORMERS_REPO ${SRC_DIR}/xformers && \
   cd ${SRC_DIR}/xformers && \
@@ -134,8 +153,13 @@ ARG APEX_COMMIT
 ARG APEX_REPO
 
 RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
+    --mount=type=cache,id=full-ccache,target=/root/.cache/ccache \
+  #
   set -ue; \
   export MAX_JOBS="${MAX_JOBS:-$(nproc)}"; \
+  #
+  export CCACHE_DIR=/root/.cache/ccache CCACHE_MAXSIZE=20G; \
+  export PYTORCH_NVCC="ccache /opt/rocm/bin/hipcc"; \
   #
   git clone "${APEX_REPO}" ${SRC_DIR}/apex;\
   cd ${SRC_DIR}/apex; \
@@ -159,8 +183,13 @@ ARG VLLM_REPO
 ARG VLLM_VERSION
 
 RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
+    --mount=type=cache,id=full-ccache,target=/root/.cache/ccache \
+  #
   set -ue; \
   export MAX_JOBS="${MAX_JOBS:-$(nproc)}"; \
+  #
+  export CCACHE_DIR=/root/.cache/ccache CCACHE_MAXSIZE=20G; \
+  export PYTORCH_NVCC="ccache /opt/rocm/bin/hipcc"; \
   #
   git clone ${VLLM_REPO} ${SRC_DIR}/vllm; \
   cd ${SRC_DIR}/vllm; \
@@ -193,6 +222,7 @@ ARG LLMCOMPRESSOR_REPO
 ARG LLMCOMPRESSOR_COMMIT
 
 RUN set -ue; \
+  #  
   export MAX_JOBS="${MAX_JOBS:-$(nproc)}"; \
   #Pins Python library versions that are incompatible with vLLM
   export BUILD_TYPE=release; \
@@ -210,8 +240,13 @@ RUN set -ue; \
 #
 ARG DEEPSPEED_VERSION
 
-RUN set -ue; \
+RUN --mount=type=cache,id=full-ccache,target=/root/.cache/ccache \
+  #
+  set -ue; \
   export MAX_JOBS="${MAX_JOBS:-$(nproc)}"; \
+  #
+  export CCACHE_DIR=/root/.cache/ccache CCACHE_MAXSIZE=20G; \
+  export PYTORCH_NVCC="ccache /opt/rocm/bin/hipcc"; \
   #
   src=${SRC_DIR}/deepspeed && \
   mkdir -p $src && \
@@ -254,6 +289,7 @@ ARG MEGATRON_LM_REPO
 ARG MEGATRON_LM_COMMIT
 
 RUN set -ue; \
+  #
   export MAX_JOBS="${MAX_JOBS:-$(nproc)}"; \
   #
   pip wheel --no-deps -w ${SRC_DIR}/megatronlm git+${MEGATRON_LM_REPO}.git@${MEGATRON_LM_COMMIT}; \
@@ -273,6 +309,8 @@ RUN set -ue; \
 #
 RUN set -ue; \
   #
+  ccache -s; \
+  #
   rm -rf ${SRC_DIR}; \
   #
   test -f /opt/rocm/lib/llvm/bin/amdgpu-arch.really || { echo "error: amdgpu-arch.really is missing"; false; }; \
@@ -281,8 +319,10 @@ RUN set -ue; \
   # Add SBOM
   apt_json="$(dpkg-query -W -f='${Package}\t${Version}\n' | jq -R -s 'split("\n")[:-1] | map(split("\t") | {name: .[0], version: .[1]})')"; \
   pip_json="$(pip list --format=json)"; \
-  jq -n --argjson apt "$apt_json"  --argjson pip "$pip_json" '{apt: $apt, pip: $pip}' > /.sbom.json;
-
+  jq -n --argjson apt "$apt_json" \
+        --argjson pip "$pip_json" \
+        '{apt: $apt, pip: $pip}' \
+        > /.sbom.json;
 
 RUN printf '#!/usr/bin/env bash\n\
 if [ "${SLURM_NNODES}" = 1 ] && [ -z "${SLURM_GPUS_ON_NODE}" ]; then\n\
