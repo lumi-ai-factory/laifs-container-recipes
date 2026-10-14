@@ -15,6 +15,11 @@ ARG FULL_GPU_ARCH
 ARG SRC_DIR="/opt/src"
 ARG MAX_JOBS
 
+# Silence the Clang deprecation warning about HIP attributes on deduction
+# guides in Composable Kernel headers (flash-attention, xformers). As an ARG,
+# it applies to the build steps below but is not kept in the image.
+ARG HIPCC_COMPILE_FLAGS_APPEND="-Wno-deprecated-attributes"
+
 #
 # Prepare build environment
 #
