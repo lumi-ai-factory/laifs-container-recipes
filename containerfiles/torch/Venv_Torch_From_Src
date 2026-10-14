@@ -67,7 +67,8 @@ ENV PYTORCH_ROCM_ARCH=${TORCH_GPU_ARCH}
 ARG SRC_DIR
 ARG WHEEL_DIR
 
-RUN --mount=from=src,source=${SRC_DIR},target=${SRC_DIR},rw \
+RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
+    --mount=from=src,source=${SRC_DIR},target=${SRC_DIR},rw \
     --mount=type=cache,id=torch-ccache,target=/build/.cache/ccache \
   #
   set -ue; \
