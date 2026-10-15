@@ -30,10 +30,20 @@ RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
   cd ${SRC_DIR}/transformer_engine; \
   git checkout ${TRANSFORMER_ENGINE_COMMIT}; \
   git submodule update --init --recursive; \
-  # --no-build-isolation needed for pytorch HIP support detection
-  pip install . -v --no-build-isolation; \
   #
-  cd .. && rm -rf ${SRC_DIR}/transformer_engine
+  # Version the wheel as <TE version>+lumi.aif.<GPU arch>.<commit>. Without
+  # NVTE_NO_LOCAL_VERSION, TE would append its own +<commit> to the version.
+  #
+  export NVTE_NO_LOCAL_VERSION=1; \
+  sed -i "1s/\$/+lumi.aif.${TRANSFORMER_ENGINE_GPU_ARCH}.${TRANSFORMER_ENGINE_COMMIT}/" build_tools/VERSION.txt; \
+  #
+  # --no-build-isolation needed for pytorch HIP support detection
+  pip wheel --no-deps --no-build-isolation -v -w ${SRC_DIR}/transformer_engine/dist .; \
+  wheel_path="$(find ${SRC_DIR}/transformer_engine/dist -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
+  test $(echo $wheel_path | wc -w) = 1; \
+  #
+  cd .. && pip install $wheel_path; \
+  rm -rf ${SRC_DIR}/transformer_engine
 
 RUN set -e; \
   #

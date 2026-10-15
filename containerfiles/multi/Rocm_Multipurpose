@@ -80,7 +80,7 @@ RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
   cd ${SRC_DIR}/flash-attention; \
   git checkout $FLASH_ATTENTION_COMMIT; \
   #
-  export FLASH_ATTN_LOCAL_VERSION="lumi_aif_${FULL_GPU_ARCH}_${FLASH_ATTENTION_COMMIT}"; \
+  export FLASH_ATTN_LOCAL_VERSION="lumi.aif.${FULL_GPU_ARCH}.${FLASH_ATTENTION_COMMIT}"; \
   export FLASH_ATTENTION_FORCE_BUILD=1; \
   #
   BUILD_TARGET=rocm GPU_ARCHS=$FULL_GPU_ARCH \
@@ -112,7 +112,7 @@ RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
   #
   export PYTORCH_ROCM_ARCH_OVERRIDE="${FULL_GPU_ARCH}"; \
   export HIP_ARCHITECTURES="${FULL_GPU_ARCH}"; \
-  export CAUSAL_CONV1D_LOCAL_VERSION="lumi_aif_${FULL_GPU_ARCH}_${CAUSAL_CONV1D_COMMIT}"; \
+  export CAUSAL_CONV1D_LOCAL_VERSION="lumi.aif.${FULL_GPU_ARCH}.${CAUSAL_CONV1D_COMMIT}"; \
   export CAUSAL_CONV1D_FORCE_BUILD=1; \
   #
   pip wheel --no-deps --no-build-isolation -v -w ${SRC_DIR}/causal-conv1d/dist .; \
@@ -148,7 +148,7 @@ RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
   pip wheel --no-deps --no-build-isolation -v -w ${SRC_DIR}/xformers/dist .; \
   wheel_path="$(find ${SRC_DIR}/xformers/dist -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
   test $(echo $wheel_path | wc -w) = 1; \
-  new_wheel="$(wretag -d -q lumi_aif_${FULL_GPU_ARCH}_${XFORMERS_COMMIT} $wheel_path)"; \
+  new_wheel="$(wretag -d -q lumi.aif.${FULL_GPU_ARCH}.${XFORMERS_COMMIT} $wheel_path)"; \
   #
   cd .. && pip install --no-cache-dir $new_wheel; \
   rm -rf ${SRC_DIR}/xformers; \
@@ -179,7 +179,7 @@ RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
     pip wheel --no-deps --no-build-isolation -v -w ${SRC_DIR}/apex/dist .; \
   wheel_path="$(find ${SRC_DIR}/apex/dist  -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
   test $(echo $wheel_path | wc -w) = 1; \
-  new_wheel="$(wretag -d -q lumi_aif_${FULL_GPU_ARCH}_${APEX_COMMIT} $wheel_path)"; \
+  new_wheel="$(wretag -d -q lumi.aif.${FULL_GPU_ARCH}.${APEX_COMMIT} $wheel_path)"; \
   #
   cd .. && pip install --no-cache-dir $new_wheel; \
   rm -rf ${SRC_DIR}/apex;
@@ -213,7 +213,7 @@ RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
   # export HIP_ARCHITECTURES=$FULL_GPU_ARCH; \
   export VLLM_TARGET_DEVICE=rocm; \
   export PYTORCH_ROCM_ARCH=$FULL_GPU_ARCH; \
-  export VLLM_VERSION_OVERRIDE=${VLLM_VERSION}+lumi_aif_${FULL_GPU_ARCH}_${VLLM_COMMIT}; \
+  export VLLM_VERSION_OVERRIDE=${VLLM_VERSION}+lumi.aif.${FULL_GPU_ARCH}.${VLLM_COMMIT}; \
   #
   python setup.py bdist_wheel -v --dist-dir=dist; \
   wheel_path="$(find ${SRC_DIR}/vllm/dist  -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
@@ -239,7 +239,7 @@ RUN set -ue; \
   pip wheel --no-deps -v -w ${SRC_DIR}/llmcompressor git+${LLMCOMPRESSOR_REPO}.git@${LLMCOMPRESSOR_COMMIT}; \
   wheel_path="$(find ${SRC_DIR}/llmcompressor -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
   test $(echo $wheel_path | wc -w) = 1; \
-  new_wheel="$(wretag -d -q lumi_aif_${LLMCOMPRESSOR_COMMIT} $wheel_path)"; \
+  new_wheel="$(wretag -d -q lumi.aif.${LLMCOMPRESSOR_COMMIT} $wheel_path)"; \
   #
   cd .. && pip install $new_wheel; \
   rm -rf ${SRC_DIR}/llmcompressor;
@@ -277,7 +277,7 @@ RUN --mount=type=cache,id=full-ccache,target=/root/.cache/ccache \
   export DS_BUILD_CUTLASS_OPS=0; \
   export DS_BUILD_RAGGED_DEVICE_OPS=0; \
   export DS_BUILD_RAGGED_OPS=0; \
-  export DS_BUILD_STRING="+lumi_aif_dsops"; \
+  export DS_BUILD_STRING="+lumi.aif.${FULL_GPU_ARCH}.dsops"; \
   #
   python -m pip wheel \
     "$src/deepspeed-${DEEPSPEED_VERSION}.tar.gz" \
@@ -304,7 +304,7 @@ RUN set -ue; \
   pip wheel --no-deps -w ${SRC_DIR}/megatronlm git+${MEGATRON_LM_REPO}.git@${MEGATRON_LM_COMMIT}; \
   wheel_path="$(find ${SRC_DIR}/megatronlm -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
   test $(echo $wheel_path | wc -w) = 1; \
-  new_wheel="$(wretag -d -q lumi_aif_${MEGATRON_LM_COMMIT} $wheel_path)"; \
+  new_wheel="$(wretag -d -q lumi.aif.${MEGATRON_LM_COMMIT} $wheel_path)"; \
   pip install $new_wheel; \
   #
   # Fix python -c "from megatron.core.datasets.utils import compile_helpers; compile_helpers()"
