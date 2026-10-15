@@ -45,6 +45,15 @@ RUN set -ue; \
   printf "#!/bin/bash\necho ${FULL_GPU_ARCH}\n" > /opt/rocm/lib/llvm/bin/amdgpu-arch; \
   chmod a+rx /opt/rocm/lib/llvm/bin/amdgpu-arch; \
   #
+  # Recreate the ROCm version file that the ROCm multi-arch packages don't
+  # ship. apex and DeepSpeed read the ROCm version from it, and otherwise try
+  # to parse it from the PyTorch version string, which fails.
+  #
+  mkdir -p /opt/rocm/.info; \
+  awk '/^#define ROCM_VERSION_(MAJOR|MINOR|PATCH) /{v=v (v?".":"") $3} END{print v}' \
+    /opt/rocm/include/rocm-core/rocm_version.h > /opt/rocm/.info/version; \
+  test -s /opt/rocm/.info/version; \
+  #
   apt-get update && \
   apt-get -y --no-install-recommends install ${FULL_APT_PACKAGES} && \
   rm -rf /var/lib/apt/lists/*; \
