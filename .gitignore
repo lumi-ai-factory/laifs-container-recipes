@@ -12,3 +12,7 @@
 
 # GitHub authentication
 .github/auth
+
+# Code editors and tools
+/.vscode/
+/.claude/
