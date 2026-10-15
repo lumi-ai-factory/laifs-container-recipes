@@ -1,0 +1,65 @@
+#!/bin/bash
+#
+# Show the size of the buildah cache mounts (RUN --mount=type=cache) used by
+# the image builds. podman system df doesn't include them.
+#
+# Usage: scripts/podman-cache-stats
+#
+# The cache directories are named by hash, so each one is labelled by its
+# contents (apt-cache, apt-lists or ccache). If ccache is installed, the
+# statistics of each ccache directory are also shown.
+
+main() {
+    set -euo pipefail
+
+    local cache_root="/var/tmp/buildah-cache-$(id -u)"
+
+    if [ ! -d "$cache_root" ]; then
+        echo "No cache mounts found ($cache_root doesn't exist)"
+        exit 0
+    fi
+
+    # Use podman unshare, because apt's partial directories are owned by a
+    # sub-UID and du would skip them
+    printf '%s\t%-9s\t%-16s\t%s\n' SIZE KIND MODIFIED DIRECTORY
+    local dir kind
+    for dir in "$cache_root"/*/; do
+        dir="${dir%/}"
+        [ "$(basename "$dir")" = buildah-cache-lockfiles ] && continue
+        kind=$(cache_kind "$dir")
+        printf '%s\t%-9s\t%-16s\t%s\n' \
+            "$(podman unshare du -sh "$dir" | cut -f1)" \
+            "$kind" \
+            "$(date -r "$dir" '+%F %H:%M')" \
+            "$dir"
+    done | sort -h
+    echo "Total: $(podman unshare du -sh "$cache_root" | cut -f1)"
+
+    for dir in "$cache_root"/*/; do
+        dir="${dir%/}"
+        [ "$(cache_kind "$dir")" = ccache ] || continue
+        echo
+        echo "ccache statistics for $dir:"
+        if command -v ccache > /dev/null; then
+            podman unshare env CCACHE_DIR="$dir" ccache -s
+        else
+            echo "ccache is not installed"
+        fi
+    done
+}
+
+# Print the kind of a cache directory based on its contents
+cache_kind() {
+    local dir=$1
+    if [ -d "$dir/archives" ]; then
+        echo apt-cache
+    elif compgen -G "$dir/*_InRelease" > /dev/null; then
+        echo apt-lists
+    elif [ -d "$dir/0" ] || [ -f "$dir/ccache.conf" ]; then
+        echo ccache
+    else
+        echo other
+    fi
+}
+
+main "$@"
