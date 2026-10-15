@@ -285,10 +285,10 @@ steps:
 
       **Details**<br>
       Base image: {{image_digest_name("mpich")}}<br>
-      PyTorch version: {{comps.torch.version}}<br>
+      PyTorch version: {{comps.torch.version}}+{{rocm_wheel_version}}<br>
       PyTorch packages and sources:
         - PyTorch: "{{comps.torch.repo}} @ tag v{{comps.torch.version}}"
-        - TorchVision: {{comps.torchvision.version}} from {{torchvision_url}}
+        - TorchVision: {{comps.torchvision.version}}+{{rocm_wheel_version}} from {{torchvision_url}}
         - TorchAudio: {{comps.torchaudio.version}} from {{torchaudio_url}}
         - TorchCodec: {{comps.torchcodec.version}} from https://download.pytorch.org/whl/cpu/
         - PyTorch Triton: {{comps.triton.version}} from https://download.pytorch.org/whl/{{rocm_wheel_version}}/
