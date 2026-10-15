@@ -2,7 +2,7 @@
 
 import argparse
 import jinja2
-import yaml
+from ruamel.yaml import YAML
 
 
 def main():
@@ -14,11 +14,13 @@ def main():
     # Parse command line arguments
     args = parser.parse_args()
 
-    # Load YAML files into a single context dictionary
+    # Load YAML files into a single context dictionary. Later files override
+    # earlier ones. The safe loader returns plain Python types.
+    yaml = YAML(typ='safe')
     context = {}
     for variable_file in args.variable_files:
         with open(variable_file, 'r') as yaml_file:
-            context = {**context, **yaml.safe_load(yaml_file)}
+            context = {**context, **(yaml.load(yaml_file) or {})}
 
     # Load Jinja2 template
     template_loader = jinja2.FileSystemLoader(searchpath='./')
