@@ -5,9 +5,18 @@ FROM $BASE_IMAGE:$BASE_IMAGE_TAG as base
 
 ENV DEBIAN_FRONTEND=noninteractive
 
+# The apt steps below keep downloaded packages and package lists in cache
+# mounts (apt-cache, apt-lists), which persist between builds, so rebuilding
+# ROCm doesn't download it again. The docker-clean config of the Ubuntu image,
+# which deletes downloaded packages, is disabled only during those steps, so
+# that the images built on this one still clean up after apt.
+
 ARG BASE_APT_PACKAGES
 
-RUN set -e;\
+RUN --mount=type=cache,id=apt-cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,id=apt-lists,target=/var/lib/apt/lists,sharing=locked \
+  #
+  set -e;\
   #
   printf '%s\n' 'Dpkg::Use-Pty "0";' > /etc/apt/apt.conf.d/99no-progress; \
   #
@@ -19,10 +28,12 @@ RUN set -e;\
   # Enable man pages with unminimize and install the packages needed
   # before ROCm
   #
-  apt-get update && \
-  yes | unminimize && \
-  apt-get -y --no-install-recommends install man locales ${BASE_APT_PACKAGES} && \
-  rm -rf /var/lib/apt/lists/*
+  # Keep downloaded packages in the apt cache mount during this step
+  mv /etc/apt/apt.conf.d/docker-clean /etc/apt/docker-clean.disabled; \
+  apt-get update; \
+  yes | unminimize; \
+  apt-get -y --no-install-recommends install man locales ${BASE_APT_PACKAGES}; \
+  mv /etc/apt/docker-clean.disabled /etc/apt/apt.conf.d/docker-clean
 
 FROM base as rocm
 
@@ -31,25 +42,32 @@ ARG ROCM_VERSION
 ARG ROCM_GPU_ARCH
 ARG ROCM_APT_PACKAGES
 
-RUN set -ue;\
+RUN --mount=type=cache,id=apt-cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,id=apt-lists,target=/var/lib/apt/lists,sharing=locked \
+  #
+  set -ue;\
   #
   # Add ROCm repository
   #
   # Download and install GPG key
   mkdir --parents --mode=0755 /etc/apt/keyrings; \
   # ROCm release signing key
-  wget -nv ${ROCM_REPO}/gpg/rocm.gpg -O - \
+  wget -nv ${ROCM_REPO}/packages-multi-arch/gpg/rocm.gpg -O - \
     | gpg --dearmor \
     | tee /etc/apt/keyrings/amdrocm.gpg > /dev/null; \
   #
-  printf "deb [arch=amd64 signed-by=/etc/apt/keyrings/amdrocm.gpg] ${ROCM_REPO}/ubuntu2404 stable main\n" \
+  printf "deb [arch=amd64 signed-by=/etc/apt/keyrings/amdrocm.gpg] ${ROCM_REPO}/packages-multi-arch/ubuntu2404 stable main\n" \
     | tee /etc/apt/sources.list.d/rocm.list; \
+  printf "deb [arch=amd64 signed-by=/etc/apt/keyrings/amdrocm.gpg] ${ROCM_REPO}/rvs/packages/deb/ stable main\n" \
+    | tee /etc/apt/sources.list.d/rvs.list; \
   #
   # Install ROCm packages
   #
-  apt-get update && \
-  apt-get install -y --no-install-recommends ${ROCM_APT_PACKAGES} && \
-  rm -rf /var/lib/apt/lists/*; \
+  # Keep downloaded packages in the apt cache mount during this step
+  mv /etc/apt/apt.conf.d/docker-clean /etc/apt/docker-clean.disabled; \
+  apt-get update; \
+  apt-get install -y --no-install-recommends ${ROCM_APT_PACKAGES}; \
+  mv /etc/apt/docker-clean.disabled /etc/apt/apt.conf.d/docker-clean; \
   #
   # Add ROCm to the library path
   echo /opt/rocm/lib > /etc/ld.so.conf.d/rocm-30.conf && \
@@ -58,15 +76,20 @@ RUN set -ue;\
 ARG EXTRA_LOCALES
 ARG EXTRA_APT_PACKAGES
 
-RUN set -e;\
+RUN --mount=type=cache,id=apt-cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,id=apt-lists,target=/var/lib/apt/lists,sharing=locked \
+  #
+  set -e;\
   #
   # Install extra packages and additional locales after ROCm, so that
   # changing them doesn't reinstall ROCm
   #
-  apt-get update && \
-  apt-get install -y --no-install-recommends ${EXTRA_APT_PACKAGES} && \
-  locale-gen ${EXTRA_LOCALES} && \
-  rm -rf /var/lib/apt/lists/*
+  # Keep downloaded packages in the apt cache mount during this step
+  mv /etc/apt/apt.conf.d/docker-clean /etc/apt/docker-clean.disabled; \
+  apt-get update; \
+  apt-get install -y --no-install-recommends ${EXTRA_APT_PACKAGES}; \
+  locale-gen ${EXTRA_LOCALES}; \
+  mv /etc/apt/docker-clean.disabled /etc/apt/apt.conf.d/docker-clean
 
 RUN git config --global advice.detachedHead false
 

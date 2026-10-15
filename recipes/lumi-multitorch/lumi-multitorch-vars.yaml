@@ -46,13 +46,14 @@ images:
           - wget
           - zstd
       - name: rocm
-        repo: "https://repo.amd.com/rocm/packages-multi-arch"
+        repo: "https://repo.amd.com/rocm"
         version: "7.14"
         gpu_arch: *gpu_arch
         apt_packages:
           # ROCm SDK packages for this version and GPU architecture
           - amdrocm-core-sdk{version}-{gpu_arch}
           - amdrocm-hpc-sdk{version}-{gpu_arch}
+          # - amdrocm7-rvs
           # Needed by ROCm's headers but not a dependency of its packages:
           # rocm_smi, amd_smi and hsakmt headers include libdrm ones
           - libdrm-dev
@@ -63,6 +64,7 @@ images:
           - git
           - jq
           - less
+          - libtcmalloc-minimal4
           - lsof
           - nano
           - neovim
