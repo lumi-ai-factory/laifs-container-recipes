@@ -1,0 +1,25 @@
+{#- Test script of a lumi-multitorch build, included into the recipe template.
+    Uses these names defined in the recipe template: release_id,
+    recipe_base_name and image_build_name(). -#}
+#!/bin/bash
+#
+# This script runs the image tests on the remote test host and should run
+# after the post-build script. The post-build script runs it too if the site
+# specific settings (.env) are available. Working directory needs to be the
+# build dir.
+#
+# The script can be run by another account than the one that built the
+# images, e.g. by an account that has SSH access to the test host. It needs
+# read access to the images and write access to the build dir.
+#
+# The script performs these actions:
+# - Runs the tests for the full image and saves the results to
+#   {{release_id}}-tests.md
+# - Updates the SHA256 checksum file to include the test results
+
+set -eu
+
+bash ../../scripts/test-image.sh {{image_build_name("full")}}.sif {{release_id}} > {{release_id ~ '-tests.md'}}
+
+# Checksum all files created so far
+sha256sum {{recipe_base_name}}* > {{release_id}}.sha256

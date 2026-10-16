@@ -15,6 +15,8 @@
 {%- set recipe_base_name = 'lumi-multitorch' -%}
 {%- set recipe_full_name = recipe_base_name ~ '-' ~ software_digest -%}
 {%- set release_id = recipe_base_name ~ '-' ~ software_digest ~ '-' ~ build_tag -%}
+{#- build-wrapper replaces this placeholder with the latest release tag of the recipe -#}
+{%- set previous_release_id = '<PREVIOUS-RELEASE-ID>' -%}
 {%- set release_registry = "lumiaifactory/" ~ recipe_base_name -%}
 
 {%- set release_directory = "/appl/local/laifs/containers/" ~ release_id -%}
@@ -371,7 +373,7 @@ files:
       **Release links:**
       - [Release README](https://github.com/lumi-ai-factory/laifs-container-recipes-release-artifacts/blob/main/{{release_id}}/{{release_id}}.md)
       - [GitHub release](https://github.com/lumi-ai-factory/laifs-container-recipes/releases/tag/{{release_id}})
-      - [Recipe changes](https://github.com/lumi-ai-factory/laifs-container-recipes/compare/<PREVIOUS-RELEASE-ID>...{{release_id}})
+      - [Recipe changes](https://github.com/lumi-ai-factory/laifs-container-recipes/compare/{{previous_release_id}}...{{release_id}})
       - [Known issues](https://github.com/lumi-ai-factory/laifs-container-recipes/issues?q=label%3A{{release_id}})
 
       ## Major updates
@@ -382,6 +384,11 @@ files:
     desc: "Script for performing post-build actions"
     content: |
       {% filter indent(6) %}{% include "recipes/lumi-multitorch/files/post.sh.j2" %}{% endfilter %}
+
+  - name: "{{release_id}}-test.sh"
+    desc: "Script for running the image tests"
+    content: |
+      {% filter indent(6) %}{% include "recipes/lumi-multitorch/files/test.sh.j2" %}{% endfilter %}
 
   - name: "{{release_id}}-release.sh"
     desc: "Script for performing image release actions"

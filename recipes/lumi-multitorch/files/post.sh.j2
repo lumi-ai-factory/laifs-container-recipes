@@ -1,7 +1,7 @@
 {#- Post-build script of a lumi-multitorch build, included into the recipe
     template. Uses these names defined in the recipe template: release_id,
-    build_tag, image_variants, recipe_base_name, image_digest_name() and
-    image_build_name(). -#}
+    previous_release_id, build_tag, image_variants, recipe_base_name,
+    image_digest_name() and image_build_name(). -#}
 #!/bin/bash
 
 # This script is used for executing post-build tasks and should run after
@@ -11,7 +11,9 @@
 # The script performs these actions:
 # - Extracts and saves SBOM files from the images.
 # - Generates a dedicated README file for each image.
-# - Executes image tests if the site specific settings (.env) are available.
+# - Adds the package changes since the previous release to the release notes.
+# - Runs the image tests with the test script (<release id>-test.sh) if the
+#   site specific settings (.env) are available.
 # - Creates a SHA256 checksum file for all generated artifacts.
 
 recipe_file="{{release_id}}.yaml"
@@ -35,12 +37,28 @@ printf '## Files\n\n' >> "$readme_file"
 sha256sum {{image_build_name(type)}}.{Containerfile,json,log,sif} >> "$readme_file"
 {% endfor %}
 
+# Add the package changes of the full image since the previous release to the
+# release notes. build-wrapper fills in the previous release ID, and its files
+# are read from the clone of the release artifacts repo in releases/.
+release_notes="{{release_id}}-release.md"
+prev_release_id="{{previous_release_id}}"
+prev_sbom="../../releases/${prev_release_id}/${prev_release_id/#{{recipe_base_name}}-/{{recipe_base_name}}-full-}.json"
+if grep -q '^## Package changes' "$release_notes"; then
+    echo "Skipping package changes: already in $release_notes"
+elif [ ! -f "$prev_sbom" ]; then
+    echo "Skipping package changes: $prev_sbom not found, update releases/ with git pull?"
+else
+    printf '\n' >> "$release_notes"
+    python3 ../../scripts/package_version_diff.py \
+        "$prev_sbom" {{image_build_name("full")}}.json >> "$release_notes"
+fi
+
 # Run image tests if the site specific settings are available, see
 # .env.example in the repository root
 if [ -f "${LAIFS_ENV_FILE:-../../.env}" ]; then
-    bash ../../scripts/test-image.sh {{image_build_name("full")}}.sif {{release_id}} > {{release_id ~ '-tests.md'}}
+    bash {{release_id}}-test.sh
 else
-    echo "Skipping image tests: create .env from .env.example to run them"
+    echo "Skipping image tests: create .env from .env.example and run {{release_id}}-test.sh"
 fi
 
 # Checksum all files created so far
