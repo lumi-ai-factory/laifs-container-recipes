@@ -158,7 +158,7 @@ images:
     components:
       - name: torch
         repo: "https://github.com/pytorch/pytorch"
-        version: "2.11.0"
+        version: "2.13.0"
         gpu_arch: *gpu_arch
         # patches:
         #   - "https://github.com/viahlgre/pytorch/commit/f0374f296279f6fbdb3437a144b226521d00b788.patch" # Disabled for PyTorch 2.13
@@ -184,7 +184,7 @@ images:
         version: "0.17.0"
         pip_url: "https://download.pytorch.org/whl/cpu/"
       - name: torchvision
-        version: "0.26.0"
+        version: "0.28.0"
         pip_url: "https://repo.amd.com/rocm/whl-multi-arch/"
       # - name: fake-triton
       #   repo: "https://github.com/viahlgre/fake-triton.git"
@@ -262,10 +262,10 @@ images:
         commit: "0da1af0"
       - name: apex
         repo: "https://github.com/ROCm/apex"
-        commit: "c0f56f7" # Latest from branch release/1.11.0 (this branch is specifically for Pytorch 2.11.0) as of 2026-08-24
+        commit: "68f9dc9" # Latest from branch release/1.13.0 (this branch is specifically for Pytorch 2.13.0) as of 2026-10-19
       - name: causal-conv1d
         repo: "https://github.com/Dao-AILab/causal-conv1d"
-        commit: "4f6ae4e" # Latest commit as of 2026-07-13
+        commit: "cd81f04" # Latest commit as of 2026-10-19
       - name: deepspeed
         version: "0.19.6" # Latest release as of 2026-09-11
       - name: flash-attention
@@ -275,14 +275,14 @@ images:
         commit: "b664ea0"
       - name: llmcompressor
         repo: "https://github.com/vllm-project/llm-compressor"
-        commit: "6d2a090" # Tagged as latest release (v0.12.0) as of 2026-07-13
+        commit: "6e4b96e" # Tagged as latest release (v0.14.0) as of 2026-10-19
       - name: megatron-lm
         repo: "https://github.com/ROCm/Megatron-LM"
         commit: "9784f40" # Latest from branch rocm_dev as of 2026-09-24
       - name: vllm
         repo: "https://github.com/vllm-project/vllm"
-        commit: "568afb3"  # Tagged as release "v0.26.0"
-        version: "v0.26.0" # "v0.26.0" is build against PyTorch 2.11.0 as of 2026-08-25
+        commit: "5df63a7"  # Tagged as release "v0.32.0"
+        version: "v0.32.0" # "v0.26.0" is build against PyTorch 2.13.0 as of 2026-10-19
       - name: xformers
         repo: "https://github.com/facebookresearch/xformers"
         commit: "03b91d7" # Tagged as latest release (v0.0.35) as of 2026-07-13
@@ -295,5 +295,5 @@ images:
     components:
       - name: transformer-engine
         repo: "https://github.com/ROCm/TransformerEngine"
-        commit: "e7835ed" # v2.15 ROCm
+        commit: "130099c" # v2.17 ROCm
         gpu_arch: *gpu_arch
