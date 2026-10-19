@@ -15,10 +15,13 @@ ARG FULL_GPU_ARCH
 ARG SRC_DIR="/opt/src"
 ARG MAX_JOBS
 
-# Silence the Clang deprecation warning about HIP attributes on deduction
-# guides in Composable Kernel headers (flash-attention, xformers). As an ARG,
-# it applies to the build steps below but is not kept in the image.
-ARG HIPCC_COMPILE_FLAGS_APPEND="-Wno-deprecated-attributes"
+# Silence Clang warnings that xformers turns into errors with -Werror:
+# - deprecated-attributes: HIP attributes on deduction guides in Composable
+#   Kernel headers (flash-attention, xformers)
+# - c++20-extensions: C++20 bit-field initializers in PyTorch 2.13 headers,
+#   which xformers compiles with -std=c++17
+# As an ARG, it applies to the build steps below but is not kept in the image.
+ARG HIPCC_COMPILE_FLAGS_APPEND="-Wno-deprecated-attributes -Wno-c++20-extensions"
 
 # The extension builds below cache compiler output in the full-ccache cache
 # mount, which persists between builds. PyTorch's extension builder runs the
