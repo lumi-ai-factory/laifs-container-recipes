@@ -128,7 +128,7 @@ images:
         version: "1.21.1"
       - name: hwloc
         repo: "https://github.com/open-mpi/hwloc"
-        version: "2.14.0" # Latest version as of 2026-07-13
+        version: "2.15.0" # Latest version as of 2026-10-19
         # Ubuntu packages for building hwloc: libpciaccess for the PCI plugin
         # and libxml2 for the full XML import and export support
         build_apt_packages:
