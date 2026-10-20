@@ -166,6 +166,13 @@ RUN set -e; \
 # force all RCCL streams to be high priority
 ENV TORCH_NCCL_HIGH_PRIORITY=1
 
+# Load AMD SMI before ROCm SMI. PyTorch 2.13 links librocm_smi64, and once
+# it is loaded, AMD SMI (the amdsmi Python module) finds no GPUs in the same
+# process. torch.cuda.device_count() then returns 0, and vLLM doesn't detect
+# the ROCm platform. Loading libamd_smi first avoids this, and ROCm SMI still
+# works. Remove when ROCm SMI and AMD SMI no longer conflict.
+ENV LD_PRELOAD=/opt/rocm/lib/libamd_smi.so
+
 ENV VIRTUAL_ENV="/opt/venv"
 ENV PATH="/opt/venv/bin:$PATH"
 ENV PYTHONPATH="/opt/venv/lib/python3.12/site-packages:$PYTHONPATH"
