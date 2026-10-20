@@ -148,12 +148,15 @@ RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
   export XFORMERS_CK_FLASH_ATTN=1; \
   export HIP_ARCHITECTURES="${FULL_GPU_ARCH}"; \
   #
+  # BUILD_VERSION replaces the version xformers would otherwise build from
+  # version.txt and a +<commit>.d<date> suffix.
+  export BUILD_VERSION="$(cat version.txt)+lumi.aif.${FULL_GPU_ARCH}.${XFORMERS_COMMIT}"; \
+  #
   pip wheel --no-deps --no-build-isolation -v -w ${SRC_DIR}/xformers/dist .; \
   wheel_path="$(find ${SRC_DIR}/xformers/dist -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
   test $(echo $wheel_path | wc -w) = 1; \
-  new_wheel="$(wretag -d -q lumi.aif.${FULL_GPU_ARCH}.${XFORMERS_COMMIT} $wheel_path)"; \
   #
-  cd .. && pip install --no-cache-dir $new_wheel; \
+  cd .. && pip install --no-cache-dir $wheel_path; \
   rm -rf ${SRC_DIR}/xformers; \
   #
   python -m xformers.info
