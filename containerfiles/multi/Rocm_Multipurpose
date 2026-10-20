@@ -236,7 +236,9 @@ RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
 ARG LLMCOMPRESSOR_REPO
 ARG LLMCOMPRESSOR_COMMIT
 
-RUN set -ue; \
+RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
+  #
+  set -ue; \
   #  
   export MAX_JOBS="${MAX_JOBS:-$(nproc)}"; \
   #Pins Python library versions that are incompatible with vLLM
@@ -303,7 +305,9 @@ RUN --mount=type=cache,id=full-ccache,target=/root/.cache/ccache \
 ARG MEGATRON_LM_REPO
 ARG MEGATRON_LM_COMMIT
 
-RUN set -ue; \
+RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
+  #
+  set -ue; \
   #
   export MAX_JOBS="${MAX_JOBS:-$(nproc)}"; \
   #
