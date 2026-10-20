@@ -147,8 +147,9 @@ RUN set -ue; \
     ./autogen.sh; \
     ./configure \
         --with-rocm=/opt/rocm \
-        --enable-trace \
         --disable-tests \
+        --disable-platform-aws \
+        --without-gdrcopy \
         --prefix=/usr \
         --libdir /usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH); \
     make -j $(nproc) DESTDIR="$TMPROOT" install; \
@@ -234,6 +235,7 @@ ENV MPIR_CVAR_ENABLE_GPU=1
 # Note: RCCL contains a known bug where it may search for libnccl-net.so instead of librccl-net.so when loading the network plugin.
 # To work around this, explicitly point RCCL at the correct plugin
 ENV NCCL_NET_PLUGIN="/usr/lib/x86_64-linux-gnu/librccl-net.so"
+ENV RCCL_USE_AMD_SMI_LIB=1
 
 # Set recommended flags for RCCL
 # More info at
