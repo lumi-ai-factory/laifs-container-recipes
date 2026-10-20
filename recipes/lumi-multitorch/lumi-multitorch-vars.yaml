@@ -257,9 +257,9 @@ images:
           # - jinja2
           - setuptools_rust
           - setuptools_scm
-      - name: wretag
-        repo: "https://github.com/lumi-ai-factory/wretag.git"
-        commit: "0da1af0"
+      # - name: wretag
+      #   repo: "https://github.com/lumi-ai-factory/wretag.git"
+      #   commit: "0da1af0"
       - name: apex
         repo: "https://github.com/ROCm/apex"
         commit: "68f9dc9" # Latest from branch release/1.13.0 (this branch is specifically for Pytorch 2.13.0) as of 2026-10-19

@@ -7,8 +7,8 @@ ARG FULL_APT_PACKAGES
 
 ARG BUILD_PIP_PACKAGES
 ARG FULL_PIP_PACKAGES
-ARG WRETAG_REPO
-ARG WRETAG_COMMIT
+# ARG WRETAG_REPO
+# ARG WRETAG_COMMIT
 
 ARG FULL_GPU_ARCH
 
@@ -61,8 +61,8 @@ RUN set -ue; \
   apt-get -y --no-install-recommends install ${FULL_APT_PACKAGES} && \
   rm -rf /var/lib/apt/lists/*; \
   #
-  pip install --upgrade-strategy=only-if-needed --no-cache-dir ${BUILD_PIP_PACKAGES} ${FULL_PIP_PACKAGES} && \
-  pip install --no-cache-dir "git+${WRETAG_REPO}@${WRETAG_COMMIT}";
+  # pip install --no-cache-dir "git+${WRETAG_REPO}@${WRETAG_COMMIT}"; \
+  pip install --upgrade-strategy=only-if-needed --no-cache-dir ${BUILD_PIP_PACKAGES} ${FULL_PIP_PACKAGES};
 
 #
 # Compile and install Flash Attention
@@ -181,13 +181,17 @@ RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
   git checkout "${APEX_COMMIT}"; \
   #
   export PYTORCH_ROCM_ARCH="${FULL_GPU_ARCH}"; \
+  #
+  # Version the wheel as <apex version>+lumi.aif.<GPU arch>.<commit>.
+  # BUILD_VERSION replaces the version apex would read from version.txt.
+  export BUILD_VERSION="$(cat version.txt)+lumi.aif.${FULL_GPU_ARCH}.${APEX_COMMIT}"; \
+  #
   APEX_BUILD_CPP_OPS=1 APEX_BUILD_CUDA_OPS=1 \
     pip wheel --no-deps --no-build-isolation -v -w ${SRC_DIR}/apex/dist .; \
   wheel_path="$(find ${SRC_DIR}/apex/dist  -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
   test $(echo $wheel_path | wc -w) = 1; \
-  new_wheel="$(wretag -d -q lumi.aif.${FULL_GPU_ARCH}.${APEX_COMMIT} $wheel_path)"; \
   #
-  cd .. && pip install --no-cache-dir $new_wheel; \
+  cd .. && pip install --no-cache-dir $wheel_path; \
   rm -rf ${SRC_DIR}/apex;
 
 #
@@ -239,17 +243,25 @@ ARG LLMCOMPRESSOR_COMMIT
 RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
   #
   set -ue; \
-  #  
   export MAX_JOBS="${MAX_JOBS:-$(nproc)}"; \
-  #Pins Python library versions that are incompatible with vLLM
-  export BUILD_TYPE=release; \
   #
-  pip wheel --no-deps -v -w ${SRC_DIR}/llmcompressor git+${LLMCOMPRESSOR_REPO}.git@${LLMCOMPRESSOR_COMMIT}; \
-  wheel_path="$(find ${SRC_DIR}/llmcompressor -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
+  git clone ${LLMCOMPRESSOR_REPO} ${SRC_DIR}/llmcompressor; \
+  cd ${SRC_DIR}/llmcompressor; \
+  git checkout ${LLMCOMPRESSOR_COMMIT}; \
+  #
+  # Version the wheel as <release tag>+lumi.aif.<commit>. setuptools_scm uses
+  # SETUPTOOLS_SCM_PRETEND_VERSION as the version instead of computing it.
+  export SETUPTOOLS_SCM_PRETEND_VERSION="$(git describe --tags --abbrev=0)+lumi.aif.${LLMCOMPRESSOR_COMMIT}"; \
+  #
+  pip wheel --no-deps -v -w ${SRC_DIR}/llmcompressor/dist .; \
+  wheel_path="$(find ${SRC_DIR}/llmcompressor/dist -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
   test $(echo $wheel_path | wc -w) = 1; \
-  new_wheel="$(wretag -d -q lumi.aif.${LLMCOMPRESSOR_COMMIT} $wheel_path)"; \
   #
-  cd .. && pip install $new_wheel; \
+  # Install without dependencies, so that the versions vLLM needs are kept.
+  # Otherwise llm-compressor would replace e.g. compressed-tensors, which
+  # vLLM pins to an exact version. Check that it still imports.
+  cd .. && pip install --no-deps $wheel_path; \
+  python -c "import llmcompressor; print('llmcompressor', llmcompressor.__version__)"; \
   rm -rf ${SRC_DIR}/llmcompressor;
 
 #
@@ -311,11 +323,19 @@ RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
   #
   export MAX_JOBS="${MAX_JOBS:-$(nproc)}"; \
   #
-  pip wheel --no-deps -w ${SRC_DIR}/megatronlm git+${MEGATRON_LM_REPO}.git@${MEGATRON_LM_COMMIT}; \
-  wheel_path="$(find ${SRC_DIR}/megatronlm -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
+  git clone ${MEGATRON_LM_REPO} ${SRC_DIR}/megatronlm; \
+  cd ${SRC_DIR}/megatronlm; \
+  git checkout ${MEGATRON_LM_COMMIT}; \
+  #
+  # Version the wheel as <Megatron version>+lumi.aif.<commit>. NO_VCS_VERSION
+  # stops Megatron from appending +<git hash> during the build.
+  export NO_VCS_VERSION=1; \
+  sed -i "/^__version__ = /a __version__ += '+lumi.aif.${MEGATRON_LM_COMMIT}'" megatron/core/package_info.py; \
+  #
+  pip wheel --no-deps -w ${SRC_DIR}/megatronlm/dist .; \
+  wheel_path="$(find ${SRC_DIR}/megatronlm/dist -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
   test $(echo $wheel_path | wc -w) = 1; \
-  new_wheel="$(wretag -d -q lumi.aif.${MEGATRON_LM_COMMIT} $wheel_path)"; \
-  pip install $new_wheel; \
+  cd .. && pip install $wheel_path; \
   #
   # Fix python -c "from megatron.core.datasets.utils import compile_helpers; compile_helpers()"
   DIR=/opt/venv/lib/python3.12/site-packages/megatron/core/datasets && \
