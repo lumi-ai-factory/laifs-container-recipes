@@ -237,32 +237,36 @@ RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
 #
 # Install llmcompressor
 #
-ARG LLMCOMPRESSOR_REPO
-ARG LLMCOMPRESSOR_COMMIT
-
-RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
-  #
-  set -ue; \
-  export MAX_JOBS="${MAX_JOBS:-$(nproc)}"; \
-  #
-  git clone ${LLMCOMPRESSOR_REPO} ${SRC_DIR}/llmcompressor; \
-  cd ${SRC_DIR}/llmcompressor; \
-  git checkout ${LLMCOMPRESSOR_COMMIT}; \
-  #
-  # Version the wheel as <release tag>+lumi.aif.<commit>. setuptools_scm uses
-  # SETUPTOOLS_SCM_PRETEND_VERSION as the version instead of computing it.
-  export SETUPTOOLS_SCM_PRETEND_VERSION="$(git describe --tags --abbrev=0)+lumi.aif.${LLMCOMPRESSOR_COMMIT}"; \
-  #
-  pip wheel --no-deps -v -w ${SRC_DIR}/llmcompressor/dist .; \
-  wheel_path="$(find ${SRC_DIR}/llmcompressor/dist -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
-  test $(echo $wheel_path | wc -w) = 1; \
-  #
-  # Install without dependencies, so that the versions vLLM needs are kept.
-  # Otherwise llm-compressor would replace e.g. compressed-tensors, which
-  # vLLM pins to an exact version. Check that it still imports.
-  cd .. && pip install --no-deps $wheel_path; \
-  python -c "import llmcompressor; print('llmcompressor', llmcompressor.__version__)"; \
-  rm -rf ${SRC_DIR}/llmcompressor;
+# Disabled: llm-compressor 0.14 needs compressed-tensors 0.19, but vLLM 0.32
+# pins compressed-tensors==0.17.0, and llm-compressor fails to import with it.
+# Enable again when vLLM moves to compressed-tensors 0.19.
+#
+# ARG LLMCOMPRESSOR_REPO
+# ARG LLMCOMPRESSOR_COMMIT
+#
+# RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
+#   #
+#   set -ue; \
+#   export MAX_JOBS="${MAX_JOBS:-$(nproc)}"; \
+#   #
+#   git clone ${LLMCOMPRESSOR_REPO} ${SRC_DIR}/llmcompressor; \
+#   cd ${SRC_DIR}/llmcompressor; \
+#   git checkout ${LLMCOMPRESSOR_COMMIT}; \
+#   #
+#   # Version the wheel as <release tag>+lumi.aif.<commit>. setuptools_scm uses
+#   # SETUPTOOLS_SCM_PRETEND_VERSION as the version instead of computing it.
+#   export SETUPTOOLS_SCM_PRETEND_VERSION="$(git describe --tags --abbrev=0)+lumi.aif.${LLMCOMPRESSOR_COMMIT}"; \
+#   #
+#   pip wheel --no-deps -v -w ${SRC_DIR}/llmcompressor/dist .; \
+#   wheel_path="$(find ${SRC_DIR}/llmcompressor/dist -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
+#   test $(echo $wheel_path | wc -w) = 1; \
+#   #
+#   # Install without dependencies, so that the versions vLLM needs are kept.
+#   # Otherwise llm-compressor would replace e.g. compressed-tensors, which
+#   # vLLM pins to an exact version. Check that it still imports.
+#   cd .. && pip install --no-deps $wheel_path; \
+#   python -c "import llmcompressor; print('llmcompressor', llmcompressor.__version__)"; \
+#   rm -rf ${SRC_DIR}/llmcompressor;
 
 #
 # Install Deepspeed

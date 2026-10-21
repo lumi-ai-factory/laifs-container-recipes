@@ -123,7 +123,7 @@ desc: |
     - {{ component("causal-conv1d", "Causal Conv1D") }}
     - {{ component("deepspeed", "DeepSpeed", note="with locally built ops addons") }}
     - {{ component("flash-attention", "Flash Attention") }}
-    - {{ component("llmcompressor", "LLM Compressor") }}
+    {#- - {{ component("llmcompressor", "LLM Compressor") }} #}
     - {{ component("megatron-lm", "Megatron LM (experimental)") }}
     - {{ component("vllm", "vLLM") }}
     - {{ component("xformers", "xFormers") }}
@@ -325,7 +325,7 @@ steps:
         - {{ component("causal-conv1d", "Causal Conv1D") }}
         - {{ component("deepspeed", "DeepSpeed", note="with locally built ops addons") }}
         - {{ component("flash-attention", "Flash Attention") }}
-        - {{ component("llmcompressor", "LLM Compressor") }}
+        {#- - {{ component("llmcompressor", "LLM Compressor") }} #}
         - {{ component("megatron-lm", "Megatron LM (experimental)") }}
         - {{ component("vllm", "vLLM") }}
         - {{ component("xformers", "xFormers") }}
