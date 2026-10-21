@@ -24,7 +24,7 @@ images:
   rocm:
     template: "rocm/Ubuntu2404_Rocm7"
     ubuntu_release: "24.04"
-    ubuntu_tag: "noble-20260917"
+    ubuntu_tag: "noble-20260930.1"
     components:
       # Installed before ROCm: needed for adding the ROCm repository and as
       # the build and runtime base. Changing this list reinstalls ROCm.
