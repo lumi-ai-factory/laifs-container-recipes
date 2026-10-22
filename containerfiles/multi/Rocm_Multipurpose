@@ -1,52 +1,24 @@
 ARG BASE_IMAGE
 ARG BASE_IMAGE_TAG
 
-FROM $BASE_IMAGE:$BASE_IMAGE_TAG
+# Stages:
+# - base: Ubuntu packages and the ROCm version file, shared by all stages
+# - builder: build tools and settings for compiling the packages
+# - each individual stage builds the wheel of one package into /wheels
+# - the final stage installs the Python packages and the built wheels on base
+#
+# Each package stage only declares the ARGs of its own package, so changing
+# e.g. the vLLM commit only rebuilds the vllm stage and the final install.
+# The build stages and their settings are not part of the final image.
+
+#
+# Base for the builder stages and the final image
+#
+FROM $BASE_IMAGE:$BASE_IMAGE_TAG AS base
 
 ARG FULL_APT_PACKAGES
 
-ARG BUILD_PIP_PACKAGES
-ARG FULL_PIP_PACKAGES
-# ARG WRETAG_REPO
-# ARG WRETAG_COMMIT
-
-ARG FULL_GPU_ARCH
-
-ARG SRC_DIR="/opt/src"
-ARG MAX_JOBS
-
-# Silence Clang warnings that xformers turns into errors with -Werror:
-# - deprecated-attributes: HIP attributes on deduction guides in Composable
-#   Kernel headers (flash-attention, xformers)
-# - c++20-extensions: C++20 bit-field initializers in PyTorch 2.13 headers,
-#   which xformers compiles with -std=c++17
-# As an ARG, it applies to the build steps below but is not kept in the image.
-ARG HIPCC_COMPILE_FLAGS_APPEND="-Wno-deprecated-attributes -Wno-c++20-extensions"
-
-# The extension builds below cache compiler output in the full-ccache cache
-# mount, which persists between builds. PyTorch's extension builder runs the
-# HIP compiler given in PYTORCH_NVCC, and vLLM uses ccache whenever installed.
-
-#
-# Prepare build environment
-#
 RUN set -ue; \
-  #
-  mkdir ${SRC_DIR}; \
-  #
-  # revisit:
-  #
-  #   Even with the various GPU arch options set, we still get these type of complaints from
-  #   various HIP build steps: "GPU_TARGETS was not set, and system GPU detection was unsuccsesful"
-  #   This is reverted at the last RUN step at the bottom of this file. Lets get rid ot this later.
-  #
-  #   Another thing is that we may prefer to change this to use separate builder container and then
-  #   do fresh install of all the packages similar to the libfabric and mpich builds.
-  #
-  test -f /opt/rocm/lib/llvm/bin/amdgpu-arch.really && { echo "error: amdgpu-arch.really already exists"; false; } || true; \
-  mv /opt/rocm/lib/llvm/bin/amdgpu-arch /opt/rocm/lib/llvm/bin/amdgpu-arch.really; \
-  printf "#!/bin/bash\necho ${FULL_GPU_ARCH}\n" > /opt/rocm/lib/llvm/bin/amdgpu-arch; \
-  chmod a+rx /opt/rocm/lib/llvm/bin/amdgpu-arch; \
   #
   # Recreate the ROCm version file if it's missing: the ROCm multi-arch
   # packages (7.14) don't ship it, unlike rocm-core in ROCm 7.2. apex and
@@ -62,14 +34,61 @@ RUN set -ue; \
   #
   apt-get update && \
   apt-get -y --no-install-recommends install ${FULL_APT_PACKAGES} && \
-  rm -rf /var/lib/apt/lists/*; \
-  #
-  # pip install --no-cache-dir "git+${WRETAG_REPO}@${WRETAG_COMMIT}"; \
-  pip install --upgrade-strategy=only-if-needed --no-cache-dir ${BUILD_PIP_PACKAGES} ${FULL_PIP_PACKAGES};
+  rm -rf /var/lib/apt/lists/*
 
 #
-# Compile and install Flash Attention
+# Build environment shared by the package stages
 #
+FROM base AS builder
+
+ARG BUILD_PIP_PACKAGES
+ARG FULL_GPU_ARCH
+ARG FULL_MAX_JOBS
+
+# Settings for the package builds. As ENV of a build stage, they apply to
+# the stages built on this one but are not part of the final image.
+#
+# Target GPU architecture, and the number of parallel compile jobs. An empty
+# MAX_JOBS means one per CPU core, see the package builds.
+ENV GPU_ARCH=${FULL_GPU_ARCH}
+ENV MAX_JOBS=${FULL_MAX_JOBS}
+#
+# Silence Clang warnings that xformers turns into errors with -Werror:
+# - deprecated-attributes: HIP attributes on deduction guides in Composable
+#   Kernel headers (flash-attention, xformers)
+# - c++20-extensions: C++20 bit-field initializers in PyTorch 2.13 headers,
+#   which xformers compiles with -std=c++17
+ENV HIPCC_COMPILE_FLAGS_APPEND="-Wno-deprecated-attributes -Wno-c++20-extensions"
+#
+# Cache compiler output in the full-ccache cache mount, which persists
+# between builds. PyTorch's extension builder runs the HIP compiler given in
+# PYTORCH_NVCC, and vLLM uses ccache whenever installed.
+ENV CCACHE_DIR=/root/.cache/ccache
+ENV CCACHE_MAXSIZE=20G
+ENV PYTORCH_NVCC="ccache /opt/rocm/bin/hipcc"
+#
+ENV SRC_DIR=/opt/src
+
+RUN set -ue; \
+  #
+  mkdir ${SRC_DIR} /wheels; \
+  #
+  # Some HIP builds detect the GPU with amdgpu-arch and complain that "system
+  # GPU detection was unsuccessful" when the build host has no GPU, even with
+  # the GPU architecture options set. Make amdgpu-arch report the target GPU
+  # architecture. This is only in the builder stages, not in the final image.
+  #
+  mv /opt/rocm/lib/llvm/bin/amdgpu-arch /opt/rocm/lib/llvm/bin/amdgpu-arch.really; \
+  printf "#!/bin/bash\necho ${GPU_ARCH}\n" > /opt/rocm/lib/llvm/bin/amdgpu-arch; \
+  chmod a+rx /opt/rocm/lib/llvm/bin/amdgpu-arch; \
+  #
+  pip install --upgrade-strategy=only-if-needed ${BUILD_PIP_PACKAGES}
+
+#
+# Build Flash Attention
+#
+FROM builder AS flash-attention
+
 ARG FLASH_ATTENTION_COMMIT
 ARG FLASH_ATTENTION_REPO
 
@@ -79,27 +98,26 @@ RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
   set -ue; \
   export MAX_JOBS="${MAX_JOBS:-$(nproc)}"; \
   #
-  export CCACHE_DIR=/root/.cache/ccache CCACHE_MAXSIZE=20G; \
-  export PYTORCH_NVCC="ccache /opt/rocm/bin/hipcc"; \
-  #
   git clone $FLASH_ATTENTION_REPO ${SRC_DIR}/flash-attention; \
   cd ${SRC_DIR}/flash-attention; \
   git checkout $FLASH_ATTENTION_COMMIT; \
   #
-  export FLASH_ATTN_LOCAL_VERSION="lumi.aif.${FULL_GPU_ARCH}.${FLASH_ATTENTION_COMMIT}"; \
-  export FLASH_ATTENTION_FORCE_BUILD=1; \
+  export FLASH_ATTN_LOCAL_VERSION="lumi.aif.${GPU_ARCH}.${FLASH_ATTENTION_COMMIT}"; \
+  # Build from source, without looking for a prebuilt wheel ("TRUE" is the only
+  # value flash-attention accepts)
+  export FLASH_ATTENTION_FORCE_BUILD=TRUE; \
   #
-  BUILD_TARGET=rocm GPU_ARCHS=$FULL_GPU_ARCH \
-    python -m pip wheel --no-build-isolation --no-deps -v -w dist/ .; \
-  wheel_path="$(find ${SRC_DIR}/flash-attention/dist  -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
-  test $(echo $wheel_path | wc -w) = 1; \
+  BUILD_TARGET=rocm GPU_ARCHS=$GPU_ARCH \
+    python -m pip wheel --no-build-isolation --no-deps -v -w /wheels .; \
+  test $(find /wheels -name '*.whl' | wc -l) = 1; \
   #
-  cd .. && pip install --no-cache-dir $wheel_path; \
-  rm -rf ${SRC_DIR}/flash-attention;
+  cd .. && rm -rf ${SRC_DIR}/flash-attention
 
 #
-# Install causal-conv1d
+# Build causal-conv1d
 #
+FROM builder AS causal-conv1d
+
 ARG CAUSAL_CONV1D_COMMIT
 ARG CAUSAL_CONV1D_REPO
 
@@ -109,28 +127,27 @@ RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
   set -ue; \
   export MAX_JOBS="${MAX_JOBS:-$(nproc)}"; \
   #
-  export CCACHE_DIR=/root/.cache/ccache CCACHE_MAXSIZE=20G; \
-  export PYTORCH_NVCC="ccache /opt/rocm/bin/hipcc"; \
-  #
   git clone $CAUSAL_CONV1D_REPO ${SRC_DIR}/causal-conv1d; \
   cd ${SRC_DIR}/causal-conv1d; \
   git checkout $CAUSAL_CONV1D_COMMIT; \
   #
-  export PYTORCH_ROCM_ARCH_OVERRIDE="${FULL_GPU_ARCH}"; \
-  export HIP_ARCHITECTURES="${FULL_GPU_ARCH}"; \
-  export CAUSAL_CONV1D_LOCAL_VERSION="lumi.aif.${FULL_GPU_ARCH}.${CAUSAL_CONV1D_COMMIT}"; \
-  export CAUSAL_CONV1D_FORCE_BUILD=1; \
+  export PYTORCH_ROCM_ARCH_OVERRIDE="${GPU_ARCH}"; \
+  export HIP_ARCHITECTURES="${GPU_ARCH}"; \
+  export CAUSAL_CONV1D_LOCAL_VERSION="lumi.aif.${GPU_ARCH}.${CAUSAL_CONV1D_COMMIT}"; \
+  # Build from source, without looking for a prebuilt wheel ("TRUE" is the only
+  # value causal-conv1d accepts)
+  export CAUSAL_CONV1D_FORCE_BUILD=TRUE; \
   #
-  pip wheel --no-deps --no-build-isolation -v -w ${SRC_DIR}/causal-conv1d/dist .; \
-  wheel_path="$(find ${SRC_DIR}/causal-conv1d/dist  -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
-  test $(echo $wheel_path | wc -w) = 1; \
+  pip wheel --no-deps --no-build-isolation -v -w /wheels .; \
+  test $(find /wheels -name '*.whl' | wc -l) = 1; \
   #
-  cd .. && pip install --no-cache-dir $wheel_path; \
-  rm -rf ${SRC_DIR}/causal-conv1d;
+  cd .. && rm -rf ${SRC_DIR}/causal-conv1d
 
 #
-# Install xFormers
+# Build xFormers
 #
+FROM builder AS xformers
+
 ARG XFORMERS_COMMIT
 ARG XFORMERS_REPO
 
@@ -140,33 +157,28 @@ RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
   set -ue; \
   export MAX_JOBS="${MAX_JOBS:-$(nproc)}"; \
   #
-  export CCACHE_DIR=/root/.cache/ccache CCACHE_MAXSIZE=20G; \
-  export PYTORCH_NVCC="ccache /opt/rocm/bin/hipcc"; \
-  #
-  git clone $XFORMERS_REPO ${SRC_DIR}/xformers && \
-  cd ${SRC_DIR}/xformers && \
-  git checkout $XFORMERS_COMMIT && \
+  git clone $XFORMERS_REPO ${SRC_DIR}/xformers; \
+  cd ${SRC_DIR}/xformers; \
+  git checkout $XFORMERS_COMMIT; \
   git submodule update --init --recursive; \
   #
   export XFORMERS_CK_FLASH_ATTN=1; \
-  export HIP_ARCHITECTURES="${FULL_GPU_ARCH}"; \
+  export HIP_ARCHITECTURES="${GPU_ARCH}"; \
   #
   # BUILD_VERSION replaces the version xformers would otherwise build from
   # version.txt and a +<commit>.d<date> suffix.
-  export BUILD_VERSION="$(cat version.txt)+lumi.aif.${FULL_GPU_ARCH}.${XFORMERS_COMMIT}"; \
+  export BUILD_VERSION="$(cat version.txt)+lumi.aif.${GPU_ARCH}.${XFORMERS_COMMIT}"; \
   #
-  pip wheel --no-deps --no-build-isolation -v -w ${SRC_DIR}/xformers/dist .; \
-  wheel_path="$(find ${SRC_DIR}/xformers/dist -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
-  test $(echo $wheel_path | wc -w) = 1; \
+  pip wheel --no-deps --no-build-isolation -v -w /wheels .; \
+  test $(find /wheels -name '*.whl' | wc -l) = 1; \
   #
-  cd .. && pip install --no-cache-dir $wheel_path; \
-  rm -rf ${SRC_DIR}/xformers; \
-  #
-  python -m xformers.info
+  cd .. && rm -rf ${SRC_DIR}/xformers
 
 #
-# Install Apex
+# Build Apex
 #
+FROM builder AS apex
+
 ARG APEX_COMMIT
 ARG APEX_REPO
 
@@ -176,30 +188,27 @@ RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
   set -ue; \
   export MAX_JOBS="${MAX_JOBS:-$(nproc)}"; \
   #
-  export CCACHE_DIR=/root/.cache/ccache CCACHE_MAXSIZE=20G; \
-  export PYTORCH_NVCC="ccache /opt/rocm/bin/hipcc"; \
-  #
-  git clone "${APEX_REPO}" ${SRC_DIR}/apex;\
+  git clone "${APEX_REPO}" ${SRC_DIR}/apex; \
   cd ${SRC_DIR}/apex; \
   git checkout "${APEX_COMMIT}"; \
   #
-  export PYTORCH_ROCM_ARCH="${FULL_GPU_ARCH}"; \
+  export PYTORCH_ROCM_ARCH="${GPU_ARCH}"; \
   #
   # Version the wheel as <apex version>+lumi.aif.<GPU arch>.<commit>.
   # BUILD_VERSION replaces the version apex would read from version.txt.
-  export BUILD_VERSION="$(cat version.txt)+lumi.aif.${FULL_GPU_ARCH}.${APEX_COMMIT}"; \
+  export BUILD_VERSION="$(cat version.txt)+lumi.aif.${GPU_ARCH}.${APEX_COMMIT}"; \
   #
   APEX_BUILD_CPP_OPS=1 APEX_BUILD_CUDA_OPS=1 \
-    pip wheel --no-deps --no-build-isolation -v -w ${SRC_DIR}/apex/dist .; \
-  wheel_path="$(find ${SRC_DIR}/apex/dist  -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
-  test $(echo $wheel_path | wc -w) = 1; \
+    pip wheel --no-deps --no-build-isolation -v -w /wheels .; \
+  test $(find /wheels -name '*.whl' | wc -l) = 1; \
   #
-  cd .. && pip install --no-cache-dir $wheel_path; \
-  rm -rf ${SRC_DIR}/apex;
+  cd .. && rm -rf ${SRC_DIR}/apex
 
 #
-# Compile and install vLLM
+# Build vLLM
 #
+FROM builder AS vllm
+
 ARG VLLM_COMMIT
 ARG VLLM_REPO
 ARG VLLM_VERSION
@@ -210,9 +219,6 @@ RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
   set -ue; \
   export MAX_JOBS="${MAX_JOBS:-$(nproc)}"; \
   #
-  export CCACHE_DIR=/root/.cache/ccache CCACHE_MAXSIZE=20G; \
-  export PYTORCH_NVCC="ccache /opt/rocm/bin/hipcc"; \
-  #
   git clone ${VLLM_REPO} ${SRC_DIR}/vllm; \
   cd ${SRC_DIR}/vllm; \
   git fetch --tags; \
@@ -220,29 +226,96 @@ RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
   #
   export MAKEFLAGS="-j${MAX_JOBS}"; \
   # revisit: which of the arch defs really makes a difference
-  # export AMDGPU_TARGETS=$FULL_GPU_ARCH; \
-  # export GPU_ARCHS=$FULL_GPU_ARCH; \
-  # export GPU_TARGETS=$FULL_GPU_ARCH; \
-  # export HIP_ARCHITECTURES=$FULL_GPU_ARCH; \
+  # export AMDGPU_TARGETS=$GPU_ARCH; \
+  # export GPU_ARCHS=$GPU_ARCH; \
+  # export GPU_TARGETS=$GPU_ARCH; \
+  # export HIP_ARCHITECTURES=$GPU_ARCH; \
   export VLLM_TARGET_DEVICE=rocm; \
-  export PYTORCH_ROCM_ARCH=$FULL_GPU_ARCH; \
-  export VLLM_VERSION_OVERRIDE=${VLLM_VERSION}+lumi.aif.${FULL_GPU_ARCH}.${VLLM_COMMIT}; \
+  export PYTORCH_ROCM_ARCH=$GPU_ARCH; \
+  export VLLM_VERSION_OVERRIDE=${VLLM_VERSION}+lumi.aif.${GPU_ARCH}.${VLLM_COMMIT}; \
   #
-  python setup.py bdist_wheel -v --dist-dir=dist; \
-  wheel_path="$(find ${SRC_DIR}/vllm/dist  -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
-  test $(echo $wheel_path | wc -w) = 1; \
+  python setup.py bdist_wheel -v --dist-dir=/wheels; \
+  test $(find /wheels -name '*.whl' | wc -l) = 1; \
   #
-  cd .. && pip install $wheel_path; \
-  # Install vLLM audio libraries
-  pip install vllm[audio]==${VLLM_VERSION}; \
-  rm -rf ${SRC_DIR}/vllm;
+  cd .. && rm -rf ${SRC_DIR}/vllm
+
+#
+# Build DeepSpeed
+#
+FROM builder AS deepspeed
+
+ARG DEEPSPEED_VERSION
+
+RUN --mount=type=cache,id=full-ccache,target=/root/.cache/ccache \
+  #
+  set -ue; \
+  export MAX_JOBS="${MAX_JOBS:-$(nproc)}"; \
+  #
+  src=${SRC_DIR}/deepspeed; \
+  mkdir -p $src; \
+  python -m pip download \
+    "deepspeed==${DEEPSPEED_VERSION}" \
+    --no-deps \
+    --no-binary=:all: \
+    -d "$src"; \
+  #
+  export PYTORCH_ROCM_ARCH=$GPU_ARCH; \
+  export DS_ACCELERATOR=cuda; \
+  export DS_BUILD_OPS=1; \
+  #
+  # Some extensions need to be disabled
+  #
+  # https://github.com/deepspeedai/DeepSpeed/issues/7843#issuecomment-3896637925
+  #
+  export DS_BUILD_INFERENCE_CORE_OPS=0; \
+  export DS_BUILD_CUTLASS_OPS=0; \
+  export DS_BUILD_RAGGED_DEVICE_OPS=0; \
+  export DS_BUILD_RAGGED_OPS=0; \
+  export DS_BUILD_STRING="+lumi.aif.${GPU_ARCH}.dsops"; \
+  #
+  python -m pip wheel \
+    "$src/deepspeed-${DEEPSPEED_VERSION}.tar.gz" \
+    --no-deps \
+    --no-build-isolation \
+    -w /wheels; \
+  test $(find /wheels -name '*.whl' | wc -l) = 1; \
+  #
+  rm -rf $src
+
+#
+# Build Megatron LM (experimental for testing)
+#
+FROM builder AS megatron-lm
+
+ARG MEGATRON_LM_REPO
+ARG MEGATRON_LM_COMMIT
+
+RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
+  #
+  set -ue; \
+  export MAX_JOBS="${MAX_JOBS:-$(nproc)}"; \
+  #
+  git clone ${MEGATRON_LM_REPO} ${SRC_DIR}/megatronlm; \
+  cd ${SRC_DIR}/megatronlm; \
+  git checkout ${MEGATRON_LM_COMMIT}; \
+  #
+  # Version the wheel as <Megatron version>+lumi.aif.<commit>. NO_VCS_VERSION
+  # stops Megatron from appending +<git hash> during the build.
+  export NO_VCS_VERSION=1; \
+  sed -i "/^__version__ = /a __version__ += '+lumi.aif.${MEGATRON_LM_COMMIT}'" megatron/core/package_info.py; \
+  #
+  pip wheel --no-deps -w /wheels .; \
+  test $(find /wheels -name '*.whl' | wc -l) = 1; \
+  #
+  cd .. && rm -rf ${SRC_DIR}/megatronlm
 
 #
 # Install llmcompressor
 #
 # Disabled: llm-compressor 0.14 needs compressed-tensors 0.19, but vLLM 0.32
 # pins compressed-tensors==0.17.0, and llm-compressor fails to import with it.
-# Enable again when vLLM moves to compressed-tensors 0.19.
+# Enable again when vLLM moves to compressed-tensors 0.19, as a build stage
+# like the ones above and an install step in the final stage.
 #
 # ARG LLMCOMPRESSOR_REPO
 # ARG LLMCOMPRESSOR_COMMIT
@@ -272,96 +345,73 @@ RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
 #   rm -rf ${SRC_DIR}/llmcompressor;
 
 #
-# Install Deepspeed
+# Final image: the Python packages and the built wheels on top of base
 #
-ARG DEEPSPEED_VERSION
+FROM base
 
-RUN --mount=type=cache,id=full-ccache,target=/root/.cache/ccache \
-  #
-  set -ue; \
-  export MAX_JOBS="${MAX_JOBS:-$(nproc)}"; \
-  #
-  export CCACHE_DIR=/root/.cache/ccache CCACHE_MAXSIZE=20G; \
-  export PYTORCH_NVCC="ccache /opt/rocm/bin/hipcc"; \
-  #
-  src=${SRC_DIR}/deepspeed && \
-  mkdir -p $src && \
-  python -m pip download \
-    "deepspeed==${DEEPSPEED_VERSION}" \
-    --no-deps \
-    --no-binary=:all: \
-    -d "$src"; \
-  #
-  export PYTORCH_ROCM_ARCH=$FULL_GPU_ARCH; \
-  export DS_ACCELERATOR=cuda; \
-  export DS_BUILD_OPS=1; \
-  #
-  # Some extensions need to be disabled
-  #
-  # https://github.com/deepspeedai/DeepSpeed/issues/7843#issuecomment-3896637925
-  #
-  export DS_BUILD_INFERENCE_CORE_OPS=0; \
-  export DS_BUILD_CUTLASS_OPS=0; \
-  export DS_BUILD_RAGGED_DEVICE_OPS=0; \
-  export DS_BUILD_RAGGED_OPS=0; \
-  export DS_BUILD_STRING="+lumi.aif.${FULL_GPU_ARCH}.dsops"; \
-  #
-  python -m pip wheel \
-    "$src/deepspeed-${DEEPSPEED_VERSION}.tar.gz" \
-    --no-deps \
-    --no-build-isolation \
-    -w ${src}/dist && \
-  wheel_path="$(find ${src}/dist  -mindepth 1 -maxdepth 1 -type f -name '*.whl')" && \
-  test $(echo $wheel_path | wc -w) = 1 && \
-  pip install $wheel_path && \
-  ds_report; \
-  #
-  rm -rf ${SRC_DIR}/deepspeed;
+ARG BUILD_PIP_PACKAGES
+ARG FULL_PIP_PACKAGES
 
-#
-# Install Megatron LM (experimental for testing)
-#
-ARG MEGATRON_LM_REPO
-ARG MEGATRON_LM_COMMIT
-
-RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
-  #
-  set -ue; \
-  #
-  export MAX_JOBS="${MAX_JOBS:-$(nproc)}"; \
-  #
-  git clone ${MEGATRON_LM_REPO} ${SRC_DIR}/megatronlm; \
-  cd ${SRC_DIR}/megatronlm; \
-  git checkout ${MEGATRON_LM_COMMIT}; \
-  #
-  # Version the wheel as <Megatron version>+lumi.aif.<commit>. NO_VCS_VERSION
-  # stops Megatron from appending +<git hash> during the build.
-  export NO_VCS_VERSION=1; \
-  sed -i "/^__version__ = /a __version__ += '+lumi.aif.${MEGATRON_LM_COMMIT}'" megatron/core/package_info.py; \
-  #
-  pip wheel --no-deps -w ${SRC_DIR}/megatronlm/dist .; \
-  wheel_path="$(find ${SRC_DIR}/megatronlm/dist -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
-  test $(echo $wheel_path | wc -w) = 1; \
-  cd .. && pip install $wheel_path; \
-  #
-  # Fix python -c "from megatron.core.datasets.utils import compile_helpers; compile_helpers()"
-  DIR=/opt/venv/lib/python3.12/site-packages/megatron/core/datasets && \
-  printf 'all:\n\t@ls helpers_cpp*.so >/dev/null 2>&1 || { echo "helpers_cpp .so missing" >&2; exit 1; }\n' > "$DIR/Makefile"; \
-  #
-  rm -rf ${SRC_DIR}/megatronlm;
-
-#
-# Cleanup and finalize
-#
 RUN set -ue; \
   #
-  ccache -s; \
+  # Keep the installed PyTorch packages: constrain them to their exact
+  # versions, so that a package needing other versions stops the install
+  # instead of replacing them, e.g. with CUDA builds from PyPI
+  pip list --format=freeze | grep -E -i '^(torch|torchvision|torchaudio|triton([-_]rocm)?)==' > /tmp/constraints.txt; \
+  export PIP_CONSTRAINT=/tmp/constraints.txt; \
   #
-  rm -rf ${SRC_DIR}; \
+  pip install --upgrade-strategy=only-if-needed ${BUILD_PIP_PACKAGES} ${FULL_PIP_PACKAGES}
+
+ARG VLLM_VERSION
+
+# Install the wheels in the same order as they used to be built and
+# installed, so that later packages, vLLM in particular, decide the versions
+# of shared dependencies.
+RUN --mount=type=bind,from=flash-attention,source=/wheels,target=/wheels/flash-attention \
+    --mount=type=bind,from=causal-conv1d,source=/wheels,target=/wheels/causal-conv1d \
+    --mount=type=bind,from=xformers,source=/wheels,target=/wheels/xformers \
+    --mount=type=bind,from=apex,source=/wheels,target=/wheels/apex \
+    --mount=type=bind,from=vllm,source=/wheels,target=/wheels/vllm \
+    --mount=type=bind,from=deepspeed,source=/wheels,target=/wheels/deepspeed \
+    --mount=type=bind,from=megatron-lm,source=/wheels,target=/wheels/megatron-lm \
   #
-  test -f /opt/rocm/lib/llvm/bin/amdgpu-arch.really || { echo "error: amdgpu-arch.really is missing"; false; }; \
-  rm /opt/rocm/lib/llvm/bin/amdgpu-arch; \
-  mv /opt/rocm/lib/llvm/bin/amdgpu-arch.really /opt/rocm/lib/llvm/bin/amdgpu-arch; \
+  set -eu; \
+  #
+  export PIP_CONSTRAINT=/tmp/constraints.txt; \
+  #
+  pip install /wheels/flash-attention/*.whl; \
+  pip install /wheels/causal-conv1d/*.whl; \
+  pip install /wheels/xformers/*.whl; \
+  pip install /wheels/apex/*.whl; \
+  #
+  pip install /wheels/vllm/*.whl; \
+  # Install vLLM audio libraries
+  pip install vllm[audio]==${VLLM_VERSION}; \
+  #
+  pip install /wheels/deepspeed/*.whl; \
+  #
+  pip install /wheels/megatron-lm/*.whl; \
+  # Fix python -c "from megatron.core.datasets.utils import compile_helpers; compile_helpers()"
+  DIR=/opt/venv/lib/python3.12/site-packages/megatron/core/datasets; \
+  printf 'all:\n\t@ls helpers_cpp*.so >/dev/null 2>&1 || { echo "helpers_cpp .so missing" >&2; exit 1; }\n' > "$DIR/Makefile"; \
+  #
+  # Check that our PyTorch is still the one installed.
+  python -c "import torch; assert torch.version.hip and 'lumi.aif' in torch.__version__, torch.__version__"; \
+  #
+  # Check that the compiled extensions load, e.g. that they find their
+  # libraries and match our PyTorch build. This works without a GPU.
+  python -c "import flash_attn_2_cuda, causal_conv1d_cuda, apex.amp_C, apex.fused_layer_norm_cuda, vllm._C_stable_libtorch; from megatron.core.datasets import helpers_cpp"; \
+  #
+  # Reports for the build log. GPU checks show no GPU, as the build host has none.
+  python -m torch.utils.collect_env; \
+  python -m xformers.info; \
+  ds_report; \\
+  python -m vllm.collect_env; \
+  # Unmet requirements, for information only, as some known conflicts are accepted
+  pip check || true
+
+RUN set -ue; \
+  #
   # Add SBOM
   apt_json="$(dpkg-query -W -f='${Package}\t${Version}\n' | jq -R -s 'split("\n")[:-1] | map(split("\t") | {name: .[0], version: .[1]})')"; \
   pip_json="$(pip list --format=json)"; \
