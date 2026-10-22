@@ -37,9 +37,11 @@ RUN --mount=type=cache,id=apt-cache,target=/var/cache/apt,sharing=locked \
 
 FROM base as rocm
 
+ARG AMDGPU_REPO
+ARG AMDGPU_VERSION
+
 ARG ROCM_REPO
 ARG ROCM_VERSION
-ARG ROCM_GPU_ARCH
 ARG ROCM_APT_PACKAGES
 
 RUN --mount=type=cache,id=apt-cache,target=/var/cache/apt,sharing=locked \
@@ -47,19 +49,23 @@ RUN --mount=type=cache,id=apt-cache,target=/var/cache/apt,sharing=locked \
   #
   set -ue;\
   #
-  # Add ROCm repository
+  # Add ROCm and AMDGPU repositories (repo.radeon.com)
+  #
+  # Prefer the ROCm packages over Ubuntu's own packages of the same names
+  printf "Package: *\nPin: release o=repo.radeon.com\nPin-Priority: 800\n" \
+    > /etc/apt/preferences.d/rocm-pin-prio-800; \
   #
   # Download and install GPG key
   mkdir --parents --mode=0755 /etc/apt/keyrings; \
   # ROCm release signing key
-  wget -nv ${ROCM_REPO}/packages-multi-arch/gpg/rocm.gpg -O - \
+  wget -nv ${ROCM_REPO}/rocm.gpg.key -O - \
     | gpg --dearmor \
-    | tee /etc/apt/keyrings/amdrocm.gpg > /dev/null; \
+    | tee /etc/apt/keyrings/rocm.gpg > /dev/null; \
   #
-  printf "deb [arch=amd64 signed-by=/etc/apt/keyrings/amdrocm.gpg] ${ROCM_REPO}/packages-multi-arch/ubuntu2404 stable main\n" \
+  printf "deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] ${ROCM_REPO}/apt/${ROCM_VERSION}/ noble main\n" \
     | tee /etc/apt/sources.list.d/rocm.list; \
-  printf "deb [arch=amd64 signed-by=/etc/apt/keyrings/amdrocm.gpg] ${ROCM_REPO}/rvs/packages/deb/ stable main\n" \
-    | tee /etc/apt/sources.list.d/rvs.list; \
+  printf "deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] ${AMDGPU_REPO}/${AMDGPU_VERSION}/ubuntu noble main\n" \
+    | tee /etc/apt/sources.list.d/amdgpu.list; \
   #
   # Install ROCm packages
   #

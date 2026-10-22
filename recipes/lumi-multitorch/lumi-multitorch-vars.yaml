@@ -45,19 +45,17 @@ images:
           - python3-venv
           - wget
           - zstd
+      - name: amdgpu
+        repo: "https://repo.radeon.com/amdgpu"
+        version: "6.4.4"
       - name: rocm
         title: "AMD ROCm"
-        repo: "https://repo.amd.com/rocm"
-        version: "7.14"
-        gpu_arch: *gpu_arch
+        repo: "https://repo.radeon.com/rocm"
+        version: "7.2.4"
         apt_packages:
-          # ROCm SDK packages for this version and GPU architecture
-          - amdrocm-core-sdk{version}-{gpu_arch}
-          - amdrocm-hpc-sdk{version}-{gpu_arch}
-          # - amdrocm7-rvs
-          # Needed by ROCm's headers but not a dependency of its packages:
-          # rocm_smi, amd_smi and hsakmt headers include libdrm ones
-          - libdrm-dev
+          - libdrm-amdgpu-dev
+          - rocm-dev
+          - rocm-libs
       # Installed after ROCm, so changing these doesn't reinstall ROCm.
       - name: extra
         apt_packages:
@@ -184,18 +182,21 @@ images:
           - libopenblas-dev
           - libpng-dev
           - numactl
+      # Triton, TorchAudio and TorchVision from PyTorch's ROCm 7.2 wheel index.
+      # The Triton version is the one PyTorch pins in .ci/docker/triton_version.txt.
       - name: triton
+        package: "triton-rocm"
         version: "3.7.1"
-        pip_url: "https://repo.amd.com/rocm/whl-multi-arch/"
+        pip_url: "https://download.pytorch.org/whl/rocm7.2/"
       - name: torchaudio
         version: "2.11.0"
-        pip_url: "https://repo.amd.com/rocm/whl-multi-arch/"
+        pip_url: "https://download.pytorch.org/whl/rocm7.2/"
       - name: torchcodec
         version: "0.17.0"
         pip_url: "https://download.pytorch.org/whl/cpu/"
       - name: torchvision
         version: "0.28.0"
-        pip_url: "https://repo.amd.com/rocm/whl-multi-arch/"
+        pip_url: "https://download.pytorch.org/whl/rocm7.2/"
       # - name: fake-triton
       #   repo: "https://github.com/viahlgre/fake-triton.git"
       #   commit: "d35f4ca"

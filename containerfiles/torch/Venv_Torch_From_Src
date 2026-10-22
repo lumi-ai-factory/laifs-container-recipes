@@ -45,6 +45,9 @@ RUN set -ue; \
 ARG TORCH_PIP_PACKAGES
 ARG TORCH_ROCM_VERSION
 
+# Triton package name: triton-rocm on PyTorch's ROCm wheel index, triton on
+# AMD's multi-arch index
+ARG TRITON_PACKAGE
 ARG TRITON_PIP_URL
 ARG TRITON_VERSION
 
@@ -55,7 +58,7 @@ RUN set -ue; \
   #
   pip install ${TORCH_PIP_PACKAGES} && \
   pip install \
-    triton==${TRITON_VERSION} \
+    ${TRITON_PACKAGE}==${TRITON_VERSION} \
     --index-url ${TRITON_PIP_URL} && \
   pip install /opt/rocm/share/amd_smi
 
@@ -171,7 +174,7 @@ ENV TORCH_NCCL_HIGH_PRIORITY=1
 # process. torch.cuda.device_count() then returns 0, and vLLM doesn't detect
 # the ROCm platform. Loading libamd_smi first avoids this, and ROCm SMI still
 # works. Remove when ROCm SMI and AMD SMI no longer conflict.
-ENV LD_PRELOAD=/opt/rocm/lib/libamd_smi.so
+# ENV LD_PRELOAD=/opt/rocm/lib/libamd_smi.so
 
 ENV VIRTUAL_ENV="/opt/venv"
 ENV PATH="/opt/venv/bin:$PATH"

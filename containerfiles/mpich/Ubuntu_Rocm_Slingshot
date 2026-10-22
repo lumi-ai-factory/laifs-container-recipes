@@ -184,10 +184,11 @@ RUN set -ue; \
     cp build/*_perf "${TMPROOT}/libexec/rccl-tests"; \
     #
     cd /debs; \
-    # Version the package as <RCCL version>-<ROCm version>-<commit>. The RCCL
-    # version comes from its header, and the ROCm version from the RCCL package.
+    # Version the package as <RCCL version>-<ROCm version>-<commit>. Both come
+    # from headers, whose location is the same in all ROCm 7 versions, unlike
+    # the package names (rccl-dev in ROCm 7.2, amdrocm-rccl-dev7.14 in 7.14).
     RCCL_VERSION="$(awk '/^#define NCCL_(MAJOR|MINOR|PATCH) /{v=v (v?".":"") $3} END{print v}' /opt/rocm/include/rccl/rccl.h)"; \
-    ROCM_VERSION="$(dpkg-query -W -f='${Version}\n' 'amdrocm-rccl-dev*' | head -n 1 | cut -d- -f1)"; \
+    ROCM_VERSION="$(awk '/^#define ROCM_VERSION_(MAJOR|MINOR|PATCH) /{v=v (v?".":"") $3} END{print v}' /opt/rocm/include/rocm-core/rocm_version.h)"; \
     test -n "$RCCL_VERSION"; \
     test -n "$ROCM_VERSION"; \
     export RCCL_TESTS_VERSION="${RCCL_VERSION}-${ROCM_VERSION}-${RCCL_TESTS_COMMIT}"; \

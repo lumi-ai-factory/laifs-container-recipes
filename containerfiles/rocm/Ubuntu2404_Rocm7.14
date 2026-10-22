@@ -1,0 +1,113 @@
+ARG BASE_IMAGE
+ARG BASE_IMAGE_TAG
+
+FROM $BASE_IMAGE:$BASE_IMAGE_TAG as base
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# The apt steps below keep downloaded packages and package lists in cache
+# mounts (apt-cache, apt-lists), which persist between builds, so rebuilding
+# ROCm doesn't download it again. The docker-clean config of the Ubuntu image,
+# which deletes downloaded packages, is disabled only during those steps, so
+# that the images built on this one still clean up after apt.
+
+ARG BASE_APT_PACKAGES
+
+RUN --mount=type=cache,id=apt-cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,id=apt-lists,target=/var/lib/apt/lists,sharing=locked \
+  #
+  set -e;\
+  #
+  printf '%s\n' 'Dpkg::Use-Pty "0";' > /etc/apt/apt.conf.d/99no-progress; \
+  #
+  # Retry failed downloads, e.g. temporary 503 errors from package mirrors.
+  # Applies to all apt commands in this image and the images built on it.
+  #
+  printf '%s\n' 'Acquire::Retries "5";' > /etc/apt/apt.conf.d/99retries; \
+  #
+  # Enable man pages with unminimize and install the packages needed
+  # before ROCm
+  #
+  # Keep downloaded packages in the apt cache mount during this step
+  mv /etc/apt/apt.conf.d/docker-clean /etc/apt/docker-clean.disabled; \
+  apt-get update; \
+  yes | unminimize; \
+  apt-get -y --no-install-recommends install man locales ${BASE_APT_PACKAGES}; \
+  mv /etc/apt/docker-clean.disabled /etc/apt/apt.conf.d/docker-clean
+
+FROM base as rocm
+
+ARG ROCM_REPO
+ARG ROCM_VERSION
+ARG ROCM_GPU_ARCH
+ARG ROCM_APT_PACKAGES
+
+RUN --mount=type=cache,id=apt-cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,id=apt-lists,target=/var/lib/apt/lists,sharing=locked \
+  #
+  set -ue;\
+  #
+  # Add ROCm repository
+  #
+  # Download and install GPG key
+  mkdir --parents --mode=0755 /etc/apt/keyrings; \
+  # ROCm release signing key
+  wget -nv ${ROCM_REPO}/packages-multi-arch/gpg/rocm.gpg -O - \
+    | gpg --dearmor \
+    | tee /etc/apt/keyrings/amdrocm.gpg > /dev/null; \
+  #
+  printf "deb [arch=amd64 signed-by=/etc/apt/keyrings/amdrocm.gpg] ${ROCM_REPO}/packages-multi-arch/ubuntu2404 stable main\n" \
+    | tee /etc/apt/sources.list.d/rocm.list; \
+  printf "deb [arch=amd64 signed-by=/etc/apt/keyrings/amdrocm.gpg] ${ROCM_REPO}/rvs/packages/deb/ stable main\n" \
+    | tee /etc/apt/sources.list.d/rvs.list; \
+  #
+  # Install ROCm packages
+  #
+  # Keep downloaded packages in the apt cache mount during this step
+  mv /etc/apt/apt.conf.d/docker-clean /etc/apt/docker-clean.disabled; \
+  apt-get update; \
+  apt-get install -y --no-install-recommends ${ROCM_APT_PACKAGES}; \
+  mv /etc/apt/docker-clean.disabled /etc/apt/apt.conf.d/docker-clean; \
+  #
+  # Add ROCm to the library path
+  echo /opt/rocm/lib > /etc/ld.so.conf.d/rocm-30.conf && \
+  ldconfig
+
+ARG EXTRA_LOCALES
+ARG EXTRA_APT_PACKAGES
+
+RUN --mount=type=cache,id=apt-cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,id=apt-lists,target=/var/lib/apt/lists,sharing=locked \
+  #
+  set -e;\
+  #
+  # Install extra packages and additional locales after ROCm, so that
+  # changing them doesn't reinstall ROCm
+  #
+  # Keep downloaded packages in the apt cache mount during this step
+  mv /etc/apt/apt.conf.d/docker-clean /etc/apt/docker-clean.disabled; \
+  apt-get update; \
+  apt-get install -y --no-install-recommends ${EXTRA_APT_PACKAGES}; \
+  locale-gen ${EXTRA_LOCALES}; \
+  mv /etc/apt/docker-clean.disabled /etc/apt/apt.conf.d/docker-clean
+
+RUN git config --global advice.detachedHead false
+
+RUN set -e;\
+  #
+  # Add SBOM
+  #
+  apt_json="$(dpkg-query -W -f='${Package}\t${Version}\n' | jq -R -s 'split("\n")[:-1] | map(split("\t") | {name: .[0], version: .[1]})')"; \
+  jq -n \
+    --argjson apt "$apt_json" \
+    '{apt: $apt}' > /.sbom.json;
+
+ENV ROCM_PATH=/opt/rocm
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PIP_NO_CACHE_DIR=1
+ENV GIT_TERMINAL_PROMPT=0
+
+# Newer RCCL 2.30.4's kernel needs about 231 MB of scratch per GCD, which exceeds the runtime's default 140 MiB
+# ENV HSA_NO_SCRATCH_RECLAIM=1 or
+# 256 MiB:
+ENV HSA_SCRATCH_SINGLE_LIMIT=268435456
