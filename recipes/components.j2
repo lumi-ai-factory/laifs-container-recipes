@@ -1,5 +1,5 @@
 {#- Shared helpers for recipe templates. Import them in a recipe template with
-    {%- from "recipes/components.j2" import comps, component_env, component with context -%}
+    {%- from "recipes/components.j2" import comps, component_env, component, component_list with context -%}
     The recipe variables must define images.<image>.components. -#}
 
 {#- Look up components defined under images.<image>.components by name, e.g. comps.torch.version -#}
@@ -10,12 +10,16 @@
   {%- endfor -%}
 {%- endfor -%}
 
+{#- Fields of a component that only describe it in the documentation (see component()),
+    and are not passed to the build -#}
+{%- set doc_fields = ["name", "title", "note", "show_version"] -%}
+
 {#- Convert the components of an image into env entries named <NAME>_<FIELD>, joining lists with spaces.
     Values can refer to other fields of the same component as {field}, for example
     "amdrocm-core-sdk{version}-{gpu_arch}". Write literal braces as {{ and }}. -#}
 {%- macro component_env(image) -%}
   {%- for comp in images[image].components -%}
-    {%- for field, value in comp.items() if field != "name" %}
+    {%- for field, value in comp.items() if field not in doc_fields %}
       - {{ (comp.name ~ "_" ~ field) | upper | replace("-", "_") }}=
       {%- if value is string %}{{ value.format(**comp) }}
       {%- else %}"{% for item in value %}{{ item.format(**comp) }}{% if not loop.last %} {% endif %}{% endfor %}"
@@ -24,15 +28,29 @@
   {%- endfor -%}
 {%- endmacro -%}
 
-{#- Document a component as "<label> <version> (from <where>)", for example
-    "Libfabric 2.1 (from <repo> commit <commit>)". Set version=false to leave
-    out the version, or give a note to replace the "from ..." part -#}
-{%- macro component(name, label, version=true, note=none) -%}
+{#- Document a component as "<title> <version> (from <where>)", for example
+    "Libfabric 2.1 (from <repo> commit <commit>)". The title, a note that replaces
+    the "from ..." part and show_version: false, which leaves out the version,
+    are read from the component in the vars, unless given as arguments -#}
+{%- macro component(name, label=none, version=none, note=none) -%}
   {%- set comp = comps[name] -%}
+  {%- set label = label or comp.title -%}
+  {%- set version = comp.show_version | default(true) if version is none else version -%}
+  {%- set note = note or comp.note | default(none) -%}
   {{- label }}{% if version and comp.version is defined %} {{ comp.version }}{% endif %} (
   {%- if note %}{{ note }}
   {%- elif comp.commit is defined %}from {{ comp.repo }} commit {{ comp.commit }}
   {%- elif comp.source is defined %}from {{ comp.source }} release tgz for {{ comp.version }}
   {%- else %}from {{ comp.repo }}
   {%- endif %})
+{%- endmacro -%}
+
+{#- List the components of an image that have a title in the vars, one
+    "- <component()>" line each, in vars order. Use it with the indent filter,
+    for example {{ component_list("multi") | indent(8) }} -#}
+{%- macro component_list(image) -%}
+  {%- for comp in images[image].components if comp.title is defined -%}
+    {%- if not loop.first %}{{ "\n" }}{% endif -%}
+    - {{ component(comp.name) }}
+  {%- endfor -%}
 {%- endmacro -%}

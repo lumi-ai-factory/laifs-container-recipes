@@ -46,6 +46,7 @@ images:
           - wget
           - zstd
       - name: rocm
+        title: "AMD ROCm"
         repo: "https://repo.amd.com/rocm"
         version: "7.14"
         gpu_arch: *gpu_arch
@@ -93,9 +94,11 @@ images:
     template: "libfabric/Ubuntu_Rocm_Slingshot"
     components:
       - name: cassini-headers
+        title: "Cassini headers"
         source: "https://github.com/HewlettPackard/shs-cassini-headers"
         version: "12.0.1" # Based on version LUMI's versions since Jan 2026 maint break
       - name: cxi-headers
+        title: "CXI headers"
         repo: "https://github.com/HewlettPackard/shs-cxi-driver"
         commit: "27f7be5" # Based on version LUMI's versions since Jan 2026 maint break
         version: "1.0.0-SHS12.0.2"
@@ -104,17 +107,20 @@ images:
         commit: "746483b"
         version: "0.4-SHS12.0.2"
       - name: libcxi
+        title: "libcxi"
         repo: "https://github.com/HewlettPackard/shs-libcxi"
         commit: "30fa2dd" # Based on version LUMI's versions since Jan 2026 maint break
         version: "1.0.2-SHS12.0.2"
       - name: libfabric
+        title: "Libfabric"
         repo: "https://github.com/ofiwg/libfabric"
         commit: "78d6e03"
         version: "2.1"
       - name: xpmem
+        title: "xpmem"
         repo: "https://github.com/hpc/xpmem"
         commit: "3bcab55"
-        version: "0.1"
+        version: "0.2" # From AC_INIT in configure.ac at this commit
 
 #
 # ubuntu-rocm-libfabric-mpich
@@ -123,6 +129,7 @@ images:
     template: "mpich/Ubuntu_Rocm_Slingshot"
     components:
       - name: aws-ofi-nccl
+        title: "AWS-OFI-NCCL"
         repo: "https://github.com/aws/aws-ofi-nccl"
         commit: "2475c4c" # Tagged as latest release (v1.21.1) as of 2026-09-04
         version: "1.21.1"
@@ -139,13 +146,16 @@ images:
           - libpciaccess0
           - libxml2
       - name: mpich
+        title: "MPICH"
         source: "http://www.mpich.org/static/downloads"
         version: "5.0.1" # Latest version as of 2026-07-13
         gpu_arch: *gpu_arch
       - name: osu
+        title: "OSU Micro-Benchmarks"
         source: "https://mvapich.cse.ohio-state.edu/download/mvapich"
         version: "7.5.2" # Latest version as of 2026-07-13
       - name: rccl-tests
+        title: "RCCL Tests"
         repo: "https://github.com/ROCm/rocm-systems"
         commit: "485afdf" # Tagged as release (therock-7.14.1) as of 2026-09-04
         gpu_arch: *gpu_arch
@@ -261,30 +271,39 @@ images:
       #   repo: "https://github.com/lumi-ai-factory/wretag.git"
       #   commit: "0da1af0"
       - name: apex
+        title: "Apex"
         repo: "https://github.com/ROCm/apex"
         commit: "68f9dc9" # Latest from branch release/1.13.0 (this branch is specifically for Pytorch 2.13.0) as of 2026-10-19
       - name: causal-conv1d
+        title: "Causal Conv1D"
         repo: "https://github.com/Dao-AILab/causal-conv1d"
         commit: "cd81f04" # Latest commit as of 2026-10-19
       - name: deepspeed
+        title: "DeepSpeed"
+        note: "with locally built ops addons"
         version: "0.19.6" # Latest release as of 2026-09-11
       - name: flash-attention
+        title: "Flash Attention"
         repo: "https://github.com/ROCm/flash-attention"
         # Last commit with version 2.8.3 (supported by Transformer Engine) as of 2026-07-31
         # https://github.com/ROCm/TransformerEngine/blob/v2.15_rocm/transformer_engine/pytorch/attention/dot_product_attention/utils.py#L126
         commit: "b664ea0"
       # Disabled until vLLM supports compressed-tensors 0.19, see Rocm_Multipurpose
       # - name: llmcompressor
+      #   title: "LLM Compressor"
       #   repo: "https://github.com/vllm-project/llm-compressor"
       #   commit: "6e4b96e" # Tagged as latest release (v0.14.0) as of 2026-10-19
       - name: megatron-lm
+        title: "Megatron LM (experimental)"
         repo: "https://github.com/ROCm/Megatron-LM"
         commit: "9784f40" # Latest from branch rocm_dev as of 2026-09-24
       - name: vllm
+        title: "vLLM"
         repo: "https://github.com/vllm-project/vllm"
         commit: "5df63a7"  # Tagged as release "v0.32.0"
         version: "v0.32.0" # "v0.26.0" is build against PyTorch 2.13.0 as of 2026-10-19
       - name: xformers
+        title: "xFormers"
         repo: "https://github.com/facebookresearch/xformers"
         commit: "03b91d7" # Tagged as latest release (v0.0.35) as of 2026-07-13
 
@@ -295,6 +314,7 @@ images:
     template: "plus/Plus"
     components:
       - name: transformer-engine
+        title: "Transformer Engine"
         repo: "https://github.com/ROCm/TransformerEngine"
         commit: "130099c" # v2.17 ROCm
         gpu_arch: *gpu_arch

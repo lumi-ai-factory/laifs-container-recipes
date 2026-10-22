@@ -1,4 +1,4 @@
-{%- from "recipes/components.j2" import comps, component_env, component with context -%}
+{%- from "recipes/components.j2" import comps, component_env, component, component_list with context -%}
 
 {#- Derive software digest string for the recipe from variables to keep the digest automatically updated -#}
 {%- set ubuntu_id = 'u' ~ images.rocm.ubuntu_release.split('.')[0] -%}
@@ -105,28 +105,14 @@ desc: |
   The final image, `{{image_build_name("full")}}`,
   includes these key software components:
     - Ubuntu {{images.rocm.ubuntu_release}} LTS (from https://hub.docker.com/layers/library/ubuntu/{{images.rocm.ubuntu_tag}})
-    - {{ component("rocm", "AMD ROCm") }}
-    - {{ component("xpmem", "Xpmem", version=false) }}
-    - {{ component("cassini-headers", "Cassini headers", version=false) }}
-    - {{ component("cxi-headers", "CXI headers", version=false) }}
-    - {{ component("libcxi", "Libcxi", version=false) }}
-    - {{ component("libfabric", "Libfabric") }}
-    - {{ component("mpich", "MPICH") }}
-    - {{ component("aws-ofi-nccl", "AWS-OFI-NCCL") }}
-    - {{ component("rccl-tests", "RCCL Tests") }}
-    - {{ component("osu", "OSU micro-benchmarks") }}
+    {{ component_list("rocm") | indent(4) }}
+    {{ component_list("libfabric") | indent(4) }}
+    {{ component_list("mpich") | indent(4) }}
     - PyTorch {{comps.torch.version}} (from {{comps.torch.repo}} tag v{{comps.torch.version}})
     - TorchVision (from {{torchvision_url}})
     - TorchAudio (from {{torchaudio_url}})
     - PyTorch Triton (from {{pytorch_triton_url}})
-    - {{ component("apex", "Apex") }}
-    - {{ component("causal-conv1d", "Causal Conv1D") }}
-    - {{ component("deepspeed", "DeepSpeed", note="with locally built ops addons") }}
-    - {{ component("flash-attention", "Flash Attention") }}
-    {#- - {{ component("llmcompressor", "LLM Compressor") }} #}
-    - {{ component("megatron-lm", "Megatron LM (experimental)") }}
-    - {{ component("vllm", "vLLM") }}
-    - {{ component("xformers", "xFormers") }}
+    {{ component_list("multi") | indent(4) }}
 
   These additional packages from PyPI are also included in the final image:
     {%- for pkg in comps.full.pip_packages %}
@@ -250,11 +236,7 @@ steps:
       **Details**<br>
       Base image: {{image_digest_name("rocm")}}<br>
       Components:
-        - {{ component("xpmem", "xpmem", version=false) }}
-        - {{ component("cassini-headers", "Cassini headers", version=false) }}
-        - {{ component("cxi-headers", "CXI headers", version=false) }}
-        - {{ component("libcxi", "libcxi", version=false) }}
-        - {{ component("libfabric", "Libfabric") }}
+        {{ component_list("libfabric") | indent(8) }}
     template: {{ images.libfabric.template }}
     env:
       {{- component_env("libfabric") }}
@@ -275,10 +257,7 @@ steps:
       Base image: {{image_digest_name("libfabric")}}<br>
       MPI implementation: MPICH {{comps.mpich.version}}<br>
       Components:
-        - {{ component("mpich", "MPICH") }}
-        - {{ component("aws-ofi-nccl", "AWS-OFI-NCCL") }}
-        - {{ component("rccl-tests", "RCCL Tests") }}
-        - {{ component("osu", "OSU micro-benchmarks") }}
+        {{ component_list("mpich") | indent(8) }}
     template: {{ images.mpich.template }}
     env:
       {{- component_env("mpich") }}
@@ -321,14 +300,7 @@ steps:
       Base image: {{image_digest_name("torch")}}<br>
       GPU architectures: {{comps.full.gpu_arch}}<br>
       Components:
-        - {{ component("apex", "Apex") }}
-        - {{ component("causal-conv1d", "Causal Conv1D") }}
-        - {{ component("deepspeed", "DeepSpeed", note="with locally built ops addons") }}
-        - {{ component("flash-attention", "Flash Attention") }}
-        {#- - {{ component("llmcompressor", "LLM Compressor") }} #}
-        - {{ component("megatron-lm", "Megatron LM (experimental)") }}
-        - {{ component("vllm", "vLLM") }}
-        - {{ component("xformers", "xFormers") }}
+        {{ component_list("multi") | indent(8) }}
 
       Additional Python packages from PyPI:
         {%- for pkg in comps.full.pip_packages %}
@@ -357,7 +329,8 @@ steps:
       Base image: {{image_digest_name("full")}}<br>
       GPU architectures: {{comps["transformer-engine"].gpu_arch}}<br>
       Components:
-        - {{ component("transformer-engine", "Transformer Engine") }}
+        {{ component_list("plus") | indent(8) }}
+
     template: {{ images.plus.template }}
     env:
       {{- component_env("plus") }}
