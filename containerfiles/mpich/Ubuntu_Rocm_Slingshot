@@ -121,7 +121,9 @@ RUN set -ue; \
         CC=mpicc \
         CXX=mpicxx \
         --enable-rocm \
-        --with-rocm=/opt/rocm; \
+        --with-rocm=/opt/rocm \
+        --enable-rcclomb \
+        --with-rccl=/opt/rocm; \
     make -j $(nproc) DESTDIR="$TMPROOT" install; \
     #
     cd /debs; \
