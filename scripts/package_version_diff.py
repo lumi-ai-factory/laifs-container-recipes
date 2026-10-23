@@ -34,14 +34,14 @@ def diff_managers(old_data, new_data):
         for name in sorted(old_names & new_names):
             if old_pkgs[name] != new_pkgs[name]:
                 changed.append(
-                    f"- `{name}` {old_pkgs[name]} -> {new_pkgs[name]}"
+                    f"- `{name}` `{old_pkgs[name]}` -> `{new_pkgs[name]}`"
                 )
 
         for name in sorted(new_names - old_names):
-            added.append(f"- `{name}` {new_pkgs[name]}")
+            added.append(f"- `{name}` `{new_pkgs[name]}`")
 
         for name in sorted(old_names - new_names):
-            removed.append(f"- `{name}` {old_pkgs[name]}")
+            removed.append(f"- `{name}` `{old_pkgs[name]}`")
 
         if not (changed or added or removed):
             continue
