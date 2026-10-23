@@ -356,10 +356,20 @@ RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
 #
 FROM base
 
-ARG BUILD_PIP_PACKAGES
-ARG FULL_PIP_PACKAGES
+ARG VLLM_VERSION
 
-RUN set -ue; \
+# Install the built wheels first, in the same order as they used to be
+# built, so that their dependencies, vLLM's pinned ones in particular, decide
+# the versions of shared packages.
+RUN --mount=type=bind,from=flash-attention,source=/wheels,target=/wheels/flash-attention \
+    --mount=type=bind,from=causal-conv1d,source=/wheels,target=/wheels/causal-conv1d \
+    --mount=type=bind,from=xformers,source=/wheels,target=/wheels/xformers \
+    --mount=type=bind,from=apex,source=/wheels,target=/wheels/apex \
+    --mount=type=bind,from=vllm,source=/wheels,target=/wheels/vllm \
+    --mount=type=bind,from=deepspeed,source=/wheels,target=/wheels/deepspeed \
+    --mount=type=bind,from=megatron-lm,source=/wheels,target=/wheels/megatron-lm \
+  #
+  set -eu; \
   #
   # With PyTorch's ROCm wheels, Triton is the triton-rocm package. It has the
   # same triton module as the CUDA triton package, but another name, so a
@@ -382,25 +392,6 @@ RUN set -ue; \
   pip list --format=freeze | grep -E -i '^(torch|torchvision|torchaudio|triton([-_]rocm)?)==' > /tmp/constraints.txt; \
   export PIP_CONSTRAINT=/tmp/constraints.txt; \
   #
-  pip install --upgrade-strategy=only-if-needed ${BUILD_PIP_PACKAGES} ${FULL_PIP_PACKAGES}
-
-ARG VLLM_VERSION
-
-# Install the wheels in the same order as they used to be built and
-# installed, so that later packages, vLLM in particular, decide the versions
-# of shared dependencies.
-RUN --mount=type=bind,from=flash-attention,source=/wheels,target=/wheels/flash-attention \
-    --mount=type=bind,from=causal-conv1d,source=/wheels,target=/wheels/causal-conv1d \
-    --mount=type=bind,from=xformers,source=/wheels,target=/wheels/xformers \
-    --mount=type=bind,from=apex,source=/wheels,target=/wheels/apex \
-    --mount=type=bind,from=vllm,source=/wheels,target=/wheels/vllm \
-    --mount=type=bind,from=deepspeed,source=/wheels,target=/wheels/deepspeed \
-    --mount=type=bind,from=megatron-lm,source=/wheels,target=/wheels/megatron-lm \
-  #
-  set -eu; \
-  #
-  export PIP_CONSTRAINT=/tmp/constraints.txt; \
-  #
   pip install /wheels/flash-attention/*.whl; \
   pip install /wheels/causal-conv1d/*.whl; \
   pip install /wheels/xformers/*.whl; \
@@ -415,7 +406,23 @@ RUN --mount=type=bind,from=flash-attention,source=/wheels,target=/wheels/flash-a
   pip install /wheels/megatron-lm/*.whl; \
   # Fix python -c "from megatron.core.datasets.utils import compile_helpers; compile_helpers()"
   DIR=/opt/venv/lib/python3.12/site-packages/megatron/core/datasets; \
-  printf 'all:\n\t@ls helpers_cpp*.so >/dev/null 2>&1 || { echo "helpers_cpp .so missing" >&2; exit 1; }\n' > "$DIR/Makefile"; \
+  printf 'all:\n\t@ls helpers_cpp*.so >/dev/null 2>&1 || { echo "helpers_cpp .so missing" >&2; exit 1; }\n' > "$DIR/Makefile";
+
+ARG BUILD_PIP_PACKAGES
+ARG FULL_PIP_PACKAGES
+
+# Install the extra Python packages last. Changing their list then only
+# reruns this step.
+RUN set -eu; \
+  #
+  # Keep every installed package, so that the extra packages are installed
+  # around the versions the built wheels need. New packages are installed
+  # freely, but a package needing another version of an installed one stops
+  # the install instead of replacing it.
+  pip list --format=freeze > /tmp/constraints.txt; \
+  export PIP_CONSTRAINT=/tmp/constraints.txt; \
+  #
+  pip install ${BUILD_PIP_PACKAGES} ${FULL_PIP_PACKAGES}; \
   #
   # Check that our PyTorch is still the one installed.
   python -c "import torch; assert torch.version.hip and 'lumi.aif' in torch.__version__, torch.__version__"; \
