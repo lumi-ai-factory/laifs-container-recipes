@@ -134,7 +134,8 @@ def add_readme_content(build_tag, readme_template, recipe_content):
     release_id = recipe_data["release"]
     readme_dict = {
         "name": f"{release_id}.md",
-        "content": rendered_readme,
+        # A literal block, like the Containerfiles in add_containerfile_content()
+        "content": LiteralScalarString(rendered_readme),
     }
 
     if "files" not in recipe_data:

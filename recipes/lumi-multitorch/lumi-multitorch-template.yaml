@@ -161,11 +161,11 @@ desc: |
     - Example listing of release directory content on LUMI:
       - `{{recipe_base_name}}-{{software_digest}}-{{build_tag}}.md`: The main readme file
       - `{{recipe_base_name}}-{{software_digest}}-{{build_tag}}.yaml`: The recipe file
-      {% for type in image_variants -%}
+      {%- for type in image_variants %}
       - `{{ image_build_name(type) }}.sif`: SIF image for the {{ type }} image
       - `{{ image_build_name(type) }}.md`: Readme file for the {{ type }} image
       - `{{ image_build_name(type) }}.json`: Software Bill of materials for the {{ type }} image
-      {% endfor %}
+      {%- endfor %}
 
   Illustrative example use on LUMI:
     ```
