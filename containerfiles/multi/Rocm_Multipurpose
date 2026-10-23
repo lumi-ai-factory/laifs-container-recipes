@@ -194,6 +194,13 @@ RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
   #
   export PYTORCH_ROCM_ARCH="${GPU_ARCH}"; \
   #
+  # Silence the most frequent harmless warnings: ignored hipError_t return
+  # values and loops the compiler can't unroll in apex's HIP code (hipcc), and
+  # the C++20 bit-field initializers in PyTorch 2.13 headers and deprecated
+  # PyTorch APIs used by apex.
+  export HIPCC_COMPILE_FLAGS_APPEND="${HIPCC_COMPILE_FLAGS_APPEND} -Wno-unused-value -Wno-pass-failed"; \
+  export CFLAGS="-Wno-c++20-extensions -Wno-deprecated-declarations"; \
+  #
   # Version the wheel as <apex version>+lumi.aif.<GPU arch>.<commit>.
   # BUILD_VERSION replaces the version apex would read from version.txt.
   export BUILD_VERSION="$(cat version.txt)+lumi.aif.${GPU_ARCH}.${APEX_COMMIT}"; \
