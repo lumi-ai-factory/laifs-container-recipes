@@ -37,6 +37,15 @@ RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
   export NVTE_NO_LOCAL_VERSION=1; \
   sed -i "1s/\$/+lumi.aif.${TRANSFORMER_ENGINE_GPU_ARCH}.${TRANSFORMER_ENGINE_COMMIT}/" build_tools/VERSION.txt; \
   #
+  # Silence the most frequent harmless warnings: from clang++ in TE's CMake
+  # build of its native library (HIPFLAGS, CXXFLAGS), from g++ in its PyTorch
+  # extension (CFLAGS), and setuptools' notes about directories of C++/HIP
+  # sources that aren't Python packages (PYTHONWARNINGS).
+  export HIPFLAGS="-Wno-pass-failed -Wno-unused-value -Wno-c++20-extensions"; \
+  export CXXFLAGS="-Wno-pass-failed -Wno-unused-value -Wno-c++20-extensions"; \
+  export CFLAGS="-Wno-c++20-extensions -Wno-interference-size -Wno-reorder"; \
+  export PYTHONWARNINGS="ignore:Package"; \
+  #
   # --no-build-isolation needed for pytorch HIP support detection
   pip wheel --no-deps --no-build-isolation -v -w ${SRC_DIR}/transformer_engine/dist .; \
   wheel_path="$(find ${SRC_DIR}/transformer_engine/dist -mindepth 1 -maxdepth 1 -type f -name '*.whl')"; \
