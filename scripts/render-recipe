@@ -3,6 +3,7 @@
 from io import StringIO
 from pathlib import Path
 from ruamel.yaml import YAML
+from ruamel.yaml.scalarstring import LiteralScalarString
 
 import argparse
 import hashlib
@@ -12,6 +13,10 @@ import sys
 
 yaml = YAML()
 yaml.preserve_quotes = True
+# Don't wrap long lines. When ruamel wraps a double-quoted string right after
+# an escaped backslash, the line break is read back as a space, which changed
+# e.g. printf '...\nname' in a Containerfile into printf '...\ nname'.
+yaml.width = 2**31 - 1
 
 ARG_WITHOUT_VALUE = re.compile(
     r"^(\s*ARG\s+)([A-Za-z_][A-Za-z0-9_]*)[ \t]*$", re.MULTILINE
@@ -106,7 +111,10 @@ def add_containerfile_content(recipe, containerfile_root="containerfiles"):
 
         step["cf_hash"] = containerfile_fingerprint
         step["cf_lineage"] = containerfile_lineage
-        step["cf_text"] = containerfile_filled
+        # As a literal block, the Containerfile is stored line by line without
+        # escapes. ruamel falls back to a quoted string if a line can't be
+        # written as a block, e.g. when it ends with spaces.
+        step["cf_text"] = LiteralScalarString(containerfile_filled)
 
     buf = StringIO()
     yaml.dump(data, buf)
