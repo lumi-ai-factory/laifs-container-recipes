@@ -354,6 +354,21 @@ ARG FULL_PIP_PACKAGES
 
 RUN set -ue; \
   #
+  # With PyTorch's ROCm wheels, Triton is the triton-rocm package. It has the
+  # same triton module as the CUDA triton package, but another name, so a
+  # requirement for triton, e.g. from vLLM's xgrammar, would install the CUDA
+  # triton from PyPI over it. Install a stub package named triton with the
+  # same version, which only requires triton-rocm, so that such requirements
+  # are already met. The stub contains no files of the triton module.
+  rocm_triton="$(pip show triton-rocm 2>/dev/null | awk '/^Version:/{print $2}')"; \
+  if [ -n "$rocm_triton" ] && ! pip show triton >/dev/null 2>&1; then \
+    mkdir /tmp/triton-stub; \
+    printf '[build-system]\nrequires = ["setuptools"]\nbuild-backend = "setuptools.build_meta"\n\n[project]\nname = "triton"\nversion = "%s"\ndescription = "Stub that makes requirements for triton use triton-rocm"\ndependencies = ["triton-rocm==%s"]\n\n[tool.setuptools]\npackages = []\n' \
+      "$rocm_triton" "$rocm_triton" > /tmp/triton-stub/pyproject.toml; \
+    pip install /tmp/triton-stub; \
+    rm -rf /tmp/triton-stub; \
+  fi; \
+  #
   # Keep the installed PyTorch packages: constrain them to their exact
   # versions, so that a package needing other versions stops the install
   # instead of replacing them, e.g. with CUDA builds from PyPI
@@ -398,14 +413,19 @@ RUN --mount=type=bind,from=flash-attention,source=/wheels,target=/wheels/flash-a
   # Check that our PyTorch is still the one installed.
   python -c "import torch; assert torch.version.hip and 'lumi.aif' in torch.__version__, torch.__version__"; \
   #
+  # Check that the triton module is still the ROCm one
+  if [ -n "$(pip show triton-rocm 2>/dev/null)" ]; then \
+    python -c "import triton; from importlib.metadata import version; assert triton.__version__ == version('triton-rocm'), (triton.__version__, version('triton-rocm'))"; \
+  fi; \
+  #
   # Check that the compiled extensions load, e.g. that they find their
   # libraries and match our PyTorch build. This works without a GPU.
-  python -c "import flash_attn_2_cuda, causal_conv1d_cuda, apex.amp_C, apex.fused_layer_norm_cuda, vllm._C_stable_libtorch; from megatron.core.datasets import helpers_cpp"; \
+  python -c "import torch, flash_attn_2_cuda, causal_conv1d_cuda, apex.amp_C, apex.fused_layer_norm_cuda, vllm._C_stable_libtorch; from megatron.core.datasets import helpers_cpp"; \
   #
   # Reports for the build log. GPU checks show no GPU, as the build host has none.
   python -m torch.utils.collect_env; \
   python -m xformers.info; \
-  ds_report; \\
+  ds_report; \
   python -m vllm.collect_env; \
   # Unmet requirements, for information only, as some known conflicts are accepted
   pip check || true
