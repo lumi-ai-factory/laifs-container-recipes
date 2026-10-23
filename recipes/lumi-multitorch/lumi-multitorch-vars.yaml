@@ -52,6 +52,8 @@ images:
         title: "AMD ROCm"
         repo: "https://repo.radeon.com/rocm"
         version: "7.2.4"
+        # Only the kernel files for this GPU architecture are installed
+        gpu_arch: *gpu_arch
         apt_packages:
           - libdrm-amdgpu-dev
           - rocm-dev

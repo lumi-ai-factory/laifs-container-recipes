@@ -42,6 +42,7 @@ ARG AMDGPU_VERSION
 
 ARG ROCM_REPO
 ARG ROCM_VERSION
+ARG ROCM_GPU_ARCH
 ARG ROCM_APT_PACKAGES
 
 RUN --mount=type=cache,id=apt-cache,target=/var/cache/apt,sharing=locked \
@@ -66,6 +67,20 @@ RUN --mount=type=cache,id=apt-cache,target=/var/cache/apt,sharing=locked \
     | tee /etc/apt/sources.list.d/rocm.list; \
   printf "deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] ${AMDGPU_REPO}/${AMDGPU_VERSION}/ubuntu noble main\n" \
     | tee /etc/apt/sources.list.d/amdgpu.list; \
+  #
+  # Install only the kernel files for the target GPU architecture. rocBLAS,
+  # hipBLASLt and MIOpen ship precompiled kernels for all supported GPUs in
+  # separate files per architecture, and the images only run on the target
+  # one.
+  #
+  printf '%s\n' \
+    'path-exclude=/opt/rocm*/lib/rocblas/library/*gfx*' \
+    'path-exclude=/opt/rocm*/lib/hipblaslt/library/*gfx*' \
+    'path-exclude=/opt/rocm*/share/miopen/db/*gfx*' \
+    "path-include=/opt/rocm*/lib/rocblas/library/*${ROCM_GPU_ARCH}*" \
+    "path-include=/opt/rocm*/lib/hipblaslt/library/*${ROCM_GPU_ARCH}*" \
+    "path-include=/opt/rocm*/share/miopen/db/*${ROCM_GPU_ARCH}*" \
+    > /etc/dpkg/dpkg.cfg.d/rocm-${ROCM_GPU_ARCH}-only; \
   #
   # Install ROCm packages
   #
