@@ -284,7 +284,7 @@ images:
       - name: deepspeed
         title: "DeepSpeed"
         note: "with locally built ops addons"
-        version: "0.19.6" # Latest release as of 2026-09-11
+        version: "0.19.8" # Latest release as of 2026-10-26
       - name: flash-attention
         title: "Flash Attention"
         repo: "https://github.com/ROCm/flash-attention"
