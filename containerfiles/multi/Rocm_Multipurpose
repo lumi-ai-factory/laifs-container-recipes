@@ -418,14 +418,17 @@ ARG FULL_PIP_PACKAGES
 # reruns this step.
 RUN set -eu; \
   #
-  # Keep every installed package, so that the extra packages are installed
-  # around the versions the built wheels need. New packages are installed
-  # freely, but a package needing another version of an installed one stops
-  # the install instead of replacing it.
-  pip list --format=freeze > /tmp/constraints.txt; \
+  # Keep the PyTorch packages and our own builds (versions with +lumi.aif)
+  # at their installed versions, as constraints and as requirements. As
+  # requirements, pip also resolves their dependencies, so the extra packages
+  # can't break e.g. vLLM's exact pins, while the other installed packages may
+  # still change for them.
+  pins="$(pip list --format=freeze | grep -E -i '^(torch|torchvision|torchaudio|triton([-_]rocm)?)==|\+lumi\.aif')"; \
+  echo "$pins" > /tmp/constraints.txt; \
+  cat /tmp/constraints.txt; \
   export PIP_CONSTRAINT=/tmp/constraints.txt; \
   #
-  pip install ${BUILD_PIP_PACKAGES} ${FULL_PIP_PACKAGES}; \
+  pip install $pins ${BUILD_PIP_PACKAGES} ${FULL_PIP_PACKAGES}; \
   #
   # Check that our PyTorch is still the one installed.
   python -c "import torch; assert torch.version.hip and 'lumi.aif' in torch.__version__, torch.__version__"; \
