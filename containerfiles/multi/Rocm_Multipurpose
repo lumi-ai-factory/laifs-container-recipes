@@ -472,4 +472,11 @@ if [ "${MAP_HIP_TO_ROCR_VISIBLE_DEVICES}" = 1 ] && [ -n "${ROCR_VISIBLE_DEVICES}
 fi\n\
 exec "$@"\n' > /opt/oci-entrypoint.sh && chmod +x /opt/oci-entrypoint.sh
 
+# Don't send usage statistics to third parties: vLLM to stats.vllm.ai and
+# Hugging Face Hub to huggingface.co. DO_NOT_TRACK is the common opt-out
+# that some other tools follow as well. Users can unset these to opt in.
+ENV VLLM_NO_USAGE_STATS=1
+ENV HF_HUB_DISABLE_TELEMETRY=1
+ENV DO_NOT_TRACK=1
+
 ENTRYPOINT ["/opt/oci-entrypoint.sh"]
