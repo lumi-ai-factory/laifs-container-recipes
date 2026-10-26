@@ -53,19 +53,22 @@ ARG FULL_MAX_JOBS
 ENV GPU_ARCH=${FULL_GPU_ARCH}
 ENV MAX_JOBS=${FULL_MAX_JOBS}
 #
-# Silence Clang warnings that xformers turns into errors with -Werror:
+# Cache compiler output in the full-ccache cache mount, which persists
+# between builds. PyTorch's extension builder runs the HIP compiler given in
+# PYTORCH_NVCC, and vLLM uses ccache whenever installed.
+#
+# The HIP compiler flags are given in PYTORCH_NVCC, so that they are on
+# the compile command lines. ccache doesn't see flags given in the
+# environment (HIPCC_COMPILE_FLAGS_APPEND), so it would reuse output, warnings
+# included, from compiles without them. The flags silence Clang warnings that
+# xformers turns into errors with -Werror:
 # - deprecated-attributes: HIP attributes on deduction guides in Composable
 #   Kernel headers (flash-attention, xformers)
 # - c++20-extensions: C++20 bit-field initializers in PyTorch 2.13 headers,
 #   which xformers compiles with -std=c++17
-ENV HIPCC_COMPILE_FLAGS_APPEND="-Wno-deprecated-attributes -Wno-c++20-extensions"
-#
-# Cache compiler output in the full-ccache cache mount, which persists
-# between builds. PyTorch's extension builder runs the HIP compiler given in
-# PYTORCH_NVCC, and vLLM uses ccache whenever installed.
 ENV CCACHE_DIR=/root/.cache/ccache
 ENV CCACHE_MAXSIZE=20G
-ENV PYTORCH_NVCC="ccache /opt/rocm/bin/hipcc"
+ENV PYTORCH_NVCC="ccache /opt/rocm/bin/hipcc -Wno-deprecated-attributes -Wno-c++20-extensions"
 #
 ENV SRC_DIR=/opt/src
 
@@ -198,7 +201,7 @@ RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
   # values and loops the compiler can't unroll in apex's HIP code (hipcc), and
   # the C++20 bit-field initializers in PyTorch 2.13 headers and deprecated
   # PyTorch APIs used by apex.
-  export HIPCC_COMPILE_FLAGS_APPEND="${HIPCC_COMPILE_FLAGS_APPEND} -Wno-unused-value -Wno-pass-failed"; \
+  export PYTORCH_NVCC="${PYTORCH_NVCC} -Wno-unused-value -Wno-pass-failed"; \
   export CFLAGS="-Wno-c++20-extensions -Wno-deprecated-declarations"; \
   #
   # Version the wheel as <apex version>+lumi.aif.<GPU arch>.<commit>.
