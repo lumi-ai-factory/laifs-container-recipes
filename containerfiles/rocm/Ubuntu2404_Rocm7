@@ -124,7 +124,14 @@ RUN set -e;\
     '{apt: $apt}' > /.sbom.json;
 
 ENV ROCM_PATH=/opt/rocm
+# Some tools look for ROCm in ROCM_HOME instead, e.g. vLLM's collect_env
+ENV ROCM_HOME=/opt/rocm
+
 ENV PYTHONDONTWRITEBYTECODE=1
+# Write Python output immediately, so that it appears in Slurm output files
+# right away and isn't lost when a job is killed
+ENV PYTHONUNBUFFERED=1
+
 ENV PIP_NO_CACHE_DIR=1
 ENV GIT_TERMINAL_PROMPT=0
 
