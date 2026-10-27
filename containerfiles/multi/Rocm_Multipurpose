@@ -221,6 +221,7 @@ FROM builder AS vllm
 
 ARG VLLM_COMMIT
 ARG VLLM_REPO
+ARG VLLM_TRITON_KERNELS_REPO
 ARG VLLM_VERSION
 
 RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
@@ -244,10 +245,20 @@ RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
   export PYTORCH_ROCM_ARCH=$GPU_ARCH; \
   export VLLM_VERSION_OVERRIDE=${VLLM_VERSION}+lumi.aif.${GPU_ARCH}.${VLLM_COMMIT}; \
   #
+  # vLLM bundles triton_kernels (vllm/third_party/triton_kernels) from ROCm's
+  # Triton 3.8 branch, which imports names that our Triton doesn't have, e.g.
+  # is_hip_gfx1250. Models that use it, e.g. gpt-oss (MXFP4), then fail to
+  # load. Bundle the triton_kernels of the installed Triton version instead.
+  triton_version="$(python -c 'import triton; print(triton.__version__.split("+")[0])')"; \
+  git clone --depth 1 --branch "v${triton_version}" --filter=blob:none --sparse \
+    ${VLLM_TRITON_KERNELS_REPO} ${SRC_DIR}/triton; \
+  git -C ${SRC_DIR}/triton sparse-checkout set python/triton_kernels; \
+  export TRITON_KERNELS_SRC_DIR=${SRC_DIR}/triton/python/triton_kernels/triton_kernels; \
+  #
   python setup.py bdist_wheel -v --dist-dir=/wheels; \
   test $(find /wheels -name '*.whl' | wc -l) = 1; \
   #
-  cd .. && rm -rf ${SRC_DIR}/vllm
+  cd .. && rm -rf ${SRC_DIR}/vllm ${SRC_DIR}/triton
 
 #
 # Build DeepSpeed
@@ -440,7 +451,7 @@ RUN set -eu; \
   #
   # Check that the compiled extensions load, e.g. that they find their
   # libraries and match our PyTorch build. This works without a GPU.
-  python -c "import torch, flash_attn_2_cuda, causal_conv1d_cuda, apex.amp_C, apex.fused_layer_norm_cuda, vllm._C_stable_libtorch; from megatron.core.datasets import helpers_cpp"; \
+  python -c "import torch, flash_attn_2_cuda, causal_conv1d_cuda, apex.amp_C, apex.fused_layer_norm_cuda, vllm._C_stable_libtorch, vllm.third_party.triton_kernels.target_info; from megatron.core.datasets import helpers_cpp"; \
   #
   # Reports for the build log. GPU checks show no GPU, as the build host has none.
   python -m torch.utils.collect_env; \
