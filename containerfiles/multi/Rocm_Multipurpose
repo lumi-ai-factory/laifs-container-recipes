@@ -292,6 +292,9 @@ RUN --mount=type=cache,id=full-ccache,target=/root/.cache/ccache \
   export DS_BUILD_CUTLASS_OPS=0; \
   export DS_BUILD_RAGGED_DEVICE_OPS=0; \
   export DS_BUILD_RAGGED_OPS=0; \
+  # Since 0.19.8, FP Quantizer is built with any Triton version, and its
+  # kernels don't compile with hipcc (declaration shadows template parameter)
+  export DS_BUILD_FP_QUANTIZER=0; \
   export DS_BUILD_STRING="+lumi.aif.${GPU_ARCH}.dsops"; \
   #
   python -m pip wheel \
