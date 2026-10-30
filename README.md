@@ -35,6 +35,10 @@ The workflow is designed to make it easy to update software versions, rebuild im
 │   ├── rocm/
 │   ├── simple/
 │   └── torch/
+├── hotfixes/                # Patches for already released images
+│   └── <incident>/          # For example emsign-ca-2026-10/
+│       ├── README.md        # Notice for users of the affected images
+│       └── RELEASE.md       # Building the patched images, and the patched releases
 ├── recipes/                 # Recipe templates and variable files
 │   └── <recipe>/            # For example lumi-multitorch/ or simple-example/
 │       ├── <recipe>-template.yaml
