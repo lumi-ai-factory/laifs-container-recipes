@@ -1,0 +1,57 @@
+#!/bin/bash
+#
+# List the package changes of lumi-multitorch images patched with build-ca-fix
+# against the original release, with package_version_diff.py.
+#
+# Usage: diff-ca-fix [build-tag [image ...]]
+#
+#   build-tag  release build tag, default u24r72f21m50t211-20260929_104918
+#   image      patched images, default torch full plus
+#
+# Compares the release's SBOM in releases/lumi-multitorch-<build-tag>/ with the
+# patched image's SBOM in builds/lumi-multitorch-<build-tag>/hotfixes/, and
+# writes the diff as Markdown next to the latter.
+
+main() {
+    # Set shell options
+    set -euo pipefail
+
+    # Get args
+    BUILD_TAG="${1:-u24r72f21m50t211-20260929_104918}"
+    shift || true
+    if [ $# -gt 0 ]; then
+        IMAGES=("$@")
+    else
+        IMAGES=(torch full plus)
+    fi
+
+    # Define paths
+    SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+    REPO_DIR="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel)"
+    RELEASE_DIR="$REPO_DIR/releases/lumi-multitorch-${BUILD_TAG}"
+    BUILD_DIR="$REPO_DIR/builds/lumi-multitorch-${BUILD_TAG}/hotfixes"
+
+    for image in "${IMAGES[@]}"; do
+        name="lumi-multitorch-${image}-${BUILD_TAG}"
+        python3 "$REPO_DIR/scripts/package_version_diff.py" \
+            "$RELEASE_DIR/$name.json" \
+            "$BUILD_DIR/$name-ca-fix.json" \
+            > "$BUILD_DIR/$name-ca-fix.md"
+
+        # The Plus Containerfile doesn't regenerate /.sbom.json, so plus
+        # releases have full's SBOM without Transformer Engine
+        if [ "$image" = plus ]; then
+            cat >> "$BUILD_DIR/$name-ca-fix.md" <<'EOF'
+
+_Note: the released plus image's SBOM is inherited from the full image and
+misses the packages that the plus image adds, such as `transformer_engine`.
+The hotfix regenerates the SBOM, so these packages are listed as added,
+although the hotfix doesn't install them._
+EOF
+        fi
+
+        echo "Package diff: $BUILD_DIR/$name-ca-fix.md"
+    done
+}
+
+main "$@"

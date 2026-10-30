@@ -1,0 +1,95 @@
+# Patch a released lumi-multitorch image for the eMudhra emSign CA incident (python.org announcement, 2026-10-20).
+# This file installs the patched versions listed at https://emudhra.we-have-a-problem.com/#patched-bundles,
+# which no longer trust that root:
+#
+#  - pip 26.2.2, whose vendored certifi is 2026.10.19,
+#  - certifi 2026.10.19 or newer, used by e.g. requests, huggingface_hub and
+#    vLLM,
+#  - Ubuntu's ca-certificates 20260816ubuntu0.24.04.1, the system CA store
+#    used by e.g. curl, git and Python's ssl module,
+#
+# and updates the apt and pip packages in /.sbom.json.
+#
+# The image keeps its environment and runscript. Python itself (Ubuntu's
+# 3.12.3) stays as it is; that needs a rebuilt image.
+#
+# Build (needs root or --fakeroot, for apt-get). The build pulls the image
+# from Docker Hub (11 GB compressed):
+#
+#   APPTAINER_TMPDIR=/var/tmp apptainer build --fakeroot \
+#     lumi-multitorch-full-u24r72f21m50t211-20260929_104918-ca-fix.sif \
+#     lumi-multitorch-ca-fix.def
+#
+# For another release, add e.g. --build-arg tag=full-u24r72f21m50t211-<date>.
+
+Bootstrap: docker
+From: docker.io/lumiaifactory/lumi-multitorch:{{ tag }}
+
+%arguments
+    tag=full-u24r72f21m50t211-20260929_104918
+
+    # pip 26.2.2 from PyPI, with its SHA-256 hash
+    pip_wheel=https://files.pythonhosted.org/packages/3f/06/3e4420302363fbb71be3c7f35ce042f54bfca330e3e66b3a2e3c4cca579f/pip-26.2.2-py3-none-any.whl#sha256=fd7f4dfa8190e014013b9f08f3e973f4e4c26ffd179a204895533a7254813a70
+
+%post
+    set -eu
+
+    # Use the venv's Python directly: %post doesn't get the image's
+    # environment, e.g. PATH with /opt/venv/bin
+    python=/opt/venv/bin/python
+
+    # The image's pip still trusts emSign ECC Root CA - G3, so the hash
+    # protects this download
+    $python -m pip install --no-cache-dir "pip @ {{ pip_wheel }}"
+
+    # Ubuntu's fix (LP: #2171507). apt checks the signatures of the
+    # packages, so the old CA store doesn't matter here.
+    # man-db's trigger can't write its cache under --fakeroot; skip it
+    export DEBIAN_FRONTEND=noninteractive
+    rm /var/lib/man-db/auto-update
+    apt-get update
+    apt-get install -y --only-upgrade ca-certificates
+    touch /var/lib/man-db/auto-update
+    apt-get clean
+    rm -rf /var/lib/apt/lists/*
+
+    # pip 26.2.2 trusts both its vendored certifi and the system CA store, and
+    # neither has G3 anymore, so certifi needs no pinned hash
+    $python -m pip install --no-cache-dir --upgrade "certifi>=2026.10.19"
+
+    # Regenerate the SBOM like the Containerfiles do
+    apt_json="$(dpkg-query -W -f='${Package}\t${Version}\n' | jq -R -s 'split("\n")[:-1] | map(split("\t") | {name: .[0], version: .[1]})')"
+    pip_json="$($python -m pip list --format=json)"
+    jq -n \
+        --argjson apt "$apt_json" \
+        --argjson pip "$pip_json" \
+        '{apt: $apt, pip: $pip}' > /.sbom.json
+
+%test
+    set -eu
+    python=/opt/venv/bin/python
+
+    ca_version="$(dpkg-query -W -f='${Version}' ca-certificates)"
+    echo "ca-certificates $ca_version"
+    dpkg --compare-versions "$ca_version" ge 20260816ubuntu0.24.04.1
+
+    # update-ca-certificates links each trusted root into /etc/ssl/certs
+    if [ -e /etc/ssl/certs/emSign_ECC_Root_CA_-_G3.pem ]; then
+        echo "emSign ECC Root CA - G3 is still in the system CA store" >&2
+        exit 1
+    fi
+
+    $python -m pip --version
+    $python - <<'EOF'
+import certifi
+from pip._vendor import certifi as pip_certifi
+
+for name, module in (("certifi", certifi), ("pip's certifi", pip_certifi)):
+    print(name, module.__version__)
+    assert module.__version__ >= "2026.10.19", (name, module.__version__)
+    assert '# Label: "emSign ECC Root CA - G3"' not in module.contents(), name
+print("CA checks passed")
+EOF
+
+%labels
+    fi.lumi-ai-factory.patch emSign CA incident 2026-10: pip 26.2.2, certifi >= 2026.10.19, ca-certificates 20260816ubuntu0.24.04.1

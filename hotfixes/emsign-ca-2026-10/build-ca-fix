@@ -1,0 +1,101 @@
+#!/bin/bash
+#
+# Build lumi-multitorch images patched for the emSign CA incident with
+# lumi-multitorch-ca-fix.def, and log the builds.
+#
+# Usage: build-ca-fix [build-tag [image ...]]
+#
+#   build-tag  release build tag, default u24r72f21m50t211-20260929_104918
+#   image      images to patch, default torch full plus
+#
+# Each image is pulled from Docker Hub as lumi-multitorch:<image>-<build-tag>.
+# The SIF file, the build log and the SBOM (/.sbom.json, for
+# package_version_diff.py) of each image go to hotfixes/ in the release's build
+# directory, e.g. builds/lumi-multitorch-u24r72f21m50t211-20260929_104918/hotfixes/.
+# The build stops if an image's SIF or log already exists; remove them to
+# rebuild.
+#
+# Uses Apptainer, or SingularityCE (singularity) e.g. on LUMI. Set VERBOSITY to
+# e.g. --verbose or --debug for more output.
+#
+# Unpacking the image needs tens of GB, and /tmp is often a small tmpfs, so
+# point the temporary directory to a disk with space, e.g.:
+#
+#   APPTAINER_TMPDIR=/var/tmp build-ca-fix      # Apptainer
+#   SINGULARITY_TMPDIR=/var/tmp build-ca-fix    # SingularityCE
+
+build_image() {
+    local tag="$1"
+
+    # Define build paths
+    local name="lumi-multitorch-${tag}-ca-fix"
+    local sif_file="$BUILD_DIR/$name.sif"
+    local build_log="$BUILD_DIR/$name.log"
+    local sbom_file="$BUILD_DIR/$name.json"
+
+    # Don't overwrite an earlier build or its log
+    for file in "$sif_file" "$build_log"; do
+        if [ -e "$file" ]; then
+            echo "$file already exists, remove it to rebuild" >&2
+            return 1
+        fi
+    done
+
+    {
+        echo "Image:      docker.io/lumiaifactory/lumi-multitorch:$tag"
+        echo "Definition: $DEF_FILE"
+        echo "Output:     $sif_file"
+        echo "Builder:    $($CONTAINER --version)"
+        echo "Started:    $(date -Iseconds)"
+        echo
+
+        $CONTAINER ${VERBOSITY:-} build --fakeroot \
+            --build-arg tag="$tag" \
+            "$sif_file" "$DEF_FILE"
+
+        echo
+        echo "Finished:   $(date -Iseconds)"
+        sha256sum "$sif_file"
+
+        # Save the SBOM for package_version_diff.py
+        $CONTAINER exec "$sif_file" cat /.sbom.json > "$sbom_file"
+        echo "SBOM:       $sbom_file"
+    } 2>&1 | tee "$build_log"
+
+    echo "Build log: $build_log"
+}
+
+main() {
+    # Set shell options
+    set -euo pipefail
+
+    # Get build args
+    BUILD_TAG="${1:-u24r72f21m50t211-20260929_104918}"
+    shift || true
+    if [ $# -gt 0 ]; then
+        IMAGES=("$@")
+    else
+        IMAGES=(torch full plus)
+    fi
+
+    # Define build vars
+    SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+    DEF_FILE="$SCRIPT_DIR/lumi-multitorch-ca-fix.def"
+    REPO_DIR="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel)"
+    BUILD_DIR="$REPO_DIR/builds/lumi-multitorch-${BUILD_TAG}/hotfixes"
+
+    # Use Apptainer, or SingularityCE e.g. on LUMI
+    if command -v apptainer > /dev/null; then
+        CONTAINER=apptainer
+    else
+        CONTAINER=singularity
+    fi
+
+    mkdir -p "$BUILD_DIR"
+
+    for image in "${IMAGES[@]}"; do
+        build_image "${image}-${BUILD_TAG}"
+    done
+}
+
+main "$@"
