@@ -1,0 +1,109 @@
+ARG BASE_IMAGE
+ARG BASE_IMAGE_TAG
+
+# FAISS with ROCm GPU support, including the C++ tutorial programs
+# (1-Flat ... 5-Multiple-GPUs), built on the lumi-multitorch ROCm image.
+
+FROM $BASE_IMAGE:$BASE_IMAGE_TAG
+
+ENV PATH=/opt/faiss/bin:${PATH}
+
+ARG FAISS_APT_PACKAGES
+
+# Build tools, BLAS/LAPACK and SWIG for the Python bindings. FAISS also needs
+# hipify-perl (used by faiss/gpu/hipify.sh at configure time) and the hipBLAS
+# and rocBLAS development files, which come with ROCm.
+RUN set -eu; \
+    #
+    apt-get update; \
+    apt-get install -y --no-install-recommends ${FAISS_APT_PACKAGES}; \
+    rm -rf /var/lib/apt/lists/*; \
+    command -v hipify-perl
+
+ARG FAISS_REPO
+ARG FAISS_VERSION
+
+RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
+    #
+    set -eu; \
+    #
+    git clone ${FAISS_REPO} /opt/faiss/src; \
+    cd /opt/faiss/src; \
+    git checkout ${FAISS_VERSION}
+
+WORKDIR /opt/faiss/src
+
+ARG FAISS_GPU_ARCH
+
+# Configure exactly once: configuring hipifies faiss/gpu in place, and a second
+# run produces broken includes like <hip/hip/...>.
+#  - shared libfaiss: consumers don't have to link BLAS/LAPACK by hand
+#  - CXX_FLAGS: lets g++-compiled code (tutorials) include FAISS GPU headers,
+#    which pull in HIP/hipBLAS
+#  - CXX_STANDARD_LIBRARIES: appended at the end of every C++ link line, so the
+#    tutorials link HIP/hipBLAS
+#  - COMPILER_LAUNCHER: run the C++ and HIP compilers through ccache
+RUN set -eu; \
+    #
+    cmake -B build . \
+      -DCMAKE_BUILD_TYPE=Release \
+      -DFAISS_ENABLE_GPU=ON \
+      -DFAISS_ENABLE_ROCM=ON \
+      -DFAISS_ENABLE_PYTHON=ON \
+      -DBUILD_TESTING=OFF \
+      -DBUILD_SHARED_LIBS=ON \
+      -DCMAKE_HIP_ARCHITECTURES="${FAISS_GPU_ARCH}" \
+      -DCMAKE_PREFIX_PATH=/opt/rocm \
+      -DCMAKE_INSTALL_PREFIX=/opt/faiss \
+      -DCMAKE_INSTALL_LIBDIR=lib \
+      -DCMAKE_CXX_FLAGS="-I/opt/rocm/include -D__HIP_PLATFORM_AMD__" \
+      -DCMAKE_HIP_FLAGS="-w" \
+      -DCMAKE_CXX_STANDARD_LIBRARIES="-L/opt/rocm/lib -lamdhip64 -lhipblas -lrocblas" \
+      -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+      -DCMAKE_HIP_COMPILER_LAUNCHER=ccache; \
+    ! grep -rq "hip/hip/" faiss/gpu
+
+ARG FAISS_JOBS
+
+# An empty FAISS_JOBS means one job per CPU core. Set a lower number in the
+# recipe if the build runs out of memory. Compiler output is cached in the
+# faiss-ccache cache mount, which persists between builds.
+RUN --mount=type=cache,id=faiss-ccache,target=/root/.cache/ccache \
+    #
+    set -eu; \
+    #
+    export CCACHE_DIR=/root/.cache/ccache CCACHE_MAXSIZE=5G; \
+    ccache -z; \
+    #
+    make -C build -j"${FAISS_JOBS:-$(nproc)}" \
+      faiss swigfaiss \
+      1-Flat 2-IVFFlat 3-IVFPQ 4-GPU 5-Multiple-GPUs; \
+    #
+    make -C build install; \
+    mkdir -p /opt/faiss/bin; \
+    cp build/tutorial/cpp/1-Flat build/tutorial/cpp/2-IVFFlat build/tutorial/cpp/3-IVFPQ \
+      build/tutorial/cpp/4-GPU build/tutorial/cpp/5-Multiple-GPUs /opt/faiss/bin/; \
+    echo /opt/faiss/lib > /etc/ld.so.conf.d/faiss.conf; \
+    ldconfig; \
+    #
+    ccache -s
+
+RUN set -eu; \
+    cd build/faiss/python; \
+    python3 -m pip install .; \
+    cd /; \
+    python3 -c "import faiss; print('faiss', faiss.__version__)"
+
+RUN set -eu; \
+    #
+    # Add SBOM, replacing the one inherited from the base image
+    #
+    apt_json="$(dpkg-query -W -f='${Package}\t${Version}\n' | jq -R -s 'split("\n")[:-1] | map(split("\t") | {name: .[0], version: .[1]})')"; \
+    pip_json="$(python3 -m pip list --format=json)"; \
+    jq -n \
+      --argjson apt "$apt_json" \
+      --argjson pip "$pip_json" \
+      '{apt: $apt, pip: $pip}' > /.sbom.json
+
+WORKDIR /opt/faiss
+CMD ["bash"]

@@ -1,0 +1,44 @@
+{%- from "recipes/components.j2" import comps, component_env, component, component_list with context -%}
+
+name: "{{ recipe_name }}"
+tag: "{{ build_tag }}"
+release: "{{ recipe_name }}-{{ build_tag }}"
+desc: |
+  Development images for LUMI, built on existing lumi-multitorch images. They
+  are meant for testing software that isn't part of the lumi-multitorch
+  images yet, and may change or be removed without notice.
+
+steps:
+  - name: {{ recipe_name }}-faiss
+    base: "{{ images.faiss.base }}"
+    template: {{ images.faiss.template }}
+    desc: |
+      **Overview**<br>
+      This image builds on {{ images.faiss.base }} by adding FAISS, a library
+      for similarity search of dense vectors, with ROCm GPU support. It includes
+      the Python bindings in the system Python and the C++ tutorial programs
+      (1-Flat ... 5-Multiple-GPUs) in /opt/faiss/bin.
+
+      **Details**<br>
+      Base image: {{ images.faiss.base }}<br>
+      GPU architectures: {{ comps.faiss.gpu_arch }}<br>
+      Components:
+        {{ component_list("faiss") | indent(8) }}
+    env:
+      {{- component_env("faiss") }}
+
+  - name: {{ recipe_name }}-sglang
+    base: "{{ images.sglang.base }}"
+    template: {{ images.sglang.template }}
+    desc: |
+      **Overview**<br>
+      This image builds on {{ images.sglang.base }} by adding SGLang, a serving
+      framework for large language models, with its ROCm kernels.
+
+      **Details**<br>
+      Base image: {{ images.sglang.base }}<br>
+      GPU architectures: {{ comps.sglang.gpu_arch }}<br>
+      Components:
+        {{ component_list("sglang") | indent(8) }}
+    env:
+      {{- component_env("sglang") }}

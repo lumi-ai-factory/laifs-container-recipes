@@ -1,0 +1,49 @@
+#
+# Recipe lumi-dev: development images built on existing lumi-multitorch images
+#
+# Each component field becomes a build ARG named <NAME>_<FIELD>, for example
+# FAISS_GPU_ARCH. Lists are joined with spaces. Image-level keys next to
+# "components" are settings of the image itself and don't become build ARGs:
+# "template" is the Containerfile template, and "base" the existing image
+# (name:tag) the image is built on.
+#
+recipe_name: lumi-dev
+
+# GPU architecture of all images, used below as "gpu_arch: *gpu_arch"
+gpu_arch: &gpu_arch "gfx90a"
+
+images:
+#
+# Image lumi-dev-faiss
+#
+  faiss:
+    template: "dev/FAISS"
+    base: "docker.io/lumiaifactory/lumi-multitorch:torch-u24r72f21m50t211"
+    components:
+      - name: faiss
+        title: "FAISS"
+        repo: "https://github.com/facebookresearch/faiss.git"
+        version: "v1.15.1"
+        gpu_arch: *gpu_arch
+        # Parallel build jobs, empty for one per CPU core. Lower it if the
+        # build runs out of memory.
+        jobs: "1"
+        apt_packages:
+          - swig
+
+#
+# Image lumi-dev-sglang
+#
+  sglang:
+    template: "dev/SGLang"
+    base: "docker.io/lumiaifactory/lumi-multitorch:torch-u24r72f21m50t211"
+    components:
+      - name: sglang
+        title: "SGLang"
+        repo: "https://github.com/sgl-project/sglang.git"
+        version: "v0.5.22"
+        gpu_arch: *gpu_arch
+        # Parallel compile jobs of the kernel build, empty for one per CPU
+        # core. Lower it if the build runs out of memory.
+        jobs: "1"
+        build_rust_exts: "none"

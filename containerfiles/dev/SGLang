@@ -1,0 +1,94 @@
+ARG BASE_IMAGE
+ARG BASE_IMAGE_TAG
+
+# SGLang with its ROCm kernels (sgl_kernel), built on the lumi-multitorch
+# PyTorch image.
+
+FROM $BASE_IMAGE:$BASE_IMAGE_TAG
+
+ARG SGLANG_REPO
+ARG SGLANG_VERSION
+ARG SGLANG_GPU_ARCH
+# Read by SGLang's build: which Rust extensions to build
+ARG SGLANG_BUILD_RUST_EXTS
+# Parallel compile jobs of the kernel build, empty for one per CPU core
+ARG SGLANG_JOBS
+
+RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
+    --mount=type=cache,id=sglang-ccache,target=/root/.cache/ccache \
+    #
+    set -eu; \
+    #
+    # Cache compiler output of the kernel build, which persists between builds
+    export CCACHE_DIR=/root/.cache/ccache CCACHE_MAXSIZE=10G; \
+    export PYTORCH_NVCC="ccache /opt/rocm/bin/hipcc"; \
+    export AMDGPU_TARGET="${SGLANG_GPU_ARCH}"; \
+    export PYTORCH_ROCM_ARCH="${SGLANG_GPU_ARCH}"; \
+    export MAX_JOBS="${SGLANG_JOBS:-$(nproc)}"; \
+    #
+    ccache -z; \
+    #
+    git clone -b ${SGLANG_VERSION} --depth 1 ${SGLANG_REPO} /opt/sglang; \
+    #
+    # Version the sglang and sglang-kernel packages as
+    # <version>+lumi.aif.<GPU arch>.<commit>. setuptools_scm uses the
+    # package-specific pretend version for sglang instead of the git tag, and
+    # setup_rocm.py reads the kernel version from the kernels' pyproject.toml.
+    local_version="lumi.aif.${SGLANG_GPU_ARCH}.$(git -C /opt/sglang rev-parse --short=7 HEAD)"; \
+    export SETUPTOOLS_SCM_PRETEND_VERSION_FOR_SGLANG="${SGLANG_VERSION#v}+${local_version}"; \
+    sed -i -E 's/^version = "([^"+]*)"/version = "\1+'"${local_version}"'"/' \
+      /opt/sglang/python/sglang/kernels/aot/pyproject.toml; \
+    grep '^version = ' /opt/sglang/python/sglang/kernels/aot/pyproject.toml; \
+    #
+    # Keep the PyTorch packages and our own builds (versions with +lumi.aif) at
+    # their installed versions
+    pip list --format=freeze | grep -E -i '^(torch|torchvision|torchaudio|triton([-_]rocm)?)==|\+lumi\.aif' > /tmp/constraints.txt; \
+    cat /tmp/constraints.txt; \
+    export PIP_CONSTRAINT=/tmp/constraints.txt; \
+    #
+    # Build the ROCm kernels (sgl_kernel)
+    #
+    cd /opt/sglang/python/sglang/kernels/aot; \
+    # Remove the sys.exit() calls of the GPU architecture check, which would
+    # otherwise stop the build on a build host without a GPU
+    grep -nE 'sys\.exit|[^.]\bexit\(|SystemExit' setup_rocm.py || true; \
+    sed -i.bak -E 's/^([[:space:]]*)sys\.exit\(.*\)[[:space:]]*$/\1pass  # sys.exit removed/' setup_rocm.py; \
+    python -m py_compile setup_rocm.py; \
+    python setup_rocm.py install; \
+    cd /; \
+    python -c "import sgl_kernel, torch; print(sgl_kernel.__file__)"; \
+    #
+    # Install SGLang with its ROCm dependencies
+    #
+    cd /opt/sglang; \
+    rm -f python/pyproject.toml; \
+    mv python/pyproject_other.toml python/pyproject.toml; \
+    cd python; \
+    # SGLang's build requirements, which --no-build-isolation doesn't install.
+    # Without setuptools-scm, the version would fall back to 0.0.0.
+    pip install "setuptools-scm>=8.0" "setuptools-rust>=1.10" wheel; \
+    pip install --no-build-isolation .[all_hip_rocm724]; \
+    #
+    # Check that our PyTorch and the ROCm triton module are still installed.
+    # Older images report PyTorch's local version with underscores (lumi_aif).
+    python -c "import re, torch; assert torch.version.hip and re.search('lumi[._]aif', torch.__version__), torch.__version__"; \
+    if [ -n "$(pip show triton-rocm 2>/dev/null)" ]; then \
+      python -c "import triton; from importlib.metadata import version; assert triton.__version__ == version('triton-rocm'), (triton.__version__, version('triton-rocm'))"; \
+    fi; \
+    python -c "import sglang; print('sglang', sglang.__version__)"; \
+    #
+    cd /; \
+    rm -rf /opt/sglang; \
+    #
+    ccache -s
+
+RUN set -eu; \
+  #
+  # Add SBOM, replacing the one inherited from the base image
+  #
+  apt_json="$(dpkg-query -W -f='${Package}\t${Version}\n' | jq -R -s 'split("\n")[:-1] | map(split("\t") | {name: .[0], version: .[1]})')"; \
+  pip_json="$(pip list --format=json)"; \
+  jq -n \
+    --argjson apt "$apt_json" \
+    --argjson pip "$pip_json" \
+    '{apt: $apt, pip: $pip}' > /.sbom.json
