@@ -273,6 +273,9 @@ RUN --mount=type=cache,id=full-ccache,target=/root/.cache/ccache \
     --no-deps \
     --no-binary=:all: \
     -d "$src"; \
+  # Build in a fixed directory: pip would unpack the sdist into a random
+  # temporary directory, whose path ccache can't match between builds
+  tar -xzf "$src/deepspeed-${DEEPSPEED_VERSION}.tar.gz" -C "$src"; \
   #
   export PYTORCH_ROCM_ARCH=$GPU_ARCH; \
   export DS_ACCELERATOR=cuda; \
@@ -292,9 +295,10 @@ RUN --mount=type=cache,id=full-ccache,target=/root/.cache/ccache \
   export DS_BUILD_STRING="+lumi.aif.${GPU_ARCH}.dsops"; \
   #
   python -m pip wheel \
-    "$src/deepspeed-${DEEPSPEED_VERSION}.tar.gz" \
+    "$src/deepspeed-${DEEPSPEED_VERSION}" \
     --no-deps \
     --no-build-isolation \
+    -v \
     -w /wheels; \
   test $(find /wheels -name '*.whl' | wc -l) = 1; \
   #
@@ -453,7 +457,9 @@ RUN set -eu; \
   # Reports for the build log. GPU checks show no GPU, as the build host has none.
   python -m torch.utils.collect_env; \
   python -m xformers.info; \
-  ds_report; \
+  # Without a GPU, DeepSpeed would pick its CPU accelerator and report
+  # the built CUDA ops as not installed
+  DS_ACCELERATOR=cuda ds_report; \
   python -m vllm.collect_env; \
   # Unmet requirements, for information only, as some known conflicts are accepted
   pip check || true
