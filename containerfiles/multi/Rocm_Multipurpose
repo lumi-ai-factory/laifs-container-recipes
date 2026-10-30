@@ -280,6 +280,10 @@ RUN --mount=type=cache,id=full-ccache,target=/root/.cache/ccache \
   export PYTORCH_ROCM_ARCH=$GPU_ARCH; \
   export DS_ACCELERATOR=cuda; \
   export DS_BUILD_OPS=1; \
+  # DeepSpeed builds its ops without ninja by default, and then PyTorch runs
+  # hipcc directly instead of PYTORCH_NVCC, i.e. without ccache. Ninja also
+  # compiles in parallel (MAX_JOBS).
+  export DS_ENABLE_NINJA=1; \
   #
   # Some extensions need to be disabled
   #
