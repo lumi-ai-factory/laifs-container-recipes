@@ -221,7 +221,6 @@ FROM builder AS vllm
 
 ARG VLLM_COMMIT
 ARG VLLM_REPO
-ARG VLLM_TRITON_KERNELS_REPO
 ARG VLLM_VERSION
 
 RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
@@ -245,20 +244,15 @@ RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
   export PYTORCH_ROCM_ARCH=$GPU_ARCH; \
   export VLLM_VERSION_OVERRIDE=${VLLM_VERSION}+lumi.aif.${GPU_ARCH}.${VLLM_COMMIT}; \
   #
-  # vLLM bundles triton_kernels (vllm/third_party/triton_kernels) from ROCm's
-  # Triton 3.8 branch, which imports names that our Triton doesn't have, e.g.
-  # is_hip_gfx1250. Models that use it, e.g. gpt-oss (MXFP4), then fail to
-  # load. Bundle the triton_kernels of the installed Triton version instead.
-  triton_version="$(python -c 'import triton; print(triton.__version__.split("+")[0])')"; \
-  git clone --depth 1 --branch "v${triton_version}" --filter=blob:none --sparse \
-    ${VLLM_TRITON_KERNELS_REPO} ${SRC_DIR}/triton; \
-  git -C ${SRC_DIR}/triton sparse-checkout set python/triton_kernels; \
-  export TRITON_KERNELS_SRC_DIR=${SRC_DIR}/triton/python/triton_kernels/triton_kernels; \
-  #
+  # vLLM bundles triton_kernels (vllm/third_party/triton_kernels) from the
+  # ROCm Triton commit pinned in cmake/external_projects/triton_kernels.cmake.
+  # From v0.31.0 on, that is from the Triton 3.8 branch, which imports names
+  # that Triton 3.7.1 doesn't have, e.g. is_hip_gfx1250, and vLLM's MXFP4 MoE
+  # code (gpt-oss) needs its API. The final stage imports it as a check.
   python setup.py bdist_wheel -v --dist-dir=/wheels; \
   test $(find /wheels -name '*.whl' | wc -l) = 1; \
   #
-  cd .. && rm -rf ${SRC_DIR}/vllm ${SRC_DIR}/triton
+  cd .. && rm -rf ${SRC_DIR}/vllm
 
 #
 # Build DeepSpeed
@@ -336,8 +330,8 @@ RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
 #
 # Install llmcompressor
 #
-# Disabled: llm-compressor 0.14 needs compressed-tensors 0.19, but vLLM 0.32
-# pins compressed-tensors==0.17.0, and llm-compressor fails to import with it.
+# Disabled: llm-compressor 0.14 needs compressed-tensors 0.19, but vLLM
+# 0.30-0.32 pin compressed-tensors==0.17.0, and llm-compressor fails to import with it.
 # Enable again when vLLM moves to compressed-tensors 0.19, as a build stage
 # like the ones above and an install step in the final stage.
 #

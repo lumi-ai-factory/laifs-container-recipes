@@ -303,10 +303,10 @@ images:
       - name: vllm
         title: "vLLM"
         repo: "https://github.com/vllm-project/vllm"
-        commit: "5df63a7"  # Tagged as release "v0.32.0"
-        version: "v0.32.0" # "v0.26.0" is build against PyTorch 2.13.0 as of 2026-10-19
-        # triton_kernels for vLLM, from the tag of the installed Triton version
-        triton_kernels_repo: "https://github.com/triton-lang/triton.git"
+        # v0.31.0 and later bundle triton_kernels that need Triton 3.8, while
+        # PyTorch 2.13 pins Triton 3.7.1
+        commit: "ced6857"  # Tagged as release "v0.30.0"
+        version: "v0.30.0" # Built against PyTorch 2.13.0
       - name: xformers
         title: "xFormers"
         repo: "https://github.com/facebookresearch/xformers"
