@@ -4,6 +4,10 @@ Patches released lumi-multitorch images so they no longer trust
 `emSign ECC Root CA - G3`
 (<https://emudhra.we-have-a-problem.com/#patched-bundles>): pip 26.2.2,
 certifi >= 2026.10.19 and Ubuntu's ca-certificates 20260816ubuntu0.24.04.1.
+In images that have botocore (full and plus), it also upgrades botocore to
+1.43.117 or newer, with boto3, as
+[AWS security bulletin 2026-150-AWS](https://aws.amazon.com/security/security-bulletins/2026-150-aws/)
+advises.
 
 ```bash
 hotfixes/emsign-ca-2026-10/build-ca-fix [build-tag [image ...]]

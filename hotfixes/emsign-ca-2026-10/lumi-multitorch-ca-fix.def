@@ -7,6 +7,9 @@
 #    vLLM,
 #  - Ubuntu's ca-certificates 20260816ubuntu0.24.04.1, the system CA store
 #    used by e.g. curl, git and Python's ssl module,
+#  - botocore 1.43.117 or newer, with boto3, in images that have them, as
+#    AWS security bulletin 2026-150-AWS advises
+#    (https://aws.amazon.com/security/security-bulletins/2026-150-aws/),
 #
 # and updates the apt and pip packages in /.sbom.json.
 #
@@ -57,6 +60,14 @@ From: docker.io/lumiaifactory/lumi-multitorch:{{ tag }}
     # neither has G3 anymore, so certifi needs no pinned hash
     $python -m pip install --no-cache-dir --upgrade "certifi>=2026.10.19"
 
+    # AWS security bulletin 2026-150-AWS: botocore >= 1.43.117. botocore uses
+    # certifi when installed, but upgrade it as AWS advises. Upgrade boto3 with
+    # it, because boto3 pins botocore's minor version.
+    # Only full and plus images have them.
+    if $python -m pip show botocore >/dev/null 2>&1; then
+        $python -m pip install --no-cache-dir --upgrade "botocore>=1.43.117" boto3
+    fi
+
     # Regenerate the SBOM like the Containerfiles do
     apt_json="$(dpkg-query -W -f='${Package}\t${Version}\n' | jq -R -s 'split("\n")[:-1] | map(split("\t") | {name: .[0], version: .[1]})')"
     pip_json="$($python -m pip list --format=json)"
@@ -88,8 +99,18 @@ for name, module in (("certifi", certifi), ("pip's certifi", pip_certifi)):
     print(name, module.__version__)
     assert module.__version__ >= "2026.10.19", (name, module.__version__)
     assert '# Label: "emSign ECC Root CA - G3"' not in module.contents(), name
+
+from importlib.metadata import PackageNotFoundError, version
+
+try:
+    botocore_version = version("botocore")
+except PackageNotFoundError:
+    pass
+else:
+    print("botocore", botocore_version)
+    assert tuple(map(int, botocore_version.split(".")[:3])) >= (1, 43, 117), botocore_version
 print("CA checks passed")
 EOF
 
 %labels
-    fi.lumi-ai-factory.patch emSign CA incident 2026-10: pip 26.2.2, certifi >= 2026.10.19, ca-certificates 20260816ubuntu0.24.04.1
+    fi.lumi-ai-factory.patch emSign CA incident 2026-10: pip 26.2.2, certifi >= 2026.10.19, ca-certificates 20260816ubuntu0.24.04.1, botocore >= 1.43.117 if installed

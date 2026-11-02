@@ -14,7 +14,7 @@ All images (rocm, libfabric, mpich, torch, full and plus) of these releases:
 | u24r70f21m50t210-20260807_115122 | 20260601~24.04.1 | 2026.7.22 | 24.0 |
 | u24r72f21m50t211-20260929_104918 | 20260601~24.04.1 | 2026.7.22 | 24.0 |
 
-**Fixed in:** `u24r72f21m50t211-20261028_090706`, with `ca-certificates` 20260816ubuntu0.24.04.1, `certifi` 2026.10.23 and `pip` 26.2.2.
+**Fixed in:** `u24r72f21m50t211-20261028_090706`, with `ca-certificates` 20260816ubuntu0.24.04.1, `certifi` 2026.10.23 and `pip` 26.2.2. Its full and plus images also have `botocore` 1.43.121, as [AWS security bulletin 2026-150-AWS](https://aws.amazon.com/security/security-bulletins/2026-150-aws/) advises.
 
 The rocm, libfabric and mpich images have no Python packages, so only their system CA store is affected.
 
@@ -23,7 +23,7 @@ The rocm, libfabric and mpich images have no Python packages, so only their syst
 An image trusts the root in three separate CA stores:
 
 - **The system CA store**, used by `curl`, `wget`, `git` and Python's `ssl` module.
-- **`certifi`**, used by `requests`, `huggingface_hub`, `vllm` and many other Python libraries.
+- **`certifi`**, used by `requests`, `huggingface_hub`, `vllm`, `botocore` and many other Python libraries.
 - **`pip`'s own bundled copy of `certifi`.**
 
 Anyone holding a certificate issued under the compromised CA could pretend to be any HTTPS server to software in these containers. **To do that, they would also need to be in the network path between LUMI and that server. For a typical job this is unlikely, but the impact would be serious**:
@@ -60,6 +60,7 @@ export SINGULARITYENV_REQUESTS_CA_BUNDLE=$HOME/ca-certificates.crt
 export SINGULARITYENV_PIP_CERT=$HOME/ca-certificates.crt
 export SINGULARITYENV_CURL_CA_BUNDLE=$HOME/ca-certificates.crt
 export SINGULARITYENV_GIT_SSL_CAINFO=$HOME/ca-certificates.crt
+export SINGULARITYENV_AWS_CA_BUNDLE=$HOME/ca-certificates.crt
 ```
 
 This covers most tools, but not libraries that load `certifi`'s bundle directly without checking these variables. Moving to the fixed release is the only complete fix.
