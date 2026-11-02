@@ -2,11 +2,14 @@
 # This file installs the patched versions listed at https://emudhra.we-have-a-problem.com/#patched-bundles,
 # which no longer trust that root:
 #
+#  - Ubuntu's ca-certificates 20260816ubuntu0.24.04.1, the system CA store
+#    used by e.g. curl, git and Python's ssl module, in all images,
+#
+# and in images with Python packages in /opt/venv (torch, full and plus):
+#
 #  - pip 26.2.2, whose vendored certifi is 2026.10.19,
 #  - certifi 2026.10.19 or newer, used by e.g. requests, huggingface_hub and
 #    vLLM,
-#  - Ubuntu's ca-certificates 20260816ubuntu0.24.04.1, the system CA store
-#    used by e.g. curl, git and Python's ssl module,
 #  - botocore 1.43.117 or newer, with boto3, in images that have them, as
 #    AWS security bulletin 2026-150-AWS advises
 #    (https://aws.amazon.com/security/security-bulletins/2026-150-aws/),
@@ -16,20 +19,19 @@
 # The image keeps its environment and runscript. Python itself (Ubuntu's
 # 3.12.3) stays as it is; that needs a rebuilt image.
 #
-# Build (needs root or --fakeroot, for apt-get). The build pulls the image
-# from Docker Hub (11 GB compressed):
+# Build (needs root or --fakeroot, for apt-get) from the released SIF file on
+# the build host:
 #
 #   APPTAINER_TMPDIR=/var/tmp apptainer build --fakeroot \
-#     lumi-multitorch-full-u24r72f21m50t211-20260929_104918-ca-fix.sif \
+#     --build-arg image=/data/lumi-multitorch-u24r70f21m50t210-20260807_115122/lumi-multitorch-full-u24r70f21m50t210-20260807_115122.sif \
+#     lumi-multitorch-full-u24r70f21m50t210-$(date +%Y%m%d_%H%M%S).sif \
 #     lumi-multitorch-ca-fix.def
-#
-# For another release, add e.g. --build-arg tag=full-u24r72f21m50t211-<date>.
 
-Bootstrap: docker
-From: docker.io/lumiaifactory/lumi-multitorch:{{ tag }}
+Bootstrap: localimage
+From: {{ image }}
 
 %arguments
-    tag=full-u24r72f21m50t211-20260929_104918
+    image=/data/lumi-multitorch-u24r70f21m50t210-20260807_115122/lumi-multitorch-full-u24r70f21m50t210-20260807_115122.sif
 
     # pip 26.2.2 from PyPI, with its SHA-256 hash
     pip_wheel=https://files.pythonhosted.org/packages/3f/06/3e4420302363fbb71be3c7f35ce042f54bfca330e3e66b3a2e3c4cca579f/pip-26.2.2-py3-none-any.whl#sha256=fd7f4dfa8190e014013b9f08f3e973f4e4c26ffd179a204895533a7254813a70
@@ -38,12 +40,9 @@ From: docker.io/lumiaifactory/lumi-multitorch:{{ tag }}
     set -eu
 
     # Use the venv's Python directly: %post doesn't get the image's
-    # environment, e.g. PATH with /opt/venv/bin
+    # environment, e.g. PATH with /opt/venv/bin. The rocm, libfabric and mpich
+    # images have no venv; they get only the ca-certificates fix.
     python=/opt/venv/bin/python
-
-    # The image's pip still trusts emSign ECC Root CA - G3, so the hash
-    # protects this download
-    $python -m pip install --no-cache-dir "pip @ {{ pip_wheel }}"
 
     # Ubuntu's fix (LP: #2171507). apt checks the signatures of the
     # packages, so the old CA store doesn't matter here.
@@ -56,25 +55,35 @@ From: docker.io/lumiaifactory/lumi-multitorch:{{ tag }}
     apt-get clean
     rm -rf /var/lib/apt/lists/*
 
-    # pip 26.2.2 trusts both its vendored certifi and the system CA store, and
-    # neither has G3 anymore, so certifi needs no pinned hash
-    $python -m pip install --no-cache-dir --upgrade "certifi>=2026.10.19"
+    if [ -x "$python" ]; then
+        # The image's pip trusts emSign ECC Root CA - G3 in its vendored
+        # certifi, so the hash protects this download
+        $python -m pip install --no-cache-dir "pip @ {{ pip_wheel }}"
 
-    # AWS security bulletin 2026-150-AWS: botocore >= 1.43.117. botocore uses
-    # certifi when installed, but upgrade it as AWS advises. Upgrade boto3 with
-    # it, because boto3 pins botocore's minor version.
-    # Only full and plus images have them.
-    if $python -m pip show botocore >/dev/null 2>&1; then
-        $python -m pip install --no-cache-dir --upgrade "botocore>=1.43.117" boto3
+        # pip 26.2.2 trusts both its vendored certifi and the system CA store,
+        # and neither has G3 anymore, so certifi needs no pinned hash
+        $python -m pip install --no-cache-dir --upgrade "certifi>=2026.10.19"
+
+        # AWS security bulletin 2026-150-AWS: botocore >= 1.43.117. botocore
+        # uses certifi when installed, but upgrade it as AWS advises. Upgrade
+        # boto3 with it, because boto3 pins botocore's minor version.
+        # Only full and plus images have them.
+        if $python -m pip show botocore >/dev/null 2>&1; then
+            $python -m pip install --no-cache-dir --upgrade "botocore>=1.43.117" boto3
+        fi
     fi
 
     # Regenerate the SBOM like the Containerfiles do
     apt_json="$(dpkg-query -W -f='${Package}\t${Version}\n' | jq -R -s 'split("\n")[:-1] | map(split("\t") | {name: .[0], version: .[1]})')"
-    pip_json="$($python -m pip list --format=json)"
-    jq -n \
-        --argjson apt "$apt_json" \
-        --argjson pip "$pip_json" \
-        '{apt: $apt, pip: $pip}' > /.sbom.json
+    if [ -x "$python" ]; then
+        pip_json="$($python -m pip list --format=json)"
+        jq -n \
+            --argjson apt "$apt_json" \
+            --argjson pip "$pip_json" \
+            '{apt: $apt, pip: $pip}' > /.sbom.json
+    else
+        jq -n --argjson apt "$apt_json" '{apt: $apt}' > /.sbom.json
+    fi
 
 %test
     set -eu
@@ -88,6 +97,11 @@ From: docker.io/lumiaifactory/lumi-multitorch:{{ tag }}
     if [ -e /etc/ssl/certs/emSign_ECC_Root_CA_-_G3.pem ]; then
         echo "emSign ECC Root CA - G3 is still in the system CA store" >&2
         exit 1
+    fi
+
+    if [ ! -x "$python" ]; then
+        echo "No /opt/venv, CA checks passed"
+        exit 0
     fi
 
     $python -m pip --version
@@ -113,4 +127,5 @@ print("CA checks passed")
 EOF
 
 %labels
-    fi.lumi-ai-factory.patch emSign CA incident 2026-10: pip 26.2.2, certifi >= 2026.10.19, ca-certificates 20260816ubuntu0.24.04.1, botocore >= 1.43.117 if installed
+    fi.lumi-ai-factory.patched-image {{ image }}
+    fi.lumi-ai-factory.patch emSign CA incident 2026-10: ca-certificates 20260816ubuntu0.24.04.1; in /opt/venv pip 26.2.2, certifi >= 2026.10.19, botocore >= 1.43.117 if installed

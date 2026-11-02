@@ -5,15 +5,20 @@
 #
 # Usage: build-ca-fix [build-tag [image ...]]
 #
-#   build-tag  release build tag, default u24r72f21m50t211-20260929_104918
-#   image      images to patch, default torch full plus
+#   build-tag  release build tag, default u24r70f21m50t210-20260807_115122
+#   image      images to patch, default rocm libfabric mpich torch full plus
 #
-# Each image is pulled from Docker Hub as lumi-multitorch:<image>-<build-tag>.
+# Each image is built from the released SIF file on the build host,
+# $DATA_DIR/lumi-multitorch-<build-tag>/lumi-multitorch-<image>-<build-tag>.sif,
+# where DATA_DIR defaults to /data. Like an official release, the patched images get a new build tag with the
+# same software versions digest and a timestamp, e.g.
+# u24r70f21m50t210-20261102_143005. Set BUILD_ID to choose the timestamp; by
+# default it's the current time.
+#
 # The SIF file, the build log and the SBOM (/.sbom.json, for
-# package_version_diff.py) of each image go to hotfixes/ in the release's build
-# directory, e.g. builds/lumi-multitorch-u24r72f21m50t211-20260929_104918/hotfixes/.
-# The build stops if an image's SIF or log already exists; remove them to
-# rebuild.
+# package_version_diff.py) of each image go to the new release's build
+# directory, e.g. builds/lumi-multitorch-u24r70f21m50t210-20261102_143005/.
+# The build stops if an image's SIF or log already exists.
 #
 # Uses Apptainer, or SingularityCE (singularity) e.g. on LUMI. Set VERBOSITY to
 # e.g. --verbose or --debug for more output.
@@ -25,13 +30,19 @@
 #   SINGULARITY_TMPDIR=/var/tmp build-ca-fix    # SingularityCE
 
 build_image() {
-    local tag="$1"
+    local image="$1"
 
     # Define build paths
-    local name="lumi-multitorch-${tag}-ca-fix"
+    local source_file="$RELEASE_DIR/lumi-multitorch-${image}-${BUILD_TAG}.sif"
+    local name="lumi-multitorch-${image}-${HOTFIX_TAG}"
     local sif_file="$BUILD_DIR/$name.sif"
     local build_log="$BUILD_DIR/$name.log"
     local sbom_file="$BUILD_DIR/$name.json"
+
+    if [ ! -f "$source_file" ]; then
+        echo "$source_file not found" >&2
+        return 1
+    fi
 
     # Don't overwrite an earlier build or its log
     for file in "$sif_file" "$build_log"; do
@@ -42,7 +53,8 @@ build_image() {
     done
 
     {
-        echo "Image:      docker.io/lumiaifactory/lumi-multitorch:$tag"
+        echo "Image:      $source_file"
+        echo "            $(sha256sum "$source_file" | cut -d' ' -f1)"
         echo "Definition: $DEF_FILE"
         echo "Output:     $sif_file"
         echo "Builder:    $($CONTAINER --version)"
@@ -50,7 +62,7 @@ build_image() {
         echo
 
         $CONTAINER ${VERBOSITY:-} build --fakeroot \
-            --build-arg tag="$tag" \
+            --build-arg image="$source_file" \
             "$sif_file" "$DEF_FILE"
 
         echo
@@ -70,19 +82,24 @@ main() {
     set -euo pipefail
 
     # Get build args
-    BUILD_TAG="${1:-u24r72f21m50t211-20260929_104918}"
+    BUILD_TAG="${1:-u24r70f21m50t210-20260807_115122}"
     shift || true
     if [ $# -gt 0 ]; then
         IMAGES=("$@")
     else
-        IMAGES=(torch full plus)
+        IMAGES=(rocm libfabric mpich torch full plus)
     fi
+
+    # New build tag: the release's software versions digest and a timestamp
+    BUILD_ID="${BUILD_ID:-$(date +"%Y%m%d_%H%M%S")}"
+    HOTFIX_TAG="${BUILD_TAG%-*}-${BUILD_ID}"
 
     # Define build vars
     SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
     DEF_FILE="$SCRIPT_DIR/lumi-multitorch-ca-fix.def"
     REPO_DIR="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel)"
-    BUILD_DIR="$REPO_DIR/builds/lumi-multitorch-${BUILD_TAG}/hotfixes"
+    RELEASE_DIR="${DATA_DIR:-/data}/lumi-multitorch-${BUILD_TAG}"
+    BUILD_DIR="$REPO_DIR/builds/lumi-multitorch-${HOTFIX_TAG}"
 
     # Use Apptainer, or SingularityCE e.g. on LUMI
     if command -v apptainer > /dev/null; then
@@ -92,9 +109,10 @@ main() {
     fi
 
     mkdir -p "$BUILD_DIR"
+    echo "Patching release $BUILD_TAG as $HOTFIX_TAG"
 
     for image in "${IMAGES[@]}"; do
-        build_image "${image}-${BUILD_TAG}"
+        build_image "$image"
     done
 }
 

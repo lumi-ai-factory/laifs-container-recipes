@@ -3,45 +3,54 @@
 # List the package changes of lumi-multitorch images patched with build-ca-fix
 # against the original release, with package_version_diff.py.
 #
-# Usage: diff-ca-fix [build-tag [image ...]]
+# Usage: diff-ca-fix build-tag hotfix-build-tag [image ...]
 #
-#   build-tag  release build tag, default u24r72f21m50t211-20260929_104918
-#   image      patched images, default torch full plus
+#   build-tag         original release build tag, e.g. u24r70f21m50t210-20260807_115122
+#   hotfix-build-tag  build tag of the patched images, e.g. u24r70f21m50t210-20261102_143005
+#   image             patched images, default rocm libfabric mpich torch full plus
 #
-# Compares the release's SBOM in releases/lumi-multitorch-<build-tag>/ with the
-# patched image's SBOM in builds/lumi-multitorch-<build-tag>/hotfixes/, and
+# Compares the release's SBOM in $DATA_DIR/lumi-multitorch-<build-tag>/ on the
+# build host (DATA_DIR defaults to /data) with the
+# patched image's SBOM in builds/lumi-multitorch-<hotfix-build-tag>/, and
 # writes the diff as Markdown next to the latter.
+
+usage() {
+    echo "Usage: diff-ca-fix build-tag hotfix-build-tag [image ...]"
+    exit 1
+}
 
 main() {
     # Set shell options
     set -euo pipefail
 
     # Get args
-    BUILD_TAG="${1:-u24r72f21m50t211-20260929_104918}"
-    shift || true
+    [ $# -ge 2 ] || usage
+    BUILD_TAG="$1"
+    HOTFIX_TAG="$2"
+    shift 2
     if [ $# -gt 0 ]; then
         IMAGES=("$@")
     else
-        IMAGES=(torch full plus)
+        IMAGES=(rocm libfabric mpich torch full plus)
     fi
 
     # Define paths
     SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
     REPO_DIR="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel)"
-    RELEASE_DIR="$REPO_DIR/releases/lumi-multitorch-${BUILD_TAG}"
-    BUILD_DIR="$REPO_DIR/builds/lumi-multitorch-${BUILD_TAG}/hotfixes"
+    RELEASE_DIR="${DATA_DIR:-/data}/lumi-multitorch-${BUILD_TAG}"
+    BUILD_DIR="$REPO_DIR/builds/lumi-multitorch-${HOTFIX_TAG}"
 
     for image in "${IMAGES[@]}"; do
-        name="lumi-multitorch-${image}-${BUILD_TAG}"
+        name="lumi-multitorch-${image}-${HOTFIX_TAG}"
         python3 "$REPO_DIR/scripts/package_version_diff.py" \
-            "$RELEASE_DIR/$name.json" \
-            "$BUILD_DIR/$name-ca-fix.json" \
-            > "$BUILD_DIR/$name-ca-fix.md"
+            "$RELEASE_DIR/lumi-multitorch-${image}-${BUILD_TAG}.json" \
+            "$BUILD_DIR/$name.json" \
+            > "$BUILD_DIR/$name.md"
 
         # The Plus Containerfile doesn't regenerate /.sbom.json, so plus
         # releases have full's SBOM without Transformer Engine
         if [ "$image" = plus ]; then
-            cat >> "$BUILD_DIR/$name-ca-fix.md" <<'EOF'
+            cat >> "$BUILD_DIR/$name.md" <<'EOF'
 
 _Note: the released plus image's SBOM is inherited from the full image and
 misses the packages that the plus image adds, such as `transformer_engine`.
@@ -50,7 +59,7 @@ although the hotfix doesn't install them._
 EOF
         fi
 
-        echo "Package diff: $BUILD_DIR/$name-ca-fix.md"
+        echo "Package diff: $BUILD_DIR/$name.md"
     done
 }
 

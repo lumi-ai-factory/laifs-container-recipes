@@ -1,20 +1,26 @@
 # Old lumi-multitorch containers trust a compromised root certificate
 
-All lumi-multitorch images released before **20261028_090706** still trust the root certificate **emSign ECC Root CA - G3**. After the eMudhra intermediate CA compromise ([incident page](https://emudhra.we-have-a-problem.com/)), that root must no longer be trusted. The images keep working and nothing has been removed, but their secure connections are less trustworthy than they should be.
+All lumi-multitorch images released before **20261028_090706** trust the root certificate **emSign ECC Root CA - G3**. After the eMudhra intermediate CA compromise ([incident page](https://emudhra.we-have-a-problem.com/)), that root must no longer be trusted. The images keep working and nothing has been removed, but their secure connections are less trustworthy than they should be.
 
 ## Affected images
 
-All images (rocm, libfabric, mpich, torch, full and plus) of these releases:
+All images (rocm, libfabric, mpich, torch, full and, from 20260415_130625 on, plus) of these releases:
 
 | Release | System CA store (`ca-certificates`) | `certifi` | `pip` |
 |---|---|---|---|
+| u24r64f21m43t28-20251128_145346 (end of life) | 20240203 | 2025.11.12 | 24.0 |
+| u24r64f21m43t29-20251209_134408 | 20240203 | 2025.11.12 | 24.0 |
+| u24r64f21m43t29-20260124_092648 | 20240203 | 2026.1.4 | 24.0 |
+| u24r64f21m43t29-20260216_093549 | 20240203 | 2026.1.4 | 24.0 |
+| u24r64f21m43t29-20260225_144743 | 20240203 | 2026.2.25 | 24.0 |
+| u24r64f21m43t29-20260319_153422 | 20240203 | 2026.2.25 | 24.0 |
 | u24r70f21m50t210-20260415_130625 | 20240203 | 2026.2.25 | 24.0 |
 | u24r70f21m50t210-20260513_121430 | 20240203 | 2026.4.22 | 24.0 |
 | u24r70f21m50t210-20260731_122833 | 20260601~24.04.1 | 2026.7.22 | 24.0 |
 | u24r70f21m50t210-20260807_115122 | 20260601~24.04.1 | 2026.7.22 | 24.0 |
 | u24r72f21m50t211-20260929_104918 | 20260601~24.04.1 | 2026.7.22 | 24.0 |
 
-**Fixed in:** `u24r72f21m50t211-20261028_090706`, with `ca-certificates` 20260816ubuntu0.24.04.1, `certifi` 2026.10.23 and `pip` 26.2.2. Its full and plus images also have `botocore` 1.43.121, as [AWS security bulletin 2026-150-AWS](https://aws.amazon.com/security/security-bulletins/2026-150-aws/) advises.
+**Fixed in:** `u24r72f21m50t211-20261028_090706`, with `ca-certificates` 20260816ubuntu0.24.04.1, `certifi` 2026.10.23 and `pip` 26.2.2. The earlier variants have patched releases; see [Containers](#containers).
 
 The rocm, libfabric and mpich images have no Python packages, so only their system CA store is affected.
 
@@ -32,7 +38,7 @@ Anyone holding a certificate issued under the compromised CA could pretend to be
 - **Stolen credentials:** access tokens sent over HTTPS could be read, for example `HF_TOKEN`, Weights & Biases API keys, GitHub tokens and API keys for external model services.
 - **Leaked data:** prompts, outputs and training data sent to or from external services could be read or changed.
 
-Not affected:
+**Not affected:**
 
 - Work that doesn't connect to the internet, such as training on data already on LUMI's file systems.
 - Files whose checksums you verify against a source you trust.
@@ -41,9 +47,35 @@ Not affected:
 
 ### Containers
 
-Switch to `lumi-multitorch-*-u24r72f21m50t211-20261028_090706`. It has the same ROCm, PyTorch and other main component versions as 20260929_104918, so most jobs only need the image path changed. Rebuild container images that you have derived from an old image on top of the fixed one.
+Switch to the fixed release of the variant you use. Each fixed release replaces all affected releases of its variant, and has the package versions of the variant's newest release, apart from the fixed packages. All releases of a variant have the same Ubuntu, ROCm, libfabric, MPICH and PyTorch versions, so most jobs only need the image path changed, but other packages can be newer than in the earlier releases:
 
-To check whether an image still trusts the root (the file exists only in affected images):
+| Variant | Fixed release | Replaces |
+|---|---|---|
+| u24r72f21m50t211 | `u24r72f21m50t211-20261028_090706` | 20260929_104918 |
+| u24r70f21m50t210 | `u24r70f21m50t210-<build-id>` (patched) | 20260415_130625, 20260513_121430, 20260731_122833, **20260807_115122** |
+| u24r64f21m43t29 | `u24r64f21m43t29-<build-id>` (patched) | 20251209_134408, 20260124_092648, 20260216_093549, 20260225_144743, **20260319_153422** |
+| u24r64f21m43t28 | None, end of life | 20251128_145346 |
+
+The patched releases are the latest release of their variant (20260807_115122 and 20260319_153422) with only the fixed CA stores, `pip`, `certifi` and `botocore` installed on top.
+
+On LUMI, each variant has a stable path that points to its latest fixed release, and `latest` points to the newest variant:
+
+```text
+/appl/local/laifs/containers/lumi-multitorch/<variant>/<image>.sif
+/appl/local/laifs/containers/lumi-multitorch/latest/<image>.sif
+```
+
+where `<image>` is `rocm`, `libfabric`, `mpich`, `torch`, `full` or `plus`, for example `/appl/local/laifs/containers/lumi-multitorch/u24r70f21m50t210/full.sif`. Use these paths to get future fixes without changing your job scripts. To see which release a path points to:
+
+```bash
+readlink -f /appl/local/laifs/containers/lumi-multitorch/u24r70f21m50t210/full.sif
+```
+
+If you need an exact release for reproducibility, use the release directory, e.g. `/appl/local/laifs/containers/lumi-multitorch-u24r70f21m50t210-<build-id>/`, instead.
+
+Rebuild container images that you have derived from an old image on top of a fixed one.
+
+To check whether an image trusts the root (the file exists only in affected images):
 
 ```bash
 singularity exec <image>.sif ls /etc/ssl/certs/emSign_ECC_Root_CA_-_G3.pem
@@ -52,7 +84,7 @@ singularity exec <image>.sif ls /etc/ssl/certs/emSign_ECC_Root_CA_-_G3.pem
 If you have to keep an old image for now, pass it a CA bundle that no longer trusts the root, for example the one from the fixed image:
 
 ```bash
-singularity exec lumi-multitorch-full-u24r72f21m50t211-20261028_090706.sif \
+singularity exec /appl/local/laifs/containers/lumi-multitorch/latest/full.sif \
     cat /etc/ssl/certs/ca-certificates.crt > $HOME/ca-certificates.crt
 
 export SINGULARITYENV_SSL_CERT_FILE=$HOME/ca-certificates.crt
@@ -69,7 +101,7 @@ This covers most tools, but not libraries that load `certifi`'s bundle directly 
 
 Virtual environments made on top of an old image, e.g. with `--system-site-packages`, and packages installed with `pip install --user` can have their own copies of `certifi` and `pip`. These copies stay old even after you switch images. Rebuild such environments on the fixed image, or upgrade the packages in them while using the fixed image.
 
-The environment's old `pip` still trusts the root, so install the new `pip` from its wheel with the wheel's SHA-256 hash, which `pip` checks. The new `pip` no longer trusts the root, so it can then upgrade `certifi` normally:
+The environment's old `pip` trusts the root, so install the new `pip` from its wheel with the wheel's SHA-256 hash. The new `pip` no longer trusts the root, so it can then upgrade `certifi` normally:
 
 ```bash
 python -m pip install "pip @ https://files.pythonhosted.org/packages/3f/06/3e4420302363fbb71be3c7f35ce042f54bfca330e3e66b3a2e3c4cca579f/pip-26.2.2-py3-none-any.whl#sha256=fd7f4dfa8190e014013b9f08f3e973f4e4c26ffd179a204895533a7254813a70"
@@ -77,7 +109,7 @@ python -m pip install --upgrade "certifi>=2026.10.19"
 ```
 
 > [!NOTE]
-> Upgrading `pip` in a virtual environment is not enough if the environment still runs on an old image: `pip` 24.2 and later also trust the system CA store of that image, which still contains the root.
+> Upgrading `pip` in a virtual environment is not enough if the environment runs on an old image: `pip` 24.2 and later also trust the system CA store of that image, which contains the root.
 
 To check the versions that an environment uses:
 
@@ -97,4 +129,5 @@ python -c "import certifi, pip; print('certifi', certifi.__version__, 'pip', pip
 - [eMudhra CA compromise: fixes available](https://ubuntu.com/blog/emudhra-ca-compromise-fixes-available) (Ubuntu blog)
 - [AWS security bulletin 2026-150-AWS](https://aws.amazon.com/security/security-bulletins/2026-150-aws/) (`botocore`)
 
-<!-- Optional: patched copies of earlier releases (`-ca-fix`) are available at <LOCATION> -->
+<!-- TODO: replace <build-id> with the patched releases' build tags -->
+

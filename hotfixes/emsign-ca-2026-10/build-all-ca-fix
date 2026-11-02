@@ -1,0 +1,106 @@
+#!/bin/bash
+#
+# Build the patched images of all lumi-multitorch releases affected by the
+# emSign CA incident with build-ca-fix, list their package changes with
+# diff-ca-fix, and write the sections of "Patched releases" in RELEASE.md to
+# builds/emsign-ca-fix-<timestamp>.md.
+#
+# Usage: build-all-ca-fix [build-tag ...] [image ...]
+#
+#   build-tag  release build tags, default the latest affected release of each
+#              variant (software versions digest)
+#   image      images to patch, default rocm libfabric mpich torch full plus
+#
+# A release's images are patched if their SIF files are in
+# $DATA_DIR/lumi-multitorch-<build-tag>/ on the build host (DATA_DIR defaults
+# to /data); others are skipped, e.g. plus for u24r64 releases, which have no
+# plus image. The script checks this for all releases before building.
+#
+# Each release gets a new build tag with the timestamp of its build, as in
+# build-ca-fix. Set the temporary directory as for build-ca-fix, e.g.:
+#
+#   APPTAINER_TMPDIR=/var/tmp build-all-ca-fix      # Apptainer
+#   SINGULARITY_TMPDIR=/var/tmp build-all-ca-fix    # SingularityCE
+
+main() {
+    # Set shell options
+    set -euo pipefail
+
+    # Get args. By default, patch the latest release of each variant.
+    BUILD_TAGS=()
+    IMAGES=()
+    for arg in "$@"; do
+        case "$arg" in
+            rocm|libfabric|mpich|torch|full|plus) IMAGES+=("$arg") ;;
+            *) BUILD_TAGS+=("$arg") ;;
+        esac
+    done
+    if [ ${#BUILD_TAGS[@]} -eq 0 ]; then
+        BUILD_TAGS=(
+            u24r70f21m50t210-20260807_115122
+            u24r64f21m43t29-20260319_153422
+        )
+    fi
+    if [ ${#IMAGES[@]} -eq 0 ]; then
+        IMAGES=(rocm libfabric mpich torch full plus)
+    fi
+
+    # Define paths
+    SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+    REPO_DIR="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel)"
+    SECTIONS_FILE="$REPO_DIR/builds/emsign-ca-fix-$(date +"%Y%m%d_%H%M%S").md"
+
+    # Find each release's images, with their SBOMs, before building anything
+    RELEASE_IMAGES=()
+    for build_tag in "${BUILD_TAGS[@]}"; do
+        release_dir="${DATA_DIR:-/data}/lumi-multitorch-${build_tag}"
+        images=""
+        for image in "${IMAGES[@]}"; do
+            name="lumi-multitorch-${image}-${build_tag}"
+            if [ -e "$release_dir/$name.sif" ]; then
+                if [ ! -e "$release_dir/$name.json" ]; then
+                    echo "$release_dir/$name.json not found" >&2
+                    exit 1
+                fi
+                images+=" $image"
+            fi
+        done
+        if [ -z "$images" ]; then
+            echo "None of ${IMAGES[*]} in $release_dir/" >&2
+            exit 1
+        fi
+        RELEASE_IMAGES+=("$images")
+    done
+
+    HOTFIX_TAGS=()
+    for i in "${!BUILD_TAGS[@]}"; do
+        read -ra images <<< "${RELEASE_IMAGES[$i]}"
+        build_id="$(date +"%Y%m%d_%H%M%S")"
+        hotfix_tag="${BUILD_TAGS[$i]%-*}-${build_id}"
+        HOTFIX_TAGS+=("$hotfix_tag")
+
+        BUILD_ID="$build_id" "$SCRIPT_DIR/build-ca-fix" "${BUILD_TAGS[$i]}" "${images[@]}"
+        "$SCRIPT_DIR/diff-ca-fix" "${BUILD_TAGS[$i]}" "$hotfix_tag" "${images[@]}"
+    done
+
+    # Sections of "Patched releases" in RELEASE.md, one per variant
+    for i in "${!BUILD_TAGS[@]}"; do
+        read -ra images <<< "${RELEASE_IMAGES[$i]}"
+        echo
+        echo "### ${BUILD_TAGS[$i]%-*}"
+        echo
+        echo "Release \`${HOTFIX_TAGS[$i]}\` patches \`${BUILD_TAGS[$i]}\`."
+        echo
+        echo "| SIF file | SHA-256 |"
+        echo "|---|---|"
+        for image in "${images[@]}"; do
+            tag="${image}-${HOTFIX_TAGS[$i]}"
+            sif_file="$REPO_DIR/builds/lumi-multitorch-${HOTFIX_TAGS[$i]}/lumi-multitorch-${tag}.sif"
+            echo "| \`$(basename "$sif_file")\` | \`$(sha256sum "$sif_file" | cut -d' ' -f1)\` |"
+        done
+    done > "$SECTIONS_FILE"
+
+    echo "Patched releases: $SECTIONS_FILE"
+}
+
+main "$@"
