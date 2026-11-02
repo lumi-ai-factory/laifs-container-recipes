@@ -89,4 +89,11 @@ python -c "import certifi, pip; print('certifi', certifi.__version__, 'pip', pip
 1. **Rotate tokens that old images used.** Do this if you used tokens over the network from an old image, especially where traffic left LUMI through networks you don't control. This is a precaution; we aren't aware of any misuse.
 2. **Prefer `safetensors` model files**, and pin Hugging Face downloads to a specific commit (`revision=`).
 
+## More information
+
+- [eMudhra incident page](https://emudhra.we-have-a-problem.com/), with the patched versions of CA bundles and libraries
+- [Information for Python users regarding the eMudhra emSign CA certificate security incident](https://discuss.python.org/t/information-for-python-users-regarding-emudhra-emsign-ca-certificate-security-incident/109576) (Python Discourse)
+- [eMudhra CA compromise: fixes available](https://ubuntu.com/blog/emudhra-ca-compromise-fixes-available) (Ubuntu blog)
+- [AWS security bulletin 2026-150-AWS](https://aws.amazon.com/security/security-bulletins/2026-150-aws/) (`botocore`)
+
 <!-- Optional: patched copies of earlier releases (`-ca-fix`) are available at <LOCATION> -->
