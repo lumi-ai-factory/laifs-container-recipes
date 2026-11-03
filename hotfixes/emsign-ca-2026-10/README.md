@@ -75,11 +75,21 @@ If you need an exact release for reproducibility, use the release directory, e.g
 
 Rebuild container images that you have derived from an old image on top of a fixed one.
 
-To check whether an image trusts the root (the file exists only in affected images):
+To check what the software in an image actually trusts, connect to the test hosts listed on the [incident page](https://emudhra.we-have-a-problem.com/), which use certificates issued under the compromised CA. A certificate error means that the software doesn't trust them; a successful connection means that it does:
 
 ```bash
-singularity exec <image>.sif ls /etc/ssl/certs/emSign_ECC_Root_CA_-_G3.pem
+# System CA store, used by curl, git and Python's ssl module
+singularity exec <image>.sif curl -sS https://dv-g3b-emudhra.we-have-a-problem.com/
+singularity exec <image>.sif curl -sS https://dv-g3b-aaa-emudhra.we-have-a-problem.com/
+
+# certifi, used by requests, huggingface_hub and other Python libraries (images that have requests)
+singularity exec <image>.sif python -c "import requests; requests.get('https://dv-g3b-emudhra.we-have-a-problem.com/')"
+
+# pip, which uses both
+singularity exec <image>.sif python -m pip install https://dv-g3b-emudhra.we-have-a-problem.com/
 ```
+
+In a fixed image, all of these fail with a certificate error (`unable to get local issuer certificate` or `CERTIFICATE_VERIFY_FAILED`). Run the same commands in your virtual environments and in images you have derived from ours. `pip` also reports `Cannot determine archive format` if it connects successfully, because the test host doesn't serve a package.
 
 If you have to keep an old image for now, pass it a CA bundle that no longer trusts the root, for example the one from the fixed image:
 
@@ -99,23 +109,27 @@ This covers most tools, but not libraries that load `certifi`'s bundle directly 
 
 ### Virtual environments
 
-Virtual environments made on top of an old image, e.g. with `--system-site-packages`, and packages installed with `pip install --user` can have their own copies of `certifi` and `pip`. These copies stay old even after you switch images. Rebuild such environments on the fixed image, or upgrade the packages in them while using the fixed image.
+The torch, full and plus images put their Python packages in `/opt/venv` on `PYTHONPATH`, which Python searches before the packages of a virtual environment. So a virtual environment used in these images always uses the image's `pip` and `certifi`, even if it has its own copies:
 
-The environment's old `pip` trusts the root, so install the new `pip` from its wheel with the wheel's SHA-256 hash. The new `pip` no longer trusts the root, so it can then upgrade `certifi` normally:
+- **Switching to a fixed image fixes them.** You don't need to rebuild or upgrade the environment.
+- **Upgrading them in the environment while using an old image has no effect.** `pip` installs the new copies into the environment, but Python keeps using the image's old ones.
+
+To check which copies an environment uses, activate it and run:
 
 ```bash
+python -c "import certifi, pip; print('certifi', certifi.__version__, certifi.__file__); print('pip', pip.__version__, pip.__file__)"
+```
+
+Environments whose paths aren't in `/opt/venv` have their own copies, which stay old even after you switch images. These are, for example, environments made on the rocm, libfabric or mpich images, which have no `/opt/venv`, or used with `PYTHONPATH` unset. Rebuild such environments on a fixed image, or upgrade the packages in them while using a fixed image. The environment's old `pip` trusts the root, so install the new `pip` from its wheel with the wheel's SHA-256 hash. The new `pip` no longer trusts the root, so it can then upgrade `certifi` normally:
+
+```bash
+source <venv>/bin/activate
 python -m pip install "pip @ https://files.pythonhosted.org/packages/3f/06/3e4420302363fbb71be3c7f35ce042f54bfca330e3e66b3a2e3c4cca579f/pip-26.2.2-py3-none-any.whl#sha256=fd7f4dfa8190e014013b9f08f3e973f4e4c26ffd179a204895533a7254813a70"
 python -m pip install --upgrade "certifi>=2026.10.19"
 ```
 
 > [!NOTE]
-> Upgrading `pip` in a virtual environment is not enough if the environment runs on an old image: `pip` 24.2 and later also trust the system CA store of that image, which contains the root.
-
-To check the versions that an environment uses:
-
-```bash
-python -c "import certifi, pip; print('certifi', certifi.__version__, 'pip', pip.__version__)"
-```
+> Upgrading `pip` in a virtual environment is not enough if the environment runs on an old image: `pip` 24.2 and later also trust the system CA store of that image, which contains the root ([pip documentation](https://pip.pypa.io/en/stable/topics/https-certificates/)).
 
 ### Tokens and downloads
 
@@ -128,6 +142,6 @@ python -c "import certifi, pip; print('certifi', certifi.__version__, 'pip', pip
 - [Information for Python users regarding the eMudhra emSign CA certificate security incident](https://discuss.python.org/t/information-for-python-users-regarding-emudhra-emsign-ca-certificate-security-incident/109576) (Python Discourse)
 - [eMudhra CA compromise: fixes available](https://ubuntu.com/blog/emudhra-ca-compromise-fixes-available) (Ubuntu blog)
 - [AWS security bulletin 2026-150-AWS](https://aws.amazon.com/security/security-bulletins/2026-150-aws/) (`botocore`)
+- [HTTPS certificates](https://pip.pypa.io/en/stable/topics/https-certificates/) (pip documentation), on which CA stores `pip` trusts
 
-<!-- TODO: replace <build-id> with the patched releases' build tags -->
-
+<!-- TODO: replace <build-id> with the build ID of the patched releases -->

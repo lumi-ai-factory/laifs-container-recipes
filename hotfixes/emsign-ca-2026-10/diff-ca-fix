@@ -10,9 +10,11 @@
 #   image             patched images, default rocm libfabric mpich torch full plus
 #
 # Compares the release's SBOM in $DATA_DIR/lumi-multitorch-<build-tag>/ on the
-# build host (DATA_DIR defaults to /data) with the
-# patched image's SBOM in builds/lumi-multitorch-<hotfix-build-tag>/, and
-# writes the diff as Markdown next to the latter.
+# build host (DATA_DIR defaults to /data) with the patched image's SBOM in
+# builds/lumi-multitorch-emsign-ca-2026-10-<build-id>/lumi-multitorch-<hotfix-build-tag>/,
+# where <build-id> is the timestamp of the hotfix build tag, and writes the diff next to the
+# latter as lumi-multitorch-<image>-<hotfix-build-tag>-changes.md.
+# build-all-ca-fix collects them into the release notes.
 
 usage() {
     echo "Usage: diff-ca-fix build-tag hotfix-build-tag [image ...]"
@@ -38,19 +40,20 @@ main() {
     SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
     REPO_DIR="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel)"
     RELEASE_DIR="${DATA_DIR:-/data}/lumi-multitorch-${BUILD_TAG}"
-    BUILD_DIR="$REPO_DIR/builds/lumi-multitorch-${HOTFIX_TAG}"
+    BUILD_DIR="$REPO_DIR/builds/lumi-multitorch-emsign-ca-2026-10-${HOTFIX_TAG##*-}/lumi-multitorch-${HOTFIX_TAG}"
 
     for image in "${IMAGES[@]}"; do
         name="lumi-multitorch-${image}-${HOTFIX_TAG}"
+        changes_file="$BUILD_DIR/$name-changes.md"
         python3 "$REPO_DIR/scripts/package_version_diff.py" \
             "$RELEASE_DIR/lumi-multitorch-${image}-${BUILD_TAG}.json" \
             "$BUILD_DIR/$name.json" \
-            > "$BUILD_DIR/$name.md"
+            > "$changes_file"
 
         # The Plus Containerfile doesn't regenerate /.sbom.json, so plus
         # releases have full's SBOM without Transformer Engine
         if [ "$image" = plus ]; then
-            cat >> "$BUILD_DIR/$name.md" <<'EOF'
+            cat >> "$changes_file" <<'EOF'
 
 _Note: the released plus image's SBOM is inherited from the full image and
 misses the packages that the plus image adds, such as `transformer_engine`.
@@ -59,7 +62,7 @@ although the hotfix doesn't install them._
 EOF
         fi
 
-        echo "Package diff: $BUILD_DIR/$name.md"
+        echo "Package diff: $changes_file"
     done
 }
 

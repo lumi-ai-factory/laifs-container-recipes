@@ -1,0 +1,158 @@
+#!/usr/bin/env python3
+"""Prepare the GitHub release of the emSign CA incident hotfix.
+
+All patched releases of one build ID, made by build-ca-fix and diff-ca-fix in
+builds/lumi-multitorch-emsign-ca-2026-10-<build-id>/lumi-multitorch-<variant>-<build-id>/,
+are published as one GitHub release, lumi-multitorch-emsign-ca-2026-10. This
+writes its assets to builds/lumi-multitorch-emsign-ca-2026-10-<build-id>/:
+
+  lumi-multitorch-emsign-ca-2026-10-<build-id>-release.md
+      Release notes, rendered from the Jinja template release-notes.md.j2,
+      with the patched releases and the checksums of their SIF files, and
+      the package changes of all images, from diff-ca-fix.
+  lumi-multitorch-<variant>-<build-id>-release.tgz
+      Each patched release's directory without the SIF files, like an
+      official release's archive.
+
+The original release of each patched release is read from its build logs.
+
+Usage: release-ca-fix build-id
+
+  e.g. release-ca-fix 20261102_151434
+"""
+
+import re
+import subprocess
+import sys
+import tarfile
+from pathlib import Path
+
+import jinja2
+
+RELEASE_NAME = "lumi-multitorch-emsign-ca-2026-10"
+REPO_URL = "https://github.com/lumi-ai-factory/laifs-container-recipes"
+IMAGES = ["rocm", "libfabric", "mpich", "torch", "full", "plus"]
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+INCIDENT_URL = f"{REPO_URL}/blob/main/hotfixes/{SCRIPT_DIR.name}"
+REPO_DIR = Path(
+    subprocess.run(
+        ["git", "-C", str(SCRIPT_DIR), "rev-parse", "--show-toplevel"],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+)
+BUILDS_DIR = REPO_DIR / "builds"
+
+
+def variant(tag):
+    """u24r70f21m50t210-20261102_151434 -> u24r70f21m50t210"""
+    return tag.rsplit("-", 1)[0]
+
+
+def find_releases(hotfix_dir, build_id):
+    """Patched releases of the build ID, as {hotfix_tag: (build_tag, images)}"""
+    releases = {}
+    for build_dir in sorted(hotfix_dir.glob(f"lumi-multitorch-u24*-{build_id}")):
+        hotfix_tag = build_dir.name.removeprefix("lumi-multitorch-")
+        images = [image for image in IMAGES if (build_dir / f"lumi-multitorch-{image}-{hotfix_tag}.sif").exists()]
+        if not images:
+            sys.exit(f"No SIF files in {build_dir}")
+
+        # build-ca-fix logs the source image, e.g.
+        # Image:      /data/lumi-multitorch-<build-tag>/lumi-multitorch-full-<build-tag>.sif
+        log = (build_dir / f"lumi-multitorch-{images[0]}-{hotfix_tag}.log").read_text()
+        source = re.search(rf"^Image:.*-{images[0]}-(\S+)\.sif$", log, re.MULTILINE)
+        if not source:
+            sys.exit(f"No source image in the build log of {images[0]} in {build_dir}")
+        releases[hotfix_tag] = (source.group(1), images)
+
+    if not releases:
+        sys.exit(f"No patched releases in {hotfix_dir}")
+    return releases
+
+
+def checksums(hotfix_tag, images):
+    """Checksums of the release's SIF files from its .sha256 file"""
+    sha256_file = HOTFIX_DIR / f"lumi-multitorch-{hotfix_tag}" / f"lumi-multitorch-{hotfix_tag}.sha256"
+    if not sha256_file.exists():
+        sys.exit(f"{sha256_file} not found")
+    sums = dict(reversed(line.split()) for line in sha256_file.read_text().splitlines())
+
+    result = {}
+    for image in images:
+        name = f"lumi-multitorch-{image}-{hotfix_tag}.sif"
+        if name not in sums:
+            sys.exit(f"No checksum for {name} in {sha256_file}")
+        result[name] = sums[name]
+    return result
+
+
+def image_changes(hotfix_tag, image):
+    """Package changes of one image, with headings below "#### Image" """
+    changes_file = HOTFIX_DIR / f"lumi-multitorch-{hotfix_tag}" / f"lumi-multitorch-{image}-{hotfix_tag}-changes.md"
+    if not changes_file.exists():
+        sys.exit(f"{changes_file} not found; run diff-ca-fix first")
+    text = changes_file.read_text()
+    text = re.sub(r"\A## Package changes\n\n", "", text)
+    text = re.sub(r"^### ", "##### ", text, flags=re.MULTILINE)
+    return text.strip("\n")
+
+
+def write_notes(build_id, releases):
+    """The release notes, from release-notes.md.j2"""
+    # Patched releases, newest variant first
+    data = [
+        {
+            "variant": variant(hotfix_tag),
+            "hotfix_tag": hotfix_tag,
+            "build_tag": build_tag,
+            "checksums": checksums(hotfix_tag, images),
+            "changes": {image: image_changes(hotfix_tag, image) for image in images},
+        }
+        for hotfix_tag, (build_tag, images) in sorted(releases.items(), reverse=True)
+    ]
+
+    env = jinja2.Environment(
+        loader=jinja2.FileSystemLoader(SCRIPT_DIR),
+        trim_blocks=True,
+        lstrip_blocks=True,
+        undefined=jinja2.StrictUndefined,
+    )
+    notes = env.get_template("release-notes.md.j2").render(
+        name=RELEASE_NAME, repo_url=REPO_URL, incident_url=INCIDENT_URL, releases=data,
+    )
+    notes_file = HOTFIX_DIR / f"{RELEASE_NAME}-{build_id}-release.md"
+    notes_file.write_text(notes)
+    print(f"Release notes: {notes_file}")
+
+
+def write_archives(releases):
+    """Each patched release's directory without the SIF files"""
+    for hotfix_tag in releases:
+        release = f"lumi-multitorch-{hotfix_tag}"
+        archive = HOTFIX_DIR / f"{release}-release.tgz"
+        with tarfile.open(archive, "w:gz") as tar:
+            tar.add(
+                HOTFIX_DIR / release,
+                arcname=release,
+                filter=lambda info: None if info.name.endswith(".sif") else info,
+            )
+        print(f"Archive: {archive}")
+
+
+def main():
+    if len(sys.argv) != 2 or not re.fullmatch(r"\d{8}_\d{6}", sys.argv[1]):
+        sys.exit("Usage: release-ca-fix build-id, e.g. 20261102_151434")
+    build_id = sys.argv[1]
+
+    # All patched releases of the build ID, and the release's assets
+    global HOTFIX_DIR
+    HOTFIX_DIR = BUILDS_DIR / f"{RELEASE_NAME}-{build_id}"
+
+    releases = find_releases(HOTFIX_DIR, build_id)
+    write_notes(build_id, releases)
+    write_archives(releases)
+
+
+if __name__ == "__main__":
+    main()

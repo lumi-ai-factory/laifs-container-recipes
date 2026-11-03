@@ -2,8 +2,15 @@
 #
 # Build the patched images of all lumi-multitorch releases affected by the
 # emSign CA incident with build-ca-fix, list their package changes with
-# diff-ca-fix, and write the sections of "Patched releases" in RELEASE.md to
-# builds/emsign-ca-fix-<timestamp>.md.
+# diff-ca-fix, and prepare the GitHub release with release-ca-fix. All patched
+# releases are published as one GitHub release,
+# lumi-multitorch-emsign-ca-2026-10. All patched releases and the release's
+# assets go to builds/lumi-multitorch-emsign-ca-2026-10-<build-id>/:
+#
+#   lumi-multitorch-emsign-ca-2026-10-<build-id>-release.md
+#       release notes, with the patched releases and their SIF checksums
+#   lumi-multitorch-<variant>-<build-id>-release.tgz
+#       each patched release's directory without the SIF files
 #
 # Usage: build-all-ca-fix [build-tag ...] [image ...]
 #
@@ -16,8 +23,12 @@
 # to /data); others are skipped, e.g. plus for u24r64 releases, which have no
 # plus image. The script checks this for all releases before building.
 #
-# Each release gets a new build tag with the timestamp of its build, as in
-# build-ca-fix. Set the temporary directory as for build-ca-fix, e.g.:
+# All patched releases get the same build ID, the timestamp when the script
+# started, e.g. u24r70f21m50t210-20261102_151434 and
+# u24r64f21m43t29-20261102_151434. Set BUILD_ID to choose it. So only one
+# release of each variant can be patched at a time.
+#
+# Set the temporary directory as for build-ca-fix, e.g.:
 #
 #   APPTAINER_TMPDIR=/var/tmp build-all-ca-fix      # Apptainer
 #   SINGULARITY_TMPDIR=/var/tmp build-all-ca-fix    # SingularityCE
@@ -45,10 +56,19 @@ main() {
         IMAGES=(rocm libfabric mpich torch full plus)
     fi
 
+    # One build ID for all patched releases
+    BUILD_ID="${BUILD_ID:-$(date +"%Y%m%d_%H%M%S")}"
+
+    # A variant can only have one release with this build ID
+    duplicates="$(printf "%s\n" "${BUILD_TAGS[@]%-*}" | sort | uniq -d)"
+    if [ -n "$duplicates" ]; then
+        echo "More than one release of variant $duplicates" >&2
+        exit 1
+    fi
+
     # Define paths
     SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
     REPO_DIR="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel)"
-    SECTIONS_FILE="$REPO_DIR/builds/emsign-ca-fix-$(date +"%Y%m%d_%H%M%S").md"
 
     # Find each release's images, with their SBOMs, before building anything
     RELEASE_IMAGES=()
@@ -75,32 +95,15 @@ main() {
     HOTFIX_TAGS=()
     for i in "${!BUILD_TAGS[@]}"; do
         read -ra images <<< "${RELEASE_IMAGES[$i]}"
-        build_id="$(date +"%Y%m%d_%H%M%S")"
-        hotfix_tag="${BUILD_TAGS[$i]%-*}-${build_id}"
+        hotfix_tag="${BUILD_TAGS[$i]%-*}-${BUILD_ID}"
         HOTFIX_TAGS+=("$hotfix_tag")
 
-        BUILD_ID="$build_id" "$SCRIPT_DIR/build-ca-fix" "${BUILD_TAGS[$i]}" "${images[@]}"
+        BUILD_ID="$BUILD_ID" "$SCRIPT_DIR/build-ca-fix" "${BUILD_TAGS[$i]}" "${images[@]}"
         "$SCRIPT_DIR/diff-ca-fix" "${BUILD_TAGS[$i]}" "$hotfix_tag" "${images[@]}"
     done
 
-    # Sections of "Patched releases" in RELEASE.md, one per variant
-    for i in "${!BUILD_TAGS[@]}"; do
-        read -ra images <<< "${RELEASE_IMAGES[$i]}"
-        echo
-        echo "### ${BUILD_TAGS[$i]%-*}"
-        echo
-        echo "Release \`${HOTFIX_TAGS[$i]}\` patches \`${BUILD_TAGS[$i]}\`."
-        echo
-        echo "| SIF file | SHA-256 |"
-        echo "|---|---|"
-        for image in "${images[@]}"; do
-            tag="${image}-${HOTFIX_TAGS[$i]}"
-            sif_file="$REPO_DIR/builds/lumi-multitorch-${HOTFIX_TAGS[$i]}/lumi-multitorch-${tag}.sif"
-            echo "| \`$(basename "$sif_file")\` | \`$(sha256sum "$sif_file" | cut -d' ' -f1)\` |"
-        done
-    done > "$SECTIONS_FILE"
-
-    echo "Patched releases: $SECTIONS_FILE"
+    # Release notes and archives for the GitHub release
+    "$SCRIPT_DIR/release-ca-fix" "$BUILD_ID"
 }
 
 main "$@"

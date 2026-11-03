@@ -15,10 +15,13 @@
 # u24r70f21m50t210-20261102_143005. Set BUILD_ID to choose the timestamp; by
 # default it's the current time.
 #
-# The SIF file, the build log and the SBOM (/.sbom.json, for
+# The SIF file, the definition file it was built from (with the source image
+# filled in), the build log and the SBOM (/.sbom.json, for
 # package_version_diff.py) of each image go to the new release's build
-# directory, e.g. builds/lumi-multitorch-u24r70f21m50t210-20261102_143005/.
-# The build stops if an image's SIF or log already exists.
+# directory, under the hotfix's directory for the build ID, e.g.
+# builds/lumi-multitorch-emsign-ca-2026-10-20261102_143005/lumi-multitorch-u24r70f21m50t210-20261102_143005/,
+# with the checksums of all its SIF files in lumi-multitorch-<build-tag>.sha256.
+# The build stops if an image's SIF, definition file or log already exists.
 #
 # Uses Apptainer, or SingularityCE (singularity) e.g. on LUMI. Set VERBOSITY to
 # e.g. --verbose or --debug for more output.
@@ -36,6 +39,7 @@ build_image() {
     local source_file="$RELEASE_DIR/lumi-multitorch-${image}-${BUILD_TAG}.sif"
     local name="lumi-multitorch-${image}-${HOTFIX_TAG}"
     local sif_file="$BUILD_DIR/$name.sif"
+    local def_file="$BUILD_DIR/$name.def"
     local build_log="$BUILD_DIR/$name.log"
     local sbom_file="$BUILD_DIR/$name.json"
 
@@ -45,25 +49,28 @@ build_image() {
     fi
 
     # Don't overwrite an earlier build or its log
-    for file in "$sif_file" "$build_log"; do
+    for file in "$sif_file" "$def_file" "$build_log"; do
         if [ -e "$file" ]; then
             echo "$file already exists, remove it to rebuild" >&2
             return 1
         fi
     done
 
+    # Keep the definition file with the build, like the Containerfiles of an
+    # official release, with the source image as the default image argument
+    sed "s|^    image=.*|    image=$source_file|" "$DEF_FILE" > "$def_file"
+
     {
         echo "Image:      $source_file"
         echo "            $(sha256sum "$source_file" | cut -d' ' -f1)"
-        echo "Definition: $DEF_FILE"
+        echo "Definition: $def_file"
+        echo "Recipes:    $RECIPES_COMMIT"
         echo "Output:     $sif_file"
         echo "Builder:    $($CONTAINER --version)"
         echo "Started:    $(date -Iseconds)"
         echo
 
-        $CONTAINER ${VERBOSITY:-} build --fakeroot \
-            --build-arg image="$source_file" \
-            "$sif_file" "$DEF_FILE"
+        $CONTAINER ${VERBOSITY:-} build --fakeroot "$sif_file" "$def_file"
 
         echo
         echo "Finished:   $(date -Iseconds)"
@@ -99,7 +106,13 @@ main() {
     DEF_FILE="$SCRIPT_DIR/lumi-multitorch-ca-fix.def"
     REPO_DIR="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel)"
     RELEASE_DIR="${DATA_DIR:-/data}/lumi-multitorch-${BUILD_TAG}"
-    BUILD_DIR="$REPO_DIR/builds/lumi-multitorch-${HOTFIX_TAG}"
+    BUILD_DIR="$REPO_DIR/builds/lumi-multitorch-emsign-ca-2026-10-${BUILD_ID}/lumi-multitorch-${HOTFIX_TAG}"
+
+    # The commit of this repository, marked if the hotfix files have changes
+    RECIPES_COMMIT="$(git -C "$REPO_DIR" rev-parse HEAD)"
+    if [ -n "$(git -C "$REPO_DIR" status --porcelain -- "$SCRIPT_DIR")" ]; then
+        RECIPES_COMMIT+=" (with uncommitted changes in $(basename "$SCRIPT_DIR"))"
+    fi
 
     # Use Apptainer, or SingularityCE e.g. on LUMI
     if command -v apptainer > /dev/null; then
@@ -114,6 +127,11 @@ main() {
     for image in "${IMAGES[@]}"; do
         build_image "$image"
     done
+
+    # Checksums of all SIF files of the release, like an official release
+    sha256_file="lumi-multitorch-${HOTFIX_TAG}.sha256"
+    (cd "$BUILD_DIR" && sha256sum lumi-multitorch-*-"${HOTFIX_TAG}".sif > "$sha256_file")
+    echo "Checksums: $BUILD_DIR/$sha256_file"
 }
 
 main "$@"

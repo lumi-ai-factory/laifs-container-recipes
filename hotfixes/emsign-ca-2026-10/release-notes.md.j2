@@ -1,0 +1,78 @@
+{#
+  Template of the release notes of the GitHub release, written by
+  release-ca-fix.
+
+  incident_url  URL of this folder on GitHub
+  releases      patched releases: variant, hotfix_tag, build_tag, checksums
+                (SIF file -> SHA-256) and changes (image -> package changes)
+#}
+# Release notes for {{ name }}
+
+**Release links:**
+- [GitHub release]({{ repo_url }}/releases/tag/{{ name }})
+- [Notice for users]({{ incident_url }}/README.md)
+- [Known issues]({{ repo_url }}/issues?q=label%3A{{ name }})
+{% for release in releases %}
+- [Original release `{{ release.build_tag }}`]({{ repo_url }}/releases/tag/lumi-multitorch-{{ release.build_tag }})
+{% endfor %}
+
+This hotfix patches the latest release of each affected lumi-multitorch
+variant, so that its images no longer trust the root certificate
+`emSign ECC Root CA - G3`. The patched releases are published together as
+`{{ name }}`. Each one is a new release of its variant,
+with the same build ID for all, and replaces all affected releases of the
+variant. See the notice for users, [README.md]({{ incident_url }}/README.md), for the affected
+releases and what to do.
+
+The patched releases are the original releases with only these packages
+upgraded to the
+[patched versions](https://emudhra.we-have-a-problem.com/#patched-bundles):
+
+- `ca-certificates` 20260816ubuntu0.24.04.1, Ubuntu's system CA store, in all
+  images,
+- `pip` 26.2.2 and `certifi` 2026.10.19 or newer in the images with Python
+  packages in `/opt/venv` (torch, full and plus). In the u24r64 torch image,
+  which had no `certifi`, `certifi` is added,
+- `botocore` 1.43.117 or newer in the images that have it (full and plus), as
+  [AWS security bulletin 2026-150-AWS](https://aws.amazon.com/security/security-bulletins/2026-150-aws/)
+  advises, with `boto3`, which has to match its version, and in the u24r64
+  full image `s3transfer`, which the newer `boto3` needs.
+
+Everything else, including the images' environment and runscript, is as in the
+original release.
+
+## Patched releases
+
+### u24r72f21m50t211
+
+Not patched: official release `u24r72f21m50t211-20261028_090706` fixes
+`u24r72f21m50t211-20260929_104918`, with the same main component versions.
+{% for release in releases %}
+
+### {{ release.variant }}
+
+Release `{{ release.hotfix_tag }}` patches `{{ release.build_tag }}`.
+
+| SIF file | SHA-256 |
+|---|---|
+{% for sif, checksum in release.checksums.items() %}
+| `{{ sif }}` | `{{ checksum }}` |
+{% endfor %}
+
+{# GitHub needs the blank lines around the Markdown inside <details> #}
+<details>
+<summary>Package changes</summary>
+{% for image, changes in release.changes.items() %}
+
+#### Image lumi-multitorch-{{ image }}-{{ release.hotfix_tag }}
+
+{{ changes }}
+{% endfor %}
+
+</details>
+{% endfor %}
+
+### u24r64f21m43t28
+
+Not patched: its only release, pre-release `u24r64f21m43t28-20251128_145346`,
+is end of life.
