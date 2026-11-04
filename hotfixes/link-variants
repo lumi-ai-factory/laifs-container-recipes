@@ -1,0 +1,91 @@
+#!/bin/bash
+#
+# Point the stable paths lumi-multitorch/<variant>/<image>.sif to the latest
+# release of each variant, by the timestamp in the release directory names.
+#
+# Usage: link-variants [-n] [variant ...]
+#
+#   -n       show the links without changing them
+#   variant  software versions digests, e.g. u24r70f21m50t210, default all
+#            variants with release directories, except end-of-life ones
+#
+# Release directories are lumi-multitorch-<variant>-<YYYYMMDD_HHMMSS>/ in
+# CONTAINERS_DIR, default /appl/local/laifs/containers. End-of-life variants,
+# which get no links, are listed in EOL_VARIANTS, default u24r64f21m43t28.
+#
+# lumi-multitorch/latest isn't changed: the newest variant isn't the one with
+# the newest timestamp, since patched releases of older variants are newer.
+# Each link is replaced with mv -T, so it's never missing.
+
+usage() {
+    echo "Usage: link-variants [-n] [variant ...]"
+    exit 1
+}
+
+link() {
+    local target="$1"
+    local link="$2"
+
+    if [ "$(readlink "$link" 2>/dev/null)" = "$target" ]; then
+        echo "  $link (unchanged)"
+    elif [ -n "$DRY_RUN" ]; then
+        echo "  $link -> $target (would change)"
+    else
+        ln -sfn "$target" "$link.tmp"
+        mv -T "$link.tmp" "$link"
+        echo "  $link -> $target"
+    fi
+}
+
+main() {
+    # Set shell options
+    set -euo pipefail
+
+    # Get args
+    DRY_RUN=""
+    if [ "${1:-}" = "-n" ]; then
+        DRY_RUN=1
+        shift
+    fi
+    case "${1:-}" in -*) usage ;; esac
+
+    CONTAINERS_DIR="${CONTAINERS_DIR:-/appl/local/laifs/containers}"
+    read -ra eol_variants <<< "${EOL_VARIANTS:-u24r64f21m43t28}"
+    cd "$CONTAINERS_DIR"
+
+    # Release directories, sorted by variant and timestamp
+    releases="$(ls -d lumi-multitorch-u24*-[0-9]*_[0-9]* 2>/dev/null \
+        | grep -E '^lumi-multitorch-u24[a-z0-9]+-[0-9]{8}_[0-9]{6}$' | sort)"
+
+    if [ $# -gt 0 ]; then
+        variants=("$@")
+    else
+        variants=()
+        for variant in $(sed -E 's/^lumi-multitorch-(.*)-[0-9]{8}_[0-9]{6}$/\1/' <<< "$releases" | uniq); do
+            if [[ " ${eol_variants[*]} " == *" $variant "* ]]; then
+                echo "Skipping $variant: end of life"
+            else
+                variants+=("$variant")
+            fi
+        done
+    fi
+
+    for variant in "${variants[@]}"; do
+        # Timestamps sort as text, so the last one is the latest
+        release="$(grep -E "^lumi-multitorch-${variant}-[0-9]{8}_[0-9]{6}$" <<< "$releases" | tail -n 1 || true)"
+        if [ -z "$release" ]; then
+            echo "No releases of $variant in $CONTAINERS_DIR" >&2
+            exit 1
+        fi
+
+        echo "$variant: $release"
+        [ -n "$DRY_RUN" ] || mkdir -p "lumi-multitorch/$variant"
+        for sif in "$release"/lumi-multitorch-*-"${release#lumi-multitorch-}".sif; do
+            [ -e "$sif" ] || continue
+            image="$(basename "$sif" | sed -E "s/^lumi-multitorch-(.*)-${variant}-.*/\1/")"
+            link "../../$sif" "lumi-multitorch/$variant/$image.sif"
+        done
+    done
+}
+
+main "$@"

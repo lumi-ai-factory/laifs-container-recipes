@@ -2,20 +2,39 @@
 #
 # List the lumi-multitorch release variants, i.e. the major software versions
 # digests such as u24r72f21m50t211, with the build tags of their releases.
-# Releases are read from the repository's lumi-multitorch-u24* git tags.
+# Releases are read from the release directories in CONTAINERS_DIR, default
+# /appl/local/laifs/containers on LUMI, or from the repository's git tags.
 #
-# Usage: list-releases [--remote]
+# Usage: list-releases [--git | --remote]
 #
+#   --git     read the lumi-multitorch-u24* tags of the local repository
 #   --remote  read the tags from origin instead of the local repository
+#
+# With release directories, the release that the variant's stable path
+# lumi-multitorch/<variant>/ points to is marked with "(linked)".
 
 usage() {
-    echo "Usage: list-releases [--remote]"
+    echo "Usage: list-releases [--git | --remote]"
     exit 1
 }
 
 version() {
     # Decode a digest field, e.g. 72 -> 7.2 and 211 -> 2.11
     echo "${1:0:1}.${1:1}"
+}
+
+linked_release() {
+    # The release directory that the images in lumi-multitorch/<variant>/
+    # point to
+    local variant="$1"
+    local link
+
+    [ -n "$CONTAINERS_DIR" ] || return 0
+    for link in "$CONTAINERS_DIR/lumi-multitorch/$variant"/*.sif; do
+        [ -L "$link" ] || continue
+        basename "$(dirname "$(readlink "$link")")"
+        return 0
+    done
 }
 
 main() {
@@ -25,20 +44,37 @@ main() {
     # Define paths
     SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 
-    # Get args
+    # Get args. CONTAINERS_DIR is left empty when reading git tags.
     case "${1:-}" in
-        "") tags_cmd=(git -C "$SCRIPT_DIR" tag --list "lumi-multitorch-u24*") ;;
-        --remote) tags_cmd=(git -C "$SCRIPT_DIR" ls-remote --tags --refs origin "lumi-multitorch-u24*") ;;
+        "")
+            CONTAINERS_DIR="${CONTAINERS_DIR:-/appl/local/laifs/containers}"
+            if [ ! -d "$CONTAINERS_DIR" ]; then
+                echo "$CONTAINERS_DIR not found; use --git or --remote outside LUMI" >&2
+                exit 1
+            fi
+            releases_cmd=(ls -1 "$CONTAINERS_DIR")
+            ;;
+        --git)
+            CONTAINERS_DIR=""
+            releases_cmd=(git -C "$SCRIPT_DIR" tag --list "lumi-multitorch-u24*")
+            ;;
+        --remote)
+            CONTAINERS_DIR=""
+            releases_cmd=(git -C "$SCRIPT_DIR" ls-remote --tags --refs origin "lumi-multitorch-u24*")
+            ;;
         *) usage ;;
     esac
 
-    # Tags look like lumi-multitorch-u24r72f21m50t211-20261028_090706
-    pattern='lumi-multitorch-(u([0-9]+)r([0-9]+)f([0-9]+)m([0-9]+)t([0-9]+))-([0-9]{8}_[0-9]{6})$'
+    # Releases look like lumi-multitorch-u24r72f21m50t211-20261028_090706
+    pattern='^lumi-multitorch-(u([0-9]+)r([0-9]+)f([0-9]+)m([0-9]+)t([0-9]+))-([0-9]{8}_[0-9]{6})$'
 
     declare -A releases descriptions
     variants=()
-    while read -r tag; do
-        [[ $tag =~ $pattern ]] || continue
+    while read -r release; do
+        [[ $release =~ $pattern ]] || continue
+        if [ -n "$CONTAINERS_DIR" ] && [ ! -d "$CONTAINERS_DIR/$release" ]; then
+            continue
+        fi
         variant="${BASH_REMATCH[1]}"
         if [ -z "${releases[$variant]+x}" ]; then
             variants+=("$variant")
@@ -46,14 +82,22 @@ main() {
             descriptions[$variant]="Ubuntu ${BASH_REMATCH[2]}.04, ROCm $(version "${BASH_REMATCH[3]}"), libfabric $(version "${BASH_REMATCH[4]}"), MPICH $(version "${BASH_REMATCH[5]}"), PyTorch $(version "${BASH_REMATCH[6]}")"
         fi
         releases[$variant]+=" ${BASH_REMATCH[7]}"
-    done < <("${tags_cmd[@]}" | sed 's|.*refs/tags/||' | sort)
+    done < <("${releases_cmd[@]}" | sed 's|.*refs/tags/||' | sort)
 
     for variant in "${variants[@]}"; do
         read -ra build_tags <<< "${releases[$variant]}"
         count="${#build_tags[@]} release"
         [ "${#build_tags[@]}" -eq 1 ] || count+="s"
         echo "$variant  ${descriptions[$variant]}  ($count)"
-        printf "    %s\n" "${build_tags[@]}"
+
+        linked="$(linked_release "$variant")"
+        for build_tag in "${build_tags[@]}"; do
+            if [ "$linked" = "lumi-multitorch-${variant}-${build_tag}" ]; then
+                echo "    $build_tag (linked)"
+            else
+                echo "    $build_tag"
+            fi
+        done
     done
 }
 
