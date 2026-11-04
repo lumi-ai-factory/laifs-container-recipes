@@ -13,7 +13,7 @@
 - [Notice for users]({{ incident_url }}/README.md)
 - [Known issues]({{ repo_url }}/issues?q=label%3A{{ name }})
 {% for release in releases %}
-- [Original release `{{ release.build_tag }}`]({{ repo_url }}/releases/tag/lumi-multitorch-{{ release.build_tag }})
+- [Patched release of `{{ release.build_tag }}`](#{{ release.variant }})
 {% endfor %}
 
 This hotfix patches the latest release of each affected lumi-multitorch
@@ -41,6 +41,24 @@ upgraded to the
 Everything else, including the images' environment and runscript, is as in the
 original release.
 
+## Fixed releases
+
+The fixed release of each variant, and the affected releases that it replaces.
+For the patched releases, the release they are built on is in bold:
+
+{# Affected releases of each patched variant, by build timestamp #}
+{% set affected = {
+    "u24r70f21m50t210": ["20260415_130625", "20260513_121430", "20260731_122833", "20260807_115122"],
+    "u24r64f21m43t29": ["20251209_134408", "20260124_092648", "20260216_093549", "20260225_144743", "20260319_153422"],
+} %}
+| Variant | Fixed release | Replaces |
+|---|---|---|
+| u24r72f21m50t211 | `u24r72f21m50t211-20261028_090706` | 20260929_104918 |
+{% for release in releases %}
+| {{ release.variant }} | `{{ release.hotfix_tag }}` (patched) | {% for timestamp in affected[release.variant] %}{% if release.build_tag.endswith(timestamp) %}**{{ timestamp }}**{% else %}{{ timestamp }}{% endif %}{% if not loop.last %}, {% endif %}{% endfor %} |
+{% endfor %}
+| u24r64f21m43t28 | None, end of life | 20251128_145346 |
+
 ## Patched releases
 
 ### u24r72f21m50t211
@@ -51,7 +69,7 @@ Not patched: official release `u24r72f21m50t211-20261028_090706` fixes
 
 ### {{ release.variant }}
 
-Release `{{ release.hotfix_tag }}` patches `{{ release.build_tag }}`.
+Release `{{ release.hotfix_tag }}` patches [`{{ release.build_tag }}`]({{ repo_url }}/releases/tag/lumi-multitorch-{{ release.build_tag }}).
 
 | SIF file | SHA-256 |
 |---|---|
