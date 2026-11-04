@@ -4,7 +4,8 @@
 
   incident_url  URL of this folder on GitHub
   releases      patched releases: variant, hotfix_tag, build_tag, checksums
-                (SIF file -> SHA-256) and changes (image -> package changes)
+                (SIF file -> SHA-256) and changes (image -> package changes,
+                as in diff-ca-fix's -changes.json)
 #}
 # Release notes for {{ name }}
 
@@ -80,11 +81,38 @@ Release `{{ release.hotfix_tag }}` patches [`{{ release.build_tag }}`]({{ repo_u
 {# GitHub needs the blank lines around the Markdown inside <details> #}
 <details>
 <summary>Package changes</summary>
-{% for image, changes in release.changes.items() %}
+{% for image, diff in release.changes.items() %}
 
 #### Image lumi-multitorch-{{ image }}-{{ release.hotfix_tag }}
 
-{{ changes }}
+Comprehensive list of package changes comparing the following releases:
+
+- `{{ diff.old }}`
+- `{{ diff.new }}`
+{% for manager, changes in diff.changes.items() %}
+
+##### {{ manager.capitalize() }} package changes
+{% for kind in ["changed", "added", "removed"] if changes[kind] %}
+
+**{{ kind.capitalize() }}:**
+
+{% for package in changes[kind] %}
+- `{{ package.name }}` {% if kind == "changed" %}{{ package.old }} -> {{ package.new }}{% else %}{{ package.version }}{% endif %}
+
+{% endfor %}
+{% endfor %}
+{% else %}
+
+_No changes detected._
+{% endfor %}
+{% if image == "plus" %}
+
+{# The Plus Containerfile doesn't regenerate /.sbom.json #}
+_Note: the released plus image's SBOM is inherited from the full image and
+misses the packages that the plus image adds, such as `transformer_engine`.
+The hotfix regenerates the SBOM, so these packages are listed as added,
+although the hotfix doesn't install them._
+{% endif %}
 {% endfor %}
 
 </details>

@@ -19,8 +19,8 @@ with the checksums of the SIFs in
 source image's checksum and this repository's commit.
 
 To list the package changes against the original release's SBOMs in
-`/data/lumi-multitorch-<build-tag>/`, as `<image-name>-changes.md` next to the
-SIFs:
+`/data/lumi-multitorch-<build-tag>/`, as `<image-name>-changes.json` next to the
+SIFs, with the changed, added and removed packages of each package manager:
 
 ```bash
 hotfixes/emsign-ca-2026-10/diff-ca-fix build-tag hotfix-build-tag [image ...]
@@ -41,7 +41,8 @@ releases from the build logs, and writes:
 - the release notes,
   `builds/lumi-multitorch-emsign-ca-2026-10-<build-id>/lumi-multitorch-emsign-ca-2026-10-<build-id>-release.md`:
   release links, what the hotfix changes, the patched releases with their SIF
-  checksums, and the package changes of all images,
+  checksums, and the package changes of all images, from their
+  `-changes.json`,
 - each patched release's directory without the SIFs,
   `builds/lumi-multitorch-emsign-ca-2026-10-<build-id>/lumi-multitorch-<hotfix-build-tag>-release.tgz`.
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # List the package changes of lumi-multitorch images patched with build-ca-fix
-# against the original release, with package_version_diff.py.
+# against the original release.
 #
 # Usage: diff-ca-fix build-tag hotfix-build-tag [image ...]
 #
@@ -13,12 +13,49 @@
 # build host (DATA_DIR defaults to /data) with the patched image's SBOM in
 # builds/lumi-multitorch-emsign-ca-2026-10-<build-id>/lumi-multitorch-<hotfix-build-tag>/,
 # where <build-id> is the timestamp of the hotfix build tag, and writes the diff next to the
-# latter as lumi-multitorch-<image>-<hotfix-build-tag>-changes.md.
-# build-all-ca-fix collects them into the release notes.
+# latter as lumi-multitorch-<image>-<hotfix-build-tag>-changes.json:
+#
+#   {"old": "<original SBOM>", "new": "<patched SBOM>",
+#    "changes": {"<manager>": {"changed": [{"name", "old", "new"}],
+#                              "added": [{"name", "version"}],
+#                              "removed": [{"name", "version"}]}}}
+#
+# with only the package managers that have changes. release-ca-fix renders
+# them into the release notes.
 
 usage() {
     echo "Usage: diff-ca-fix build-tag hotfix-build-tag [image ...]"
     exit 1
+}
+
+# Diff two SBOMs ({manager: [{name, version}]}) as JSON
+diff_sboms() {
+    python3 - "$1" "$2" <<'EOF'
+import json
+import sys
+from pathlib import Path
+
+old_file, new_file = map(Path, sys.argv[1:])
+old, new = (
+    {manager: {p["name"]: p["version"] for p in packages}
+     for manager, packages in json.loads(path.read_text()).items()}
+    for path in (old_file, new_file)
+)
+
+changes = {}
+for manager in sorted(old.keys() | new.keys()):
+    o, n = old.get(manager, {}), new.get(manager, {})
+    diff = {
+        "changed": [{"name": k, "old": o[k], "new": n[k]} for k in sorted(o.keys() & n.keys()) if o[k] != n[k]],
+        "added": [{"name": k, "version": n[k]} for k in sorted(n.keys() - o.keys())],
+        "removed": [{"name": k, "version": o[k]} for k in sorted(o.keys() - n.keys())],
+    }
+    if any(diff.values()):
+        changes[manager] = diff
+
+json.dump({"old": old_file.name, "new": new_file.name, "changes": changes}, sys.stdout, indent=2)
+print()
+EOF
 }
 
 main() {
@@ -44,24 +81,11 @@ main() {
 
     for image in "${IMAGES[@]}"; do
         name="lumi-multitorch-${image}-${HOTFIX_TAG}"
-        changes_file="$BUILD_DIR/$name-changes.md"
-        python3 "$REPO_DIR/scripts/package_version_diff.py" \
+        changes_file="$BUILD_DIR/$name-changes.json"
+        diff_sboms \
             "$RELEASE_DIR/lumi-multitorch-${image}-${BUILD_TAG}.json" \
             "$BUILD_DIR/$name.json" \
             > "$changes_file"
-
-        # The Plus Containerfile doesn't regenerate /.sbom.json, so plus
-        # releases have full's SBOM without Transformer Engine
-        if [ "$image" = plus ]; then
-            cat >> "$changes_file" <<'EOF'
-
-_Note: the released plus image's SBOM is inherited from the full image and
-misses the packages that the plus image adds, such as `transformer_engine`.
-The hotfix regenerates the SBOM, so these packages are listed as added,
-although the hotfix doesn't install them._
-EOF
-        fi
-
         echo "Package diff: $changes_file"
     done
 }

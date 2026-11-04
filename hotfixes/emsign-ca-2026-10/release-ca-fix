@@ -9,7 +9,7 @@ writes its assets to builds/lumi-multitorch-emsign-ca-2026-10-<build-id>/:
   lumi-multitorch-emsign-ca-2026-10-<build-id>-release.md
       Release notes, rendered from the Jinja template release-notes.md.j2,
       with the patched releases and the checksums of their SIF files, and
-      the package changes of all images, from diff-ca-fix.
+      the package changes of all images, from diff-ca-fix's -changes.json.
   lumi-multitorch-<variant>-<build-id>-release.tgz
       Each patched release's directory without the SIF files, like an
       official release's archive.
@@ -21,6 +21,7 @@ Usage: release-ca-fix build-id
   e.g. release-ca-fix 20261102_151434
 """
 
+import json
 import re
 import subprocess
 import sys
@@ -88,14 +89,11 @@ def checksums(hotfix_tag, images):
 
 
 def image_changes(hotfix_tag, image):
-    """Package changes of one image, with headings below "#### Image" """
-    changes_file = HOTFIX_DIR / f"lumi-multitorch-{hotfix_tag}" / f"lumi-multitorch-{image}-{hotfix_tag}-changes.md"
+    """Package changes of one image, from diff-ca-fix"""
+    changes_file = HOTFIX_DIR / f"lumi-multitorch-{hotfix_tag}" / f"lumi-multitorch-{image}-{hotfix_tag}-changes.json"
     if not changes_file.exists():
         sys.exit(f"{changes_file} not found; run diff-ca-fix first")
-    text = changes_file.read_text()
-    text = re.sub(r"\A## Package changes\n\n", "", text)
-    text = re.sub(r"^### ", "##### ", text, flags=re.MULTILINE)
-    return text.strip("\n")
+    return json.loads(changes_file.read_text())
 
 
 def write_notes(build_id, releases):

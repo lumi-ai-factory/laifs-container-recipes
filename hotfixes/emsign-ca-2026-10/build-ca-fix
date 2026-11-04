@@ -17,7 +17,7 @@
 #
 # The SIF file, the definition file it was built from (with the source image
 # filled in), the build log and the SBOM (/.sbom.json, for
-# package_version_diff.py) of each image go to the new release's build
+# diff-ca-fix) of each image go to the new release's build
 # directory, under the hotfix's directory for the build ID, e.g.
 # builds/lumi-multitorch-emsign-ca-2026-10-20261102_143005/lumi-multitorch-u24r70f21m50t210-20261102_143005/,
 # with the checksums of all its SIF files in lumi-multitorch-<build-tag>.sha256.
@@ -76,7 +76,7 @@ build_image() {
         echo "Finished:   $(date -Iseconds)"
         sha256sum "$sif_file"
 
-        # Save the SBOM for package_version_diff.py
+        # Save the SBOM for diff-ca-fix
         $CONTAINER exec "$sif_file" cat /.sbom.json > "$sbom_file"
         echo "SBOM:       $sbom_file"
     } 2>&1 | tee "$build_log"
