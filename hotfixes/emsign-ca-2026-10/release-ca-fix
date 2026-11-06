@@ -35,7 +35,8 @@ REPO_URL = "https://github.com/lumi-ai-factory/laifs-container-recipes"
 IMAGES = ["rocm", "libfabric", "mpich", "torch", "full", "plus"]
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-INCIDENT_URL = f"{REPO_URL}/blob/main/hotfixes/{SCRIPT_DIR.name}"
+# At the release's tag, so the links match the published release
+INCIDENT_URL = f"{REPO_URL}/blob/{RELEASE_NAME}/hotfixes/{SCRIPT_DIR.name}"
 REPO_DIR = Path(
     subprocess.run(
         ["git", "-C", str(SCRIPT_DIR), "rev-parse", "--show-toplevel"],
