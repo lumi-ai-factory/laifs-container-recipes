@@ -7,7 +7,10 @@ All lumi-multitorch images released before **20261028_090706** trust the root ce
 
 ## Affected images
 
-All images (rocm, libfabric, mpich, torch, full and, from 20260415_130625 on, plus) of these releases:
+All images (rocm, libfabric, mpich, torch, full and, from u24r70f21m50t210-20260415_130625 on, plus) of all releases of the variants u24r64f21m43t28, u24r64f21m43t29 and u24r70f21m50t210, and of u24r72f21m50t211-20260929_104918.
+
+<details>
+<summary>Affected releases and the versions of their CA stores</summary>
 
 | Release | System CA store (`ca-certificates`) | `certifi` | `pip` |
 |---|---|---|---|
@@ -22,6 +25,8 @@ All images (rocm, libfabric, mpich, torch, full and, from 20260415_130625 on, pl
 | u24r70f21m50t210-20260731_122833 | 20260601~24.04.1 | 2026.7.22 | 24.0 |
 | u24r70f21m50t210-20260807_115122 | 20260601~24.04.1 | 2026.7.22 | 24.0 |
 | u24r72f21m50t211-20260929_104918 | 20260601~24.04.1 | 2026.7.22 | 24.0 |
+
+</details>
 
 **Fixed in:** `u24r72f21m50t211-20261028_090706`, with `ca-certificates` 20260816ubuntu0.24.04.1, `certifi` 2026.10.23 and `pip` 26.2.2. The earlier variants have patched releases; see [Containers](#containers).
 
@@ -50,13 +55,16 @@ Anyone holding a certificate issued under the compromised CA could pretend to be
 
 ### Containers
 
-Switch to the **fixed release** of the variant you use, the release whose images no longer trust the root. For u24r72f21m50t211 it's the official release 20261028_090706. For the earlier variants it's a **patched release**, which we made by patching the variant's latest release. Each fixed release replaces all affected releases of its variant. All releases of a variant have the same Ubuntu, ROCm, libfabric, MPICH and PyTorch versions, so most jobs only need the image path changed, but other packages can be newer than in the earlier releases. The fixed release of each variant, and the releases it replaces, are listed in the [release notes](https://github.com/lumi-ai-factory/laifs-container-recipes/releases/tag/lumi-multitorch-emsign-ca-2026-10#fixed-releases).
+Switch to the **fixed release** of the variant you use, the release whose images no longer trust the root. For u24r72f21m50t211 it's the official release u24r72f21m50t211-20261028_090706. For the earlier variants it's a **patched release**, which we made by patching the variant's latest release. Each fixed release replaces all affected releases of its variant. All releases of a variant have the same Ubuntu, ROCm, libfabric, MPICH and PyTorch versions, so most jobs only need the image path changed, but other packages can be newer than in the earlier releases. The fixed release of each variant, and the releases it replaces, are listed in the [release notes](https://github.com/lumi-ai-factory/laifs-container-recipes/releases/tag/lumi-multitorch-emsign-ca-2026-10#fixed-releases).
 
 The patched releases are built on u24r70f21m50t210-20260807_115122 and u24r64f21m43t29-20260319_153422, with only the fixed CA stores, `pip`, `certifi` and `botocore`, with `boto3`, installed on top. Apart from these, they have the same package versions as the release they're built on.
 
 On LUMI, each release has its own directory, e.g. `/appl/local/laifs/containers/lumi-multitorch-u24r72f21m50t211-20261028_090706/`. See also the [upcoming stable paths](#upcoming-change-stable-paths-on-lumi), which will point to the fixed release of each variant.
 
 Rebuild container images that you have derived from an old image on top of a fixed one.
+
+<details>
+<summary>Check what an image trusts</summary>
 
 To check what the software in an image actually trusts, connect to the test hosts listed on the [incident page](https://emudhra.we-have-a-problem.com/), which use certificates issued under the compromised CA. A certificate error means that the software doesn't trust them; a successful connection means that it does:
 
@@ -74,6 +82,11 @@ singularity exec <image>.sif python -m pip install --retries 0 https://dv-g3b-em
 
 In a fixed image, all of these fail with a certificate error (`unable to get local issuer certificate` or `CERTIFICATE_VERIFY_FAILED`). Run the same commands in your virtual environments and in images you have derived from ours. If the `requests` check prints nothing, it connected successfully. `pip` reports `Cannot determine archive format` if it connects successfully, because the test host doesn't serve a package.
 
+</details>
+
+<details>
+<summary>Keep using an old image for now</summary>
+
 If you have to keep an old image for now, pass it a CA bundle that no longer trusts the root, for example the one from the fixed image:
 
 ```bash
@@ -90,9 +103,14 @@ export SINGULARITYENV_AWS_CA_BUNDLE=$HOME/ca-certificates.crt
 
 This covers most tools, but not libraries that load `certifi`'s bundle directly without checking these variables. Moving to the fixed release is the only complete fix.
 
+</details>
+
 ### Virtual environments
 
 **In short:** in the torch, full and plus images, environments use the image's `pip` and `certifi`, so switching to a fixed image is enough. In other cases, upgrade `certifi` in the environment as shown below, or recreate the environment on a fixed image, with no old `certifi` pinned in its requirements.
+
+<details>
+<summary>Check which <code>pip</code> and <code>certifi</code> an environment uses</summary>
 
 The torch, full and plus images put their Python packages in `/opt/venv` on `PYTHONPATH`, which Python searches before the packages of a virtual environment. So a virtual environment used in these images always uses the image's `pip` and `certifi`, even if it has its own copies:
 
@@ -106,6 +124,11 @@ python -c "import certifi, pip; print('certifi', certifi.__version__, certifi.__
 ```
 
 If the printed paths aren't in `/opt/venv`, the environment has its own copies. These are, for example, environments made on the rocm, libfabric or mpich images, which have no `/opt/venv`, or used with `PYTHONPATH` unset. If the environment has no `certifi` of its own, the command fails with `ModuleNotFoundError: No module named 'certifi'`; then only its `pip` matters.
+
+</details>
+
+<details>
+<summary>Upgrade an environment's own <code>pip</code> and <code>certifi</code></summary>
 
 With the environment activated in a fixed image, check which CA bundle its `pip` uses:
 
@@ -134,6 +157,8 @@ python3 -m pip install --user --break-system-packages --upgrade "certifi>=2026.1
 
 > [!NOTE]
 > When you upgrade an environment's own copies, upgrading `pip` is not enough if the environment runs on an old image: `pip` 24.2 and later also trust the system CA store of that image, which contains the root ([pip documentation](https://pip.pypa.io/en/stable/topics/https-certificates/)).
+
+</details>
 
 ### Tokens and downloads
 
