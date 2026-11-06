@@ -3,17 +3,18 @@
 > [!NOTE]
 > This is a draft.
 
-All lumi-multitorch images released before **20261028_090706** trust the root certificate **emSign ECC Root CA - G3**. After the eMudhra intermediate CA compromise ([incident page](https://emudhra.we-have-a-problem.com/)), that root must no longer be trusted. The images keep working and nothing has been removed, but their secure connections are less trustworthy than they should be.
+All lumi-multitorch images released before **20261028_090706**, and the older image `laifs-lumi-multi-20250728_103251.sif`, trust the root certificate **emSign ECC Root CA - G3**. After the eMudhra intermediate CA compromise ([incident page](https://emudhra.we-have-a-problem.com/)), that root must no longer be trusted. The images keep working and nothing has been removed, but their secure connections are less trustworthy than they should be.
 
 ## Affected images
 
-All images (rocm, libfabric, mpich, torch, full and, from u24r70f21m50t210-20260415_130625 on, plus) of all releases of the variants u24r64f21m43t28, u24r64f21m43t29 and u24r70f21m50t210, and of u24r72f21m50t211-20260929_104918.
+All images (rocm, libfabric, mpich, torch, full and, from u24r70f21m50t210-20260415_130625 on, plus) of all releases of the variants u24r64f21m43t28, u24r64f21m43t29 and u24r70f21m50t210, and of u24r72f21m50t211-20260929_104918. Also affected is `laifs-lumi-multi-20250728_103251.sif`, an image from before lumi-multitorch.
 
 <details>
 <summary>Affected releases and the versions of their CA stores</summary>
 
 | Release | System CA store (`ca-certificates`) | `certifi` | `pip` |
 |---|---|---|---|
+| laifs-lumi-multi-20250728_103251 (end of life) | 20240203 | 2025.7.14 | 24.0 |
 | u24r64f21m43t28-20251128_145346 (end of life) | 20240203 | 2025.11.12 | 24.0 |
 | u24r64f21m43t29-20251209_134408 | 20240203 | 2025.11.12 | 24.0 |
 | u24r64f21m43t29-20260124_092648 | 20240203 | 2026.1.4 | 24.0 |
@@ -59,7 +60,9 @@ Switch to the **fixed release** of the variant you use, the release whose images
 
 The patched releases are built on u24r70f21m50t210-20260807_115122 and u24r64f21m43t29-20260319_153422, with only the fixed CA stores, `pip`, `certifi` and `botocore`, with `boto3`, installed on top. Apart from these, they have the same package versions as the release they're built on.
 
-On LUMI, each release has its own directory, e.g. `/appl/local/laifs/containers/lumi-multitorch-u24r72f21m50t211-20261028_090706/`. See also the [upcoming stable paths](#upcoming-change-stable-paths-on-lumi), which will point to the fixed release of each variant.
+**End of life:** u24r64f21m43t28 and `laifs-lumi-multi-20250728_103251.sif` get no fixed release. Move to a supported variant, e.g. the full image of u24r72f21m50t211-20261028_090706. Other packages, and the ROCm and PyTorch versions, can differ from the old image, so check that your jobs work with it.
+
+On LUMI, each release has its own directory, e.g. `/appl/local/laifs/containers/lumi-multitorch-u24r72f21m50t211-20261028_090706/`. `/appl/local/laifs/containers/lumi-multitorch-latest.sif` already points to the full image of the fixed release u24r72f21m50t211-20261028_090706. See also the [upcoming stable paths](#upcoming-change-stable-paths-on-lumi), which will point to the fixed release of each variant.
 
 Rebuild container images that you have derived from an old image on top of a fixed one.
 
@@ -155,8 +158,7 @@ The same applies to packages installed with `pip install --user`, which only Ubu
 python3 -m pip install --user --break-system-packages --upgrade "certifi>=2026.10.19"
 ```
 
-> [!NOTE]
-> When you upgrade an environment's own copies, upgrading `pip` is not enough if the environment runs on an old image: `pip` 24.2 and later also trust the system CA store of that image, which contains the root ([pip documentation](https://pip.pypa.io/en/stable/topics/https-certificates/)).
+> **Note:** when you upgrade an environment's own copies, upgrading `pip` is not enough if the environment runs on an old image: `pip` 24.2 and later also trust the system CA store of that image, which contains the root ([pip documentation](https://pip.pypa.io/en/stable/topics/https-certificates/)).
 
 </details>
 
@@ -180,7 +182,7 @@ where `<image>` is `rocm`, `libfabric`, `mpich`, `torch`, `full` or `plus`, for 
 readlink -f /appl/local/laifs/containers/lumi-multitorch/u24r72f21m50t211/full.sif
 ```
 
-The release directories stay as they are. If you need an exact release for reproducibility, keep using its directory.
+The release directories stay as they are, and `lumi-multitorch-latest.sif` keeps pointing to the newest full image, like `lumi-multitorch/latest/full.sif`. If you need an exact release for reproducibility, keep using its directory.
 
 ## More information
 

@@ -60,6 +60,7 @@ For a patched release, the release it's built on is in bold:
 | {{ release.variant }} | [`{{ release.hotfix_tag }}`](#{{ release.variant }}), patched release | {% for timestamp in affected[release.variant] %}{% if release.build_tag.endswith(timestamp) %}**{{ timestamp }}**{% else %}{{ timestamp }}{% endif %}{% if not loop.last %}, {% endif %}{% endfor %} |
 {% endfor %}
 | u24r64f21m43t28 | None, end of life | 20251128_145346 |
+| `laifs-lumi-multi-20250728_103251.sif` | None, end of life | - |
 
 Two variants have no patched release:
 
@@ -68,6 +69,9 @@ Two variants have no patched release:
   `u24r72f21m50t211-20260929_104918`.
 - **u24r64f21m43t28:** its only release, pre-release
   `u24r64f21m43t28-20251128_145346`, is end of life.
+
+The image `laifs-lumi-multi-20250728_103251.sif` on LUMI, from before
+lumi-multitorch, is also affected and end of life.
 
 ## Patched releases
 {% for release in releases %}
