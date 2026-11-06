@@ -17,17 +17,18 @@
 - [Patched release of `{{ release.build_tag }}`](#{{ release.variant }})
 {% endfor %}
 
-This hotfix patches the latest release of each affected lumi-multitorch
-variant, so that its images no longer trust the root certificate
-`emSign ECC Root CA - G3`. The patched releases are published together as
-`{{ name }}`. Each one is a new release of its variant,
-with the same build ID for all, and replaces all affected releases of the
-variant. See the notice for users, [README.md]({{ incident_url }}/README.md), for the affected
-releases and what to do.
+Every supported lumi-multitorch variant has a **fixed release**,
+whose images no longer trust the root certificate `emSign ECC Root CA - G3`.
+It replaces all affected releases of its variant. The newest variant's fixed
+release is an official release. For the earlier variants, this hotfix makes
+**patched releases**: it patches the latest release of each variant and
+publishes the results together as `{{ name }}`. Each patched release is a new
+release of its variant, and they all share one build ID. See the notice for
+users, [README.md]({{ incident_url }}/README.md), for the affected releases and what to do.
 
 The patched releases are the original releases with only these packages
-upgraded to the
-[patched versions](https://emudhra.we-have-a-problem.com/#patched-bundles):
+upgraded to
+[versions that no longer trust the root](https://emudhra.we-have-a-problem.com/#patched-bundles):
 
 - `ca-certificates` 20260816ubuntu0.24.04.1, Ubuntu's system CA store, in all
   images,
@@ -45,7 +46,7 @@ original release.
 ## Fixed releases
 
 The fixed release of each variant, and the affected releases that it replaces.
-For the patched releases, the release they are built on is in bold:
+For a patched release, the release it's built on is in bold:
 
 {# Affected releases of each patched variant, by build timestamp #}
 {% set affected = {
@@ -54,18 +55,21 @@ For the patched releases, the release they are built on is in bold:
 } %}
 | Variant | Fixed release | Replaces |
 |---|---|---|
-| u24r72f21m50t211 | `u24r72f21m50t211-20261028_090706` | 20260929_104918 |
+| u24r72f21m50t211 | `u24r72f21m50t211-20261028_090706`, official release | 20260929_104918 |
 {% for release in releases %}
-| {{ release.variant }} | `{{ release.hotfix_tag }}` (patched) | {% for timestamp in affected[release.variant] %}{% if release.build_tag.endswith(timestamp) %}**{{ timestamp }}**{% else %}{{ timestamp }}{% endif %}{% if not loop.last %}, {% endif %}{% endfor %} |
+| {{ release.variant }} | [`{{ release.hotfix_tag }}`](#{{ release.variant }}), patched release | {% for timestamp in affected[release.variant] %}{% if release.build_tag.endswith(timestamp) %}**{{ timestamp }}**{% else %}{{ timestamp }}{% endif %}{% if not loop.last %}, {% endif %}{% endfor %} |
 {% endfor %}
 | u24r64f21m43t28 | None, end of life | 20251128_145346 |
 
+Two variants have no patched release:
+
+- **u24r72f21m50t211:** the official release `u24r72f21m50t211-20261028_090706`
+  is the fixed release, with the same main component versions as
+  `u24r72f21m50t211-20260929_104918`.
+- **u24r64f21m43t28:** its only release, pre-release
+  `u24r64f21m43t28-20251128_145346`, is end of life.
+
 ## Patched releases
-
-### u24r72f21m50t211
-
-Not patched: official release `u24r72f21m50t211-20261028_090706` fixes
-`u24r72f21m50t211-20260929_104918`, with the same main component versions.
 {% for release in releases %}
 
 ### {{ release.variant }}
@@ -117,8 +121,3 @@ although the hotfix doesn't install them._
 
 </details>
 {% endfor %}
-
-### u24r64f21m43t28
-
-Not patched: its only release, pre-release `u24r64f21m43t28-20251128_145346`,
-is end of life.

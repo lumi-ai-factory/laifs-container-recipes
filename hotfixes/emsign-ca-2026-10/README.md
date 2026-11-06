@@ -47,24 +47,11 @@ Anyone holding a certificate issued under the compromised CA could pretend to be
 
 ### Containers
 
-Switch to the fixed release of the variant you use. Each fixed release replaces all affected releases of its variant. All releases of a variant have the same Ubuntu, ROCm, libfabric, MPICH and PyTorch versions, so most jobs only need the image path changed, but other packages can be newer than in the earlier releases. The fixed release of each variant, and the releases it replaces, are listed in the [release notes](https://github.com/lumi-ai-factory/laifs-container-recipes/releases/tag/lumi-multitorch-emsign-ca-2026-10#fixed-releases).
+Switch to the **fixed release** of the variant you use, the release whose images no longer trust the root. For u24r72f21m50t211 it's the official release 20261028_090706. For the earlier variants it's a **patched release**, which we made by patching the variant's latest release. Each fixed release replaces all affected releases of its variant. All releases of a variant have the same Ubuntu, ROCm, libfabric, MPICH and PyTorch versions, so most jobs only need the image path changed, but other packages can be newer than in the earlier releases. The fixed release of each variant, and the releases it replaces, are listed in the [release notes](https://github.com/lumi-ai-factory/laifs-container-recipes/releases/tag/lumi-multitorch-emsign-ca-2026-10#fixed-releases).
 
-The patched releases are the latest release of their variant (20260807_115122 and 20260319_153422) with only the fixed CA stores, `pip`, `certifi` and `botocore`, with `boto3`, installed on top. Apart from these, they have the same package versions as the release they're built on.
+The patched releases are built on u24r70f21m50t210-20260807_115122 and u24r64f21m43t29-20260319_153422, with only the fixed CA stores, `pip`, `certifi` and `botocore`, with `boto3`, installed on top. Apart from these, they have the same package versions as the release they're built on.
 
-On LUMI, each variant has a stable path that points to its latest fixed release, and `latest` points to the newest variant:
-
-```text
-/appl/local/laifs/containers/lumi-multitorch/<variant>/<image>.sif
-/appl/local/laifs/containers/lumi-multitorch/latest/<image>.sif
-```
-
-where `<image>` is `rocm`, `libfabric`, `mpich`, `torch`, `full` or `plus`, for example `/appl/local/laifs/containers/lumi-multitorch/u24r72f21m50t211/full.sif`. Use these paths to get future fixes without changing your job scripts. To see which release a path points to:
-
-```bash
-readlink -f /appl/local/laifs/containers/lumi-multitorch/u24r72f21m50t211/full.sif
-```
-
-If you need an exact release for reproducibility, use the release directory, e.g. `/appl/local/laifs/containers/lumi-multitorch-u24r72f21m50t211-20261028_090706/`, instead.
+On LUMI, each release has its own directory, e.g. `/appl/local/laifs/containers/lumi-multitorch-u24r72f21m50t211-20261028_090706/`. See also the [upcoming stable paths](#upcoming-change-stable-paths-on-lumi), which will point to the fixed release of each variant.
 
 Rebuild container images that you have derived from an old image on top of a fixed one.
 
@@ -87,7 +74,7 @@ In a fixed image, all of these fail with a certificate error (`unable to get loc
 If you have to keep an old image for now, pass it a CA bundle that no longer trusts the root, for example the one from the fixed image:
 
 ```bash
-singularity exec /appl/local/laifs/containers/lumi-multitorch/latest/full.sif \
+singularity exec /appl/local/laifs/containers/lumi-multitorch-u24r72f21m50t211-20261028_090706/lumi-multitorch-full-u24r72f21m50t211-20261028_090706.sif \
     cat /etc/ssl/certs/ca-certificates.crt > $HOME/ca-certificates.crt
 
 export SINGULARITYENV_SSL_CERT_FILE=$HOME/ca-certificates.crt
@@ -149,6 +136,23 @@ python3 -m pip install --user --break-system-packages --upgrade "certifi>=2026.1
 
 1. **Rotate tokens that old images used.** Do this if you used tokens over the network from an old image, especially where traffic left LUMI through networks you don't control. This is a precaution; we aren't aware of any misuse.
 2. **Prefer `safetensors` model files**, and pin Hugging Face downloads to a specific commit (`revision=`).
+
+## Upcoming change: stable paths on LUMI
+
+We'll add a stable path for each variant, which points to its latest fixed release, and `latest`, which points to the newest variant:
+
+```text
+/appl/local/laifs/containers/lumi-multitorch/<variant>/<image>.sif
+/appl/local/laifs/containers/lumi-multitorch/latest/<image>.sif
+```
+
+where `<image>` is `rocm`, `libfabric`, `mpich`, `torch`, `full` or `plus`, for example `/appl/local/laifs/containers/lumi-multitorch/u24r72f21m50t211/full.sif`. Once they're in place, use these paths to get future fixes without changing your job scripts. To see which release a path points to:
+
+```bash
+readlink -f /appl/local/laifs/containers/lumi-multitorch/u24r72f21m50t211/full.sif
+```
+
+The release directories stay as they are. If you need an exact release for reproducibility, keep using its directory.
 
 ## More information
 
