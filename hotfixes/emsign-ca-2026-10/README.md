@@ -1,5 +1,8 @@
 # Old lumi-multitorch containers trust a compromised root certificate
 
+> [!NOTE]
+> This is a draft.
+
 All lumi-multitorch images released before **20261028_090706** trust the root certificate **emSign ECC Root CA - G3**. After the eMudhra intermediate CA compromise ([incident page](https://emudhra.we-have-a-problem.com/)), that root must no longer be trusted. The images keep working and nothing has been removed, but their secure connections are less trustworthy than they should be.
 
 ## Affected images
