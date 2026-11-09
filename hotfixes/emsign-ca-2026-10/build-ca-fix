@@ -108,9 +108,10 @@ main() {
     RELEASE_DIR="${DATA_DIR:-/data}/lumi-multitorch-${BUILD_TAG}"
     BUILD_DIR="$REPO_DIR/builds/lumi-multitorch-emsign-ca-2026-10-${BUILD_ID}/lumi-multitorch-${HOTFIX_TAG}"
 
-    # The commit of this repository, marked if the hotfix files have changes
+    # The commit of this repository, marked if the hotfix files have changes,
+    # apart from release-notes.md, which release-ca-fix writes
     RECIPES_COMMIT="$(git -C "$REPO_DIR" rev-parse HEAD)"
-    if [ -n "$(git -C "$REPO_DIR" status --porcelain -- "$SCRIPT_DIR")" ]; then
+    if [ -n "$(git -C "$REPO_DIR" status --porcelain -- "$SCRIPT_DIR" ":(exclude)$SCRIPT_DIR/release-notes.md")" ]; then
         RECIPES_COMMIT+=" (with uncommitted changes in $(basename "$SCRIPT_DIR"))"
     fi
 

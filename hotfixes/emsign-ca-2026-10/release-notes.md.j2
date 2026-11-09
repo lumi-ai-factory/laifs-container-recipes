@@ -13,40 +13,28 @@
 - [GitHub release]({{ repo_url }}/releases/tag/{{ name }})
 - [Notice for users]({{ incident_url }}/README.md)
 - [Known issues]({{ repo_url }}/issues?q=label%3A{{ name }})
-{% for release in releases %}
-- [Patched release of `{{ release.build_tag }}`](#{{ release.variant }})
-{% endfor %}
 
-Every supported lumi-multitorch variant has a **fixed release**,
-whose images no longer trust the root certificate `emSign ECC Root CA - G3`.
-It replaces all affected releases of its variant. The newest variant's fixed
-release is an official release. For the earlier variants, this hotfix makes
-**patched releases**: it patches the latest release of each variant and
-publishes the results together as `{{ name }}`. Each patched release is a new
-release of its variant, and they all share one build ID. See the notice for
-users, [README.md]({{ incident_url }}/README.md), for the affected releases and what to do.
+This hotfix makes **patched releases** of the earlier lumi-multitorch
+variants, whose images no longer trust the root certificate
+`emSign ECC Root CA - G3`. See the [notice for users]({{ incident_url }}/README.md)
+for what to do.
 
-The patched releases are the original releases with only these packages
-upgraded to
+Each patched release is the latest release of its variant with only these
+packages upgraded to
 [versions that no longer trust the root](https://emudhra.we-have-a-problem.com/#patched-bundles):
 
-- `ca-certificates` 20260816ubuntu0.24.04.1, Ubuntu's system CA store, in all
-  images,
-- `pip` 26.2.2 and `certifi` 2026.10.19 or newer in the images with Python
-  packages in `/opt/venv` (torch, full and plus). In the u24r64 torch image,
-  which had no `certifi`, `certifi` is added,
-- `botocore` 1.43.117 or newer in the images that have it (full and plus), as
+- `ca-certificates`, Ubuntu's system CA store, in all images,
+- `pip` and `certifi` in the torch, full and plus images,
+- `botocore` in the full and plus images, as
   [AWS security bulletin 2026-150-AWS](https://aws.amazon.com/security/security-bulletins/2026-150-aws/)
-  advises, with `boto3`, which has to match its version, and in the u24r64
-  full image `s3transfer`, which the newer `boto3` needs.
+  advises, with the packages it needs.
 
-Everything else, including the images' environment and runscript, is as in the
-original release.
+The exact versions are in the package changes of each image.
 
 ## Fixed releases
 
-The fixed release of each variant, and the affected releases that it replaces.
-For a patched release, the release it's built on is in bold:
+The release to use for each variant, and the affected releases that it
+replaces. Patched releases are built on the release in bold:
 
 {# Affected releases of each patched variant, by build timestamp #}
 {% set affected = {
@@ -61,17 +49,6 @@ For a patched release, the release it's built on is in bold:
 {% endfor %}
 | u24r64f21m43t28 | None, end of life | 20251128_145346 |
 | `laifs-lumi-multi-20250728_103251.sif` | None, end of life | - |
-
-Two variants have no patched release:
-
-- **u24r72f21m50t211:** the official release `u24r72f21m50t211-20261028_090706`
-  is the fixed release, with the same main component versions as
-  `u24r72f21m50t211-20260929_104918`.
-- **u24r64f21m43t28:** its only release, pre-release
-  `u24r64f21m43t28-20251128_145346`, is end of life.
-
-The image `laifs-lumi-multi-20250728_103251.sif` on LUMI, from before
-lumi-multitorch, is also affected and end of life.
 
 ## Patched releases
 {% for release in releases %}

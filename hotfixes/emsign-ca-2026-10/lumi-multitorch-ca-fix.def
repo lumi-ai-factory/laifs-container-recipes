@@ -2,7 +2,7 @@
 # This file installs the patched versions listed at https://emudhra.we-have-a-problem.com/#patched-bundles,
 # which no longer trust that root:
 #
-#  - Ubuntu's ca-certificates 20260816ubuntu0.24.04.1, the system CA store
+#  - Ubuntu's ca-certificates 20260816ubuntu0.24.04.1 or newer, the system CA store
 #    used by e.g. curl, git and Python's ssl module, in all images,
 #
 # and in images with Python packages in /opt/venv (torch, full and plus):
@@ -128,4 +128,4 @@ EOF
 
 %labels
     fi.lumi-ai-factory.patched-image {{ image }}
-    fi.lumi-ai-factory.patch emSign CA incident 2026-10: ca-certificates 20260816ubuntu0.24.04.1; in /opt/venv pip 26.2.2, certifi >= 2026.10.19, botocore >= 1.43.117 if installed
+    fi.lumi-ai-factory.patch emSign CA incident 2026-10: ca-certificates >= 20260816ubuntu0.24.04.1; in /opt/venv pip 26.2.2, certifi >= 2026.10.19, botocore >= 1.43.117 if installed

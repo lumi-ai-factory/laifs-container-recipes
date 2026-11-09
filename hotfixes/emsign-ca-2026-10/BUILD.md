@@ -42,14 +42,17 @@ releases from the build logs, and writes:
   `builds/lumi-multitorch-emsign-ca-2026-10-<build-id>/lumi-multitorch-emsign-ca-2026-10-<build-id>-release.md`:
   release links, what the hotfix changes, the patched releases with their SIF
   checksums, and the package changes of all images, from their
-  `-changes.json`,
+  `-changes.json`, and a copy of them in each patched release's directory,
 - each patched release's directory without the SIFs,
   `builds/lumi-multitorch-emsign-ca-2026-10-<build-id>/lumi-multitorch-<hotfix-build-tag>-release.tgz`.
 
 The release notes are rendered from the Jinja template
 [release-notes.md.j2](release-notes.md.j2), which needs `jinja2` from the
 repository's [requirements.txt](../../requirements.txt). Edit the template to
-change their text.
+change their text. The script also copies the release notes to
+[release-notes.md](release-notes.md) in this folder, which the notice links
+to. Commit it. If you build on a separate build host, copy the release notes
+from the hotfix's build directory instead.
 
 To build, diff and prepare the release for the latest affected release of each
 variant, or for the given releases. All patched releases get the same build ID,

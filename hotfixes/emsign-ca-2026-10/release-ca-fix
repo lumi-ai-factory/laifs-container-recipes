@@ -10,6 +10,10 @@ writes its assets to builds/lumi-multitorch-emsign-ca-2026-10-<build-id>/:
       Release notes, rendered from the Jinja template release-notes.md.j2,
       with the patched releases and the checksums of their SIF files, and
       the package changes of all images, from diff-ca-fix's -changes.json.
+      Also copied to each patched release's directory, so that its archive,
+      its directory on LUMI and the release artifacts repository have them,
+      and to release-notes.md in this folder, which the notice links to.
+      Commit that copy.
   lumi-multitorch-<variant>-<build-id>-release.tgz
       Each patched release's directory without the SIF files, like an
       official release's archive.
@@ -23,6 +27,7 @@ Usage: release-ca-fix build-id
 
 import json
 import re
+import shutil
 import subprocess
 import sys
 import tarfile
@@ -123,6 +128,14 @@ def write_notes(build_id, releases):
     notes_file = HOTFIX_DIR / f"{RELEASE_NAME}-{build_id}-release.md"
     notes_file.write_text(notes)
     print(f"Release notes: {notes_file}")
+
+    # Before write_archives, so that the archives have them
+    for hotfix_tag in releases:
+        shutil.copy(notes_file, HOTFIX_DIR / f"lumi-multitorch-{hotfix_tag}")
+
+    # For the notice, which links to them
+    shutil.copy(notes_file, SCRIPT_DIR / "release-notes.md")
+    print(f"Release notes: {SCRIPT_DIR / 'release-notes.md'}")
 
 
 def write_archives(releases):
