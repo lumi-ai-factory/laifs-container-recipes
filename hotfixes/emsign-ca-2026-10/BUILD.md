@@ -49,10 +49,7 @@ releases from the build logs, and writes:
 The release notes are rendered from the Jinja template
 [release-notes.md.j2](release-notes.md.j2), which needs `jinja2` from the
 repository's [requirements.txt](../../requirements.txt). Edit the template to
-change their text. The script also copies the release notes to
-[release-notes.md](release-notes.md) in this folder, which the notice links
-to. Commit it. If you build on a separate build host, copy the release notes
-from the hotfix's build directory instead.
+change their text.
 
 To build, diff and prepare the release for the latest affected release of each
 variant, or for the given releases. All patched releases get the same build ID,
@@ -61,3 +58,7 @@ so only one release of each variant can be given:
 ```bash
 hotfixes/emsign-ca-2026-10/build-all-ca-fix [build-tag ...] [image ...]
 ```
+
+It logs the git status, the checksums of the hotfix files and the output of
+all steps, like `scripts/build-wrapper`, to
+`builds/lumi-multitorch-emsign-ca-2026-10-<build-id>/lumi-multitorch-emsign-ca-2026-10-<build-id>.log`.

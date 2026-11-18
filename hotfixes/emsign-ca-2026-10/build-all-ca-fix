@@ -7,6 +7,9 @@
 # lumi-multitorch-emsign-ca-2026-10. All patched releases and the release's
 # assets go to builds/lumi-multitorch-emsign-ca-2026-10-<build-id>/:
 #
+#   lumi-multitorch-emsign-ca-2026-10-<build-id>.log
+#       build log, like scripts/build-wrapper's: the git status, the
+#       checksums of the hotfix files and the output of all steps
 #   lumi-multitorch-emsign-ca-2026-10-<build-id>-release.md
 #       release notes, with the patched releases and their SIF checksums
 #   lumi-multitorch-<variant>-<build-id>-release.tgz
@@ -92,11 +95,43 @@ main() {
         RELEASE_IMAGES+=("$images")
     done
 
-    HOTFIX_TAGS=()
+    # Build log, as in scripts/build-wrapper
+    hotfix_dir="$REPO_DIR/builds/lumi-multitorch-emsign-ca-2026-10-${BUILD_ID}"
+    build_log="$hotfix_dir/lumi-multitorch-emsign-ca-2026-10-${BUILD_ID}.log"
+    mkdir -p "$hotfix_dir"
+
+    log "starting build with build ID $BUILD_ID for releases ${BUILD_TAGS[*]}"
+    log "git working dir status:"
+    {
+        echo "git commit: $(git -C "$REPO_DIR" rev-parse --short HEAD)"
+        echo "modified files: $(git -C "$REPO_DIR" status --porcelain | xargs echo)"
+        echo "git diff:"
+        git -C "$REPO_DIR" diff | sed 's/^/    /'
+    } | sed 's/^/    /' | tee -a "$build_log"
+
+    log "sha256 sums for the hotfix files are:"
+    (cd "$SCRIPT_DIR" && sha256sum build-all-ca-fix build-ca-fix diff-ca-fix release-ca-fix \
+        lumi-multitorch-ca-fix.def release-notes.md.j2) | sed 's/^/    /' | tee -a "$build_log"
+
+    log "starting container image builds"
+    # A pipe, not process substitution as in build-wrapper, so that a failed
+    # step stops the script (pipefail)
+    build_all 2>&1 | while IFS= read -r line; do
+        printf '%s [BUILD] %s\n' "$(date +'%Y%m%d %H:%M:%S')" "$line"
+    done | tee -a "$build_log"
+    log "container image builds completed"
+}
+
+# Log a line with a timestamp, as in scripts/build-wrapper
+log() {
+    echo "$(date +'%Y%m%d %H:%M:%S') $*" | tee -a "$build_log"
+}
+
+# Build, diff and release all patched releases
+build_all() {
     for i in "${!BUILD_TAGS[@]}"; do
         read -ra images <<< "${RELEASE_IMAGES[$i]}"
         hotfix_tag="${BUILD_TAGS[$i]%-*}-${BUILD_ID}"
-        HOTFIX_TAGS+=("$hotfix_tag")
 
         BUILD_ID="$BUILD_ID" "$SCRIPT_DIR/build-ca-fix" "${BUILD_TAGS[$i]}" "${images[@]}"
         "$SCRIPT_DIR/diff-ca-fix" "${BUILD_TAGS[$i]}" "$hotfix_tag" "${images[@]}"
