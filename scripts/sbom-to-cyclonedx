@@ -1,0 +1,286 @@
+#!/usr/bin/env python3
+"""Convert the images' SBOMs to CycloneDX, for vulnerability scanners.
+
+The images list their packages in /.sbom.json, which is published as
+<image-name>.json with each release:
+
+  {"apt": [{"name": ..., "version": ...}], "pip": [{"name": ..., "version": ...}]}
+
+This writes them as CycloneDX 1.7 JSON, with a package URL (purl) for each
+package, which scanners such as Grype and OSV-Scanner match against
+vulnerability databases:
+
+  apt  pkg:deb/ubuntu/<name>@<version>?distro=ubuntu-<release>[&upstream=<source>]
+  pip  pkg:pypi/<name>@<version>
+
+Ubuntu's advisories are by source package, e.g. openssl for libssl3t64, which
+the SBOMs don't list. So the source of each apt package is looked up in
+Ubuntu's package indexes (Packages.gz of the release and its -updates and
+-security pockets). They are downloaded in parallel to
+~/.cache/sbom-to-cyclonedx/, checked for changes once a day and downloaded
+again only if they changed, and parsed into sources-<codename>.json there.
+Packages that aren't in Ubuntu's archive, such as ROCm's, get no source.
+
+The Ubuntu release is read from the variant in the file name, e.g. u24 in
+lumi-multitorch-full-u24r70f21m50t210-20261109_161435.json is 24.04, or
+given with -d.
+
+The metadata names the supplier, links to this repository, and links to the
+image's GitHub release: the one given with -r, or else the release named
+after the file, e.g. lumi-multitorch-u24r70f21m50t210-20260807_115122 for
+lumi-multitorch-full-u24r70f21m50t210-20260807_115122.json, if that is a tag
+in this repository. Patched releases have no tags of their own, so give
+their hotfix's release with -r.
+
+Usage: sbom-to-cyclonedx [-d ubuntu-24.04] [-n] [-r release] [-o output] sbom.json ...
+
+  -d  Ubuntu release, default from the file name
+  -n  don't look up source packages, e.g. offline
+  -r  GitHub release of the images, e.g. lumi-multitorch-emsign-ca-2026-10,
+      default from the file name if it's a tag
+  -o  output file with one SBOM, - for stdout. By default, writes
+      <image-name>.cdx.json next to each SBOM. Files ending in
+      -changes.json are skipped.
+
+  e.g. sbom-to-cyclonedx releases/*/lumi-multitorch-*.json
+       grype sbom:lumi-multitorch-full-u24r70f21m50t210-20261109_161435.cdx.json
+"""
+
+import argparse
+import gzip
+import json
+import os
+import re
+import subprocess
+import sys
+import time
+import urllib.request
+import uuid
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+from urllib.parse import quote
+
+UBUNTU_MIRROR = "https://archive.ubuntu.com/ubuntu"
+UBUNTU_CODENAMES = {"24.04": "noble", "26.04": "resolute"}
+UBUNTU_COMPONENTS = ["main", "restricted", "universe", "multiverse"]
+CACHE_DIR = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "sbom-to-cyclonedx"
+CACHE_MAX_AGE = 86400
+REPO_URL = "https://github.com/lumi-ai-factory/laifs-container-recipes"
+SUPPLIER = {"name": "LUMI AI Factory", "url": ["https://github.com/lumi-ai-factory"]}
+
+
+def release_tags():
+    """The release tags in this repository, e.g. lumi-multitorch-u24r70f21m50t210-20260807_115122"""
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(Path(__file__).resolve().parent), "tag", "-l", "lumi-multitorch-*"],
+            check=True, capture_output=True, text=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        print("No git tags found; give the release with -r", file=sys.stderr)
+        return set()
+    return set(result.stdout.split())
+
+
+def release_from_name(sbom_file, tags):
+    """lumi-multitorch-<variant>-<build-id> of lumi-multitorch-<image>-<variant>-<build-id>.json, if it's a tag"""
+    match = re.fullmatch(r"lumi-multitorch-[a-z]+-(u\w+-\d{8}_\d{6})", sbom_file.stem)
+    if match and f"lumi-multitorch-{match.group(1)}" in tags:
+        return f"lumi-multitorch-{match.group(1)}"
+    return None
+
+
+def ubuntu_release(sbom_file):
+    """ubuntu-24.04 from u24 in the variant of the file name"""
+    match = re.search(r"-u(\d\d)r\d", sbom_file.name)
+    if not match:
+        sys.exit(f"No Ubuntu release in the name of {sbom_file}; give it with -d, e.g. -d ubuntu-24.04")
+    return f"ubuntu-{match.group(1)}.04"
+
+
+def refresh_index(path):
+    """Download one package index to the cache, if it changed. True if it did."""
+    cached = CACHE_DIR / path
+    if cached.exists() and time.time() - cached.stat().st_mtime < CACHE_MAX_AGE:
+        return False
+
+    request = urllib.request.Request(f"{UBUNTU_MIRROR}/{path}")
+    if cached.exists():
+        # HTTP date; Python's time formatting uses the C locale's names
+        request.add_header("If-Modified-Since", time.strftime("%a, %d %b %Y %H:%M:%S GMT", time.gmtime(cached.stat().st_mtime)))
+    try:
+        with urllib.request.urlopen(request, timeout=60) as response:
+            data = response.read()
+    except urllib.request.HTTPError as error:
+        if error.code != 304:
+            raise
+        # Not modified, e.g. the release pocket: check again in a day
+        cached.touch()
+        return False
+
+    print(f"Downloaded {UBUNTU_MIRROR}/{path}", file=sys.stderr)
+    cached.parent.mkdir(parents=True, exist_ok=True)
+    tmp = cached.with_suffix(".tmp")
+    tmp.write_bytes(data)
+    tmp.replace(cached)
+    return True
+
+
+def parse_index(path):
+    """{binary package: source package} of one package index, for the
+    packages whose source has another name"""
+    # Stanzas of "Package: <name>" and, if it differs from the package's
+    # name, "Source: <source> [(<version>)]"
+    sources = {}
+    package = None
+    with gzip.open(CACHE_DIR / path, "rt", encoding="utf-8", errors="replace") as f:
+        for line in f:
+            if line.startswith("Package: "):
+                package = line[9:].strip()
+            elif line.startswith("Source: ") and package:
+                source = line[8:].split(" ", 1)[0].strip()
+                if source != package:
+                    sources[package] = source
+    return sources
+
+
+def ubuntu_sources(distro):
+    """{binary package: source package} from Ubuntu's package indexes, for
+    the packages whose source has another name"""
+    version = distro.removeprefix("ubuntu-")
+    if version not in UBUNTU_CODENAMES:
+        sys.exit(f"Unknown Ubuntu release {version}; add its codename to UBUNTU_CODENAMES, or use -n")
+    codename = UBUNTU_CODENAMES[version]
+    paths = [
+        f"dists/{pocket}/{component}/binary-amd64/Packages.gz"
+        for pocket in (codename, f"{codename}-updates", f"{codename}-security")
+        for component in UBUNTU_COMPONENTS
+    ]
+
+    with ThreadPoolExecutor(max_workers=len(paths)) as pool:
+        changed = any(list(pool.map(refresh_index, paths)))
+
+    # The parsed indexes, rebuilt only when one of them changed
+    table = CACHE_DIR / f"sources-{codename}.json"
+    if table.exists() and not changed:
+        return json.loads(table.read_text())
+    sources = {}
+    for path in paths:
+        sources.update(parse_index(path))
+    tmp = table.with_suffix(".tmp")
+    tmp.write_text(json.dumps(sources))
+    tmp.replace(table)
+    return sources
+
+
+def component(manager, package, distro, sources):
+    """CycloneDX component of one package"""
+    name, version = package["name"], package["version"]
+    if manager == "apt":
+        # e.g. the epoch's ':' must be encoded
+        purl = f"pkg:deb/ubuntu/{quote(name)}@{quote(version, safe='')}?distro={distro}"
+        if name in sources:
+            purl += f"&upstream={quote(sources[name], safe='')}"
+    elif manager == "pip":
+        # PEP 503 normalized name, as in the purl spec
+        purl = f"pkg:pypi/{re.sub(r'[-_.]+', '-', name).lower()}@{quote(version, safe='')}"
+    else:
+        return None
+    return {
+        "type": "library",
+        "bom-ref": purl,
+        "name": name,
+        "version": version,
+        "purl": purl,
+    }
+
+
+def convert(sbom_file, distro, sources, release):
+    """CycloneDX document of one SBOM"""
+    sbom = json.loads(sbom_file.read_text())
+    unknown = set(sbom) - {"apt", "pip"}
+    if unknown:
+        print(f"{sbom_file}: skipping unknown package managers: {', '.join(sorted(unknown))}", file=sys.stderr)
+
+    components = [
+        c for manager in ("apt", "pip")
+        for package in sbom.get(manager, [])
+        if (c := component(manager, package, distro, sources))
+    ]
+    # Scanners use the operating system to pick the distribution's advisories
+    os_name, os_version = distro.split("-", 1)
+    components.insert(0, {
+        "type": "operating-system",
+        "bom-ref": distro,
+        "name": os_name,
+        "version": os_version,
+    })
+
+    repository = {"type": "vcs", "url": REPO_URL}
+    references = [repository]
+    if release:
+        references.append({"type": "release-notes", "url": f"{REPO_URL}/releases/tag/{release}"})
+
+    return {
+        "$schema": "http://cyclonedx.org/schema/bom-1.7.schema.json",
+        "bomFormat": "CycloneDX",
+        "specVersion": "1.7",
+        # Unique for every BOM, even if its contents don't change
+        "serialNumber": f"urn:uuid:{uuid.uuid4()}",
+        "version": 1,
+        "metadata": {
+            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "tools": {"components": [{
+                "type": "application",
+                "name": "sbom-to-cyclonedx",
+                "externalReferences": [repository],
+            }]},
+            "component": {
+                "type": "container",
+                "name": sbom_file.stem,
+                "supplier": SUPPLIER,
+                "externalReferences": references,
+            },
+        },
+        "components": components,
+    }
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Convert the images' SBOMs to CycloneDX.")
+    parser.add_argument("-d", "--distro", help="Ubuntu release, e.g. ubuntu-24.04, default from the file name")
+    parser.add_argument("-n", "--no-sources", action="store_true", help="don't look up source packages")
+    parser.add_argument("-r", "--release", help="GitHub release of the images, default from the file name if it's a tag")
+    parser.add_argument("-o", "--output", help="output file with one SBOM, - for stdout")
+    parser.add_argument("sboms", nargs="+", type=Path)
+    args = parser.parse_args()
+
+    sboms = [f for f in args.sboms if not f.name.endswith(("-changes.json", ".cdx.json"))]
+    if args.output and len(sboms) != 1:
+        sys.exit("-o needs exactly one SBOM")
+    if args.distro and not re.fullmatch(r"ubuntu-\d\d\.\d\d", args.distro):
+        sys.exit(f"Unknown distro {args.distro}, e.g. ubuntu-24.04")
+
+    tags = set() if args.release else release_tags()
+    sources_by_distro = {}
+    for sbom_file in sboms:
+        distro = args.distro or ubuntu_release(sbom_file)
+        if distro not in sources_by_distro:
+            sources_by_distro[distro] = {} if args.no_sources else ubuntu_sources(distro)
+        sources = sources_by_distro[distro]
+        release = args.release or release_from_name(sbom_file, tags)
+
+        bom = convert(sbom_file, distro, sources, release)
+        text = json.dumps(bom, indent=2) + "\n"
+        if args.output == "-":
+            sys.stdout.write(text)
+            continue
+        out = Path(args.output) if args.output else sbom_file.with_suffix(".cdx.json")
+        out.write_text(text)
+        upstream = sum("&upstream=" in c.get("purl", "") for c in bom["components"])
+        print(f"{out}: {len(bom['components']) - 1} packages, {upstream} with a source package, "
+              f"release {release or 'unknown'}", file=sys.stderr)
+
+
+if __name__ == "__main__":
+    main()
