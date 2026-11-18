@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# Image metadata that is the same for all recipes, see parse_step
+REPO_URL="https://github.com/lumi-ai-factory/laifs-container-recipes"
+IMAGE_VENDOR="LUMI AI Factory"
+LABEL_PREFIX="eu.lumi-ai-factory"
+
 log() {
     # Write command to log file. If no args are entered, open an input stream.
     if [ $# -gt 0 ]; then
@@ -283,16 +288,40 @@ parse_step() {
         STEP_DATA["SKIP_BUILD"]="false"
     fi
 
+    # Metadata of the image, with the standard OCI annotation keys. Every key
+    # is set on every build, because an image inherits the labels of its base
+    # image, such as org.opencontainers.image.version of the Ubuntu image. The
+    # labels describe the build that produced the image, so an image reused
+    # from an earlier build (SKIP_BUILD) keeps the labels of that build.
+    # "created" is when the build of the image started.
+    local BASE_NAME="${STEP_DATA['BASE_IMAGE']}${STEP_DATA['BASE_IMAGE_TAG']:+:${STEP_DATA['BASE_IMAGE_TAG']}}"
+    local LABELS=(
+        --label cf_lineage="${STEP_DATA['CF_LINEAGE']}"
+        --label org.opencontainers.image.title="${STEP_DATA['IMAGE_NAME']}"
+        --label org.opencontainers.image.version="${RELEASE_ID}"
+        --label org.opencontainers.image.created="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        --label org.opencontainers.image.revision="${GIT_REVISION}"
+        --label org.opencontainers.image.source="${REPO_URL}"
+        --label org.opencontainers.image.url="${REPO_URL}/releases/tag/${RELEASE_ID}"
+        --label org.opencontainers.image.vendor="${IMAGE_VENDOR}"
+        --label org.opencontainers.image.base.name="${BASE_NAME}"
+        --label "${LABEL_PREFIX}.recipe=${RECIPE_NAME}"
+    )
+
     local BUILD_COMMAND=(
         podman build -f "$BUILD_DIR/${STEP_DATA['CF_NAME']}"
         --secret=id=github-netrc,src=".github/auth/build.netrc"
-        --label cf_lineage="${STEP_DATA['CF_LINEAGE']}"
+        "${LABELS[@]}"
         -t "${STEP_DATA['IMAGE_NAME']}:${STEP_DATA['IMAGE_TAG']}"
         -t "${STEP_DATA['IMAGE_NAME']}:latest"
         .
     )
 
-    STEP_DATA["BUILD_COMMAND"]="${BUILD_COMMAND[@]}"
+    # Quote each argument, as the command is run with eval and label values
+    # can have spaces
+    local QUOTED_COMMAND
+    printf -v QUOTED_COMMAND '%q ' "${BUILD_COMMAND[@]}"
+    STEP_DATA["BUILD_COMMAND"]="${QUOTED_COMMAND% }"
 }
 
 
@@ -359,12 +388,28 @@ build_image() {
     echo "Building ${STEP['IMAGE_NAME']}:${STEP['IMAGE_TAG']} completed at $(date)"
 }
 
+read_recipe() {
+    # Set the recipe-wide build variables: the build tag, the recipe name, the
+    # release ID and the commit of this repository, marked "-dirty" if
+    # tracked files have changes. These go to the labels of each image.
+    #
+    BUILD_TAG=$(yq . $RECIPE_FILE | jq -r '.tag')
+    RECIPE_NAME=$(yq . $RECIPE_FILE | jq -r '.name')
+    RELEASE_ID=$(yq . $RECIPE_FILE | jq -r '.release // "\(.name)-\(.tag)"')
+
+    local REPO_DIR="$(dirname "$(readlink -f "$0")")/.."
+    GIT_REVISION=$(git -C "$REPO_DIR" rev-parse HEAD)
+    if ! git -C "$REPO_DIR" diff --quiet HEAD; then
+        GIT_REVISION+="-dirty"
+    fi
+}
+
 build_images() {
     # Execute all build steps from a recipe
     #
     echo "Building images from recipe $(yq . $RECIPE_FILE | jq -r '.name') at $RECIPE_FILE"
 
-    BUILD_TAG=$(yq . $RECIPE_FILE | jq -r '.tag')
+    read_recipe
 
     yq -c . $RECIPE_FILE | jq -c '.steps.[]' | while IFS= read -r step; do
         build_image "${step}"
@@ -373,7 +418,7 @@ build_images() {
 
 dump_recipe() {
 
-    BUILD_TAG=$(yq . $RECIPE_FILE | jq -r '.tag')
+    read_recipe
 
     # Print internal representation of each step of a recipe
     echo -e "Recipe $(yq . $RECIPE_FILE | jq -r '.name') from file $RECIPE_FILE:\n"
@@ -398,7 +443,7 @@ dump_recipe() {
 
 show_commands() {
 
-    BUILD_TAG=$(yq . $RECIPE_FILE | jq -r '.tag')
+    read_recipe
 
     # Perform a dry run based on generated recipe
     yq -c . $RECIPE_FILE | jq -c '.steps.[]' | while IFS= read -r step_json; do
