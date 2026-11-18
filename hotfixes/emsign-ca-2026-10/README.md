@@ -167,23 +167,6 @@ python3 -m pip install --user --break-system-packages --upgrade "certifi>=2026.1
 1. **Rotate tokens that old images used.** Do this if you used tokens over the network from an old image, especially where traffic left LUMI through networks you don't control. This is a precaution; we aren't aware of any misuse.
 2. **Prefer `safetensors` model files**, and pin Hugging Face downloads to a specific commit (`revision=`).
 
-## Upcoming change: stable paths on LUMI
-
-We'll add a stable path for each variant, which points to its latest fixed release, and `latest`, which points to the newest variant:
-
-```text
-/appl/local/laifs/containers/lumi-multitorch/<variant>/<image>.sif
-/appl/local/laifs/containers/lumi-multitorch/latest/<image>.sif
-```
-
-where `<image>` is `rocm`, `libfabric`, `mpich`, `torch`, `full` or `plus`, for example `/appl/local/laifs/containers/lumi-multitorch/u24r72f21m50t211/full.sif`. Once they're in place, use these paths to get future fixes without changing your job scripts. To see which release a path points to:
-
-```bash
-readlink -f /appl/local/laifs/containers/lumi-multitorch/u24r72f21m50t211/full.sif
-```
-
-The release directories stay as they are, and `lumi-multitorch-latest.sif` keeps pointing to the newest full image, like `lumi-multitorch/latest/full.sif`. If you need an exact release for reproducibility, keep using its directory.
-
 ## More information
 
 - [eMudhra incident page](https://emudhra.we-have-a-problem.com/), with the patched versions of CA bundles and libraries

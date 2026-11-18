@@ -71,6 +71,29 @@ images of the earlier variants, including their `<image>-<variant>` tags,
 have no hotfixes: use the newest variant's images from Docker Hub, or the SIF
 images on LUMI.
 
+## Stable paths on LUMI
+
+**Upcoming change.** We'll add a stable path for each variant, which points
+to its latest fixed release, and `latest`, which points to the newest variant:
+
+```text
+/appl/local/laifs/containers/lumi-multitorch/<variant>/<image>.sif
+/appl/local/laifs/containers/lumi-multitorch/latest/<image>.sif
+```
+
+where `<image>` is `rocm`, `libfabric`, `mpich`, `torch`, `full` or `plus`,
+for example `/appl/local/laifs/containers/lumi-multitorch/u24r72f21m50t211/full.sif`.
+Once they're in place, use these paths to get future fixes without changing
+your job scripts. To see which release a path points to:
+
+```bash
+readlink -f /appl/local/laifs/containers/lumi-multitorch/u24r72f21m50t211/full.sif
+```
+
+The release directories stay as they are, and `lumi-multitorch-latest.sif`
+keeps pointing to the newest full image, like `lumi-multitorch/latest/full.sif`.
+If you need an exact release for reproducibility, keep using its directory.
+
 ## How vulnerabilities are fixed
 
 1. **Assess** which releases are affected, and how serious the issue is for
@@ -99,7 +122,8 @@ that points to the fixed release.
 
 ## Using the images securely
 
-- **Use the fixed release of your variant.** On LUMI, the stable paths
+- **Use the fixed release of your variant.** On LUMI, the
+  [stable paths](#stable-paths-on-lumi)
   `/appl/local/laifs/containers/lumi-multitorch/<variant>/<image>.sif` will
   point to the latest fixed release of each variant. On Docker Hub, the tag
   `lumiaifactory/lumi-multitorch:<image>-<variant>` points to the latest
