@@ -31,7 +31,7 @@ All images (rocm, libfabric, mpich, torch, full and, from u24r70f21m50t210-20260
 
 **Fixed in:** `u24r72f21m50t211-20261028_090706`, with `ca-certificates` 20260816ubuntu0.24.04.1, `certifi` 2026.10.23 and `pip` 26.2.2. The earlier variants have patched releases; see [Containers](#containers).
 
-The rocm, libfabric and mpich images have no Python packages, so only their system CA store is affected.
+The rocm, libfabric and mpich images have only Ubuntu's Python and `pip`, which use the system CA store, so only their system CA store is affected.
 
 ## What the risk is
 
@@ -41,7 +41,7 @@ An image trusts the root in three separate CA stores:
 - **`certifi`**, used by `requests`, `huggingface_hub`, `vllm`, `botocore` and many other Python libraries.
 - **`pip`'s own bundled copy of `certifi`.**
 
-Anyone holding a certificate issued under the compromised CA could pretend to be any HTTPS server to software in these containers. **To do that, they would also need to be in the network path between LUMI and that server. For a typical job this is unlikely, but the impact would be serious**:
+Anyone who can get certificates issued under the compromised CA could pretend to be any HTTPS server to software in these containers. **To do that, they would also need to be in the network path between LUMI and that server. For a typical job this is unlikely, but the impact would be serious**:
 
 - **Tampered downloads:** packages installed with `pip install`, models and datasets from the Hugging Face Hub, or code fetched with `git clone` could be replaced. A model in pickle format (`.bin`, `.pt`, `.ckpt`) can run arbitrary code when it's loaded.
 - **Stolen credentials:** access tokens sent over HTTPS could be read, for example `HF_TOKEN`, Weights & Biases API keys, GitHub tokens and API keys for external model services.
@@ -56,13 +56,11 @@ Anyone holding a certificate issued under the compromised CA could pretend to be
 
 ### Containers
 
-Switch to the **fixed release** of the variant you use, the release whose images no longer trust the root. For u24r72f21m50t211 it's the official release u24r72f21m50t211-20261028_090706. For the earlier variants it's a **patched release**, which we made by patching the variant's latest release. Each fixed release replaces all affected releases of its variant. All releases of a variant have the same Ubuntu, ROCm, libfabric, MPICH and PyTorch versions, so most jobs only need the image path changed, but other packages can be newer than in the earlier releases. The fixed release of each variant, and the releases it replaces, are listed in the [release notes](https://github.com/lumi-ai-factory/laifs-container-recipes/releases/tag/lumi-multitorch-emsign-ca-2026-10), with the checksums and package changes of the patched releases.
-
-The patched releases are built on u24r70f21m50t210-20260807_115122 and u24r64f21m43t29-20260319_153422, with only the fixed CA stores, `pip`, `certifi` and `botocore`, with `boto3`, installed on top. Apart from these, they have the same package versions as the release they're built on.
+Switch to the **fixed release** of your variant: the official release [u24r72f21m50t211-20261028_090706](https://github.com/lumi-ai-factory/laifs-container-recipes/releases/tag/lumi-multitorch-u24r72f21m50t211-20261028_090706) for u24r72f21m50t211, and for the earlier variants a **patched release**, which is the variant's latest release with the fix on top. A fixed release has the same Ubuntu, ROCm, libfabric, MPICH and PyTorch versions as the releases it replaces, so most jobs only need the image path changed, but other packages can be newer. The [release notes](https://github.com/lumi-ai-factory/laifs-container-recipes/releases/tag/lumi-multitorch-emsign-ca-2026-10) list the fixed release of each variant, the releases it replaces, and the checksums and package changes of the patched releases.
 
 **End of life:** u24r64f21m43t28 and `laifs-lumi-multi-20250728_103251.sif` get no fixed release. Move to a supported variant, e.g. the full image of u24r72f21m50t211-20261028_090706. Other packages, and the ROCm and PyTorch versions, can differ from the old image, so check that your jobs work with it.
 
-On LUMI, each release has its own directory, e.g. `/appl/local/laifs/containers/lumi-multitorch-u24r72f21m50t211-20261028_090706/`. `/appl/local/laifs/containers/lumi-multitorch-latest.sif` already points to the full image of the fixed release u24r72f21m50t211-20261028_090706. See also the [upcoming stable paths](#upcoming-change-stable-paths-on-lumi), which will point to the fixed release of each variant.
+On LUMI, each release has its own directory, e.g. `/appl/local/laifs/containers/lumi-multitorch-u24r72f21m50t211-20261028_090706/`. `/appl/local/laifs/containers/lumi-multitorch-latest.sif` already points to the full image of the fixed release u24r72f21m50t211-20261028_090706.
 
 Rebuild container images that you have derived from an old image on top of a fixed one.
 
@@ -90,17 +88,19 @@ In a fixed image, all of these fail with a certificate error (`unable to get loc
 <details>
 <summary>Keep using an old image for now</summary>
 
-If you have to keep an old image for now, pass it a CA bundle that no longer trusts the root, for example the one from the fixed image:
+If you have to keep an old image for now, pass it a CA bundle that no longer trusts the root, for example the one from the fixed image, and an empty certificate directory in place of the image's own:
 
 ```bash
 singularity exec /appl/local/laifs/containers/lumi-multitorch-u24r72f21m50t211-20261028_090706/lumi-multitorch-full-u24r72f21m50t211-20261028_090706.sif \
     cat /etc/ssl/certs/ca-certificates.crt > $HOME/ca-certificates.crt
+mkdir -p $HOME/empty-ca-dir
 
 export SINGULARITYENV_SSL_CERT_FILE=$HOME/ca-certificates.crt
+export SINGULARITYENV_SSL_CERT_DIR=$HOME/empty-ca-dir
 export SINGULARITYENV_REQUESTS_CA_BUNDLE=$HOME/ca-certificates.crt
 export SINGULARITYENV_PIP_CERT=$HOME/ca-certificates.crt
-export SINGULARITYENV_CURL_CA_BUNDLE=$HOME/ca-certificates.crt
 export SINGULARITYENV_GIT_SSL_CAINFO=$HOME/ca-certificates.crt
+export SINGULARITYENV_GIT_SSL_CAPATH=$HOME/empty-ca-dir
 export SINGULARITYENV_AWS_CA_BUNDLE=$HOME/ca-certificates.crt
 ```
 
@@ -110,7 +110,7 @@ This covers most tools, but not libraries that load `certifi`'s bundle directly 
 
 ### Virtual environments
 
-**In short:** in the torch, full and plus images, environments use the image's `pip` and `certifi`, so switching to a fixed image is enough. In other cases, upgrade `certifi` in the environment as shown below, or recreate the environment on a fixed image, with no old `certifi` pinned in its requirements.
+**In short:** in the torch, full and plus images, environments use the image's `pip` and `certifi`, so switching to a fixed image is enough. In other cases, upgrade the environment's `pip` and `certifi` as shown below, or recreate the environment on a fixed image, with no old `certifi` pinned in its requirements.
 
 <details>
 <summary>Check which <code>pip</code> and <code>certifi</code> an environment uses</summary>
