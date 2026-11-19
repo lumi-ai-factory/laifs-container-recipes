@@ -56,7 +56,7 @@ Anyone who can get certificates issued under the compromised CA could pretend to
 
 ### Containers
 
-Switch to the **fixed release** of your variant: the official release [u24r72f21m50t211-20261028_090706](https://github.com/lumi-ai-factory/laifs-container-recipes/releases/tag/lumi-multitorch-u24r72f21m50t211-20261028_090706) for u24r72f21m50t211, and for the earlier variants a **patched release**, which is the variant's latest release with the fix on top. A fixed release has the same Ubuntu, ROCm, libfabric, MPICH and PyTorch versions as the releases it replaces, so most jobs only need the image path changed, but other packages can be newer. The [release notes](https://github.com/lumi-ai-factory/laifs-container-recipes/releases/tag/lumi-multitorch-emsign-ca-2026-10) list the fixed release of each variant, the releases it replaces, and the checksums and package changes of the patched releases.
+Switch to the **fixed release** of your variant: the official release [u24r72f21m50t211-20261028_090706](https://github.com/lumi-ai-factory/laifs-container-recipes/releases/tag/lumi-multitorch-u24r72f21m50t211-20261028_090706) for u24r72f21m50t211, and for the earlier variants a **patched release**, which is the variant's latest release with the fix on top. A fixed release has the same Ubuntu, ROCm, libfabric, MPICH and PyTorch versions as the releases it replaces, so most jobs only need the image path changed. Other packages, e.g. vLLM and transformers, are those of the variant's latest release, so they can be newer than in your release. The [release notes](https://github.com/lumi-ai-factory/laifs-container-recipes/releases/tag/lumi-multitorch-emsign-ca-2026-10) list the fixed release of each variant, the releases it replaces, and the checksums and package changes of the patched releases.
 
 **End of life:** u24r64f21m43t28 and `laifs-lumi-multi-20250728_103251.sif` get no fixed release. Move to a supported variant, e.g. the full image of u24r72f21m50t211-20261028_090706. Other packages, and the ROCm and PyTorch versions, can differ from the old image, so check that your jobs work with it.
 
@@ -75,10 +75,10 @@ singularity exec <image>.sif curl -sS https://dv-g3b-emudhra.we-have-a-problem.c
 singularity exec <image>.sif curl -sS https://dv-g3b-aaa-emudhra.we-have-a-problem.com/
 
 # certifi, used by requests, huggingface_hub and other Python libraries (images that have requests)
-singularity exec <image>.sif python -c "import requests; requests.get('https://dv-g3b-emudhra.we-have-a-problem.com/')" 2>&1 | tail -1
+singularity exec <image>.sif python3 -c "import requests; requests.get('https://dv-g3b-emudhra.we-have-a-problem.com/')" 2>&1 | tail -1
 
 # pip, which uses both
-singularity exec <image>.sif python -m pip install --retries 0 https://dv-g3b-emudhra.we-have-a-problem.com/
+singularity exec <image>.sif python3 -m pip install --retries 0 https://dv-g3b-emudhra.we-have-a-problem.com/
 ```
 
 In a fixed image, all of these fail with a certificate error (`unable to get local issuer certificate` or `CERTIFICATE_VERIFY_FAILED`). Run the same commands in your virtual environments and in images you have derived from ours. If the `requests` check prints nothing, it connected successfully. `pip` reports `Cannot determine archive format` if it connects successfully, because the test host doesn't serve a package.
@@ -110,55 +110,48 @@ This covers most tools, but not libraries that load `certifi`'s bundle directly 
 
 ### Virtual environments
 
-**In short:** in the torch, full and plus images, environments use the image's `pip` and `certifi`, so switching to a fixed image is enough. In other cases, upgrade the environment's `pip` and `certifi` as shown below, or recreate the environment on a fixed image, with no old `certifi` pinned in its requirements.
+**In short:** virtual environments that you make on top of the image's Python and run in the torch, full and plus images use the image's `pip` and `certifi`, however they were made, so switching to a fixed image is enough. In other cases, the easiest and safest fix is to **recreate the environment on a fixed image**, with no old `certifi` pinned in its requirements.
+
+Upgrading an environment in place is a worse option, only for environments you can't recreate: it takes more steps, depends on what the environment has, and is easy to leave half done.
 
 <details>
-<summary>Check which <code>pip</code> and <code>certifi</code> an environment uses</summary>
+<summary>Check and upgrade an environment in place</summary>
 
-The torch, full and plus images put their Python packages in `/opt/venv` on `PYTHONPATH`, which Python searches before the packages of a virtual environment. So a virtual environment used in these images always uses the image's `pip` and `certifi`, even if it has its own copies:
-
-- **Switching to a fixed image fixes them.** You don't need to rebuild or upgrade the environment.
-- **Upgrading them in the environment while using an old image has no effect.** `pip` installs the new copies into the environment, but Python keeps using the image's old ones.
-
-To check which copies an environment uses, activate it in the image you use, i.e. the fixed image once you've switched, and run:
+This matters in the rocm, libfabric and mpich images, or in any image with `PYTHONPATH` unset. Do it in the fixed image: `pip` 24.2 and later also trust the system CA store of the image, and an old image's store contains the root ([pip documentation](https://pip.pypa.io/en/stable/topics/https-certificates/)). Activate the environment, if you use one, and run:
 
 ```bash
-python -c "import certifi, pip; print('certifi', certifi.__version__, certifi.__file__); print('pip', pip.__version__, pip.__file__)"
+python3 -c "import pip; from pip._vendor import certifi; print('pip', pip.__file__, certifi.where())"
+python3 -c "import certifi; print('certifi', certifi.__file__)"
 ```
 
-If the printed paths aren't in `/opt/venv`, the environment has its own copies. These are, for example, environments made on the rocm, libfabric or mpich images, which have no `/opt/venv`, or used with `PYTHONPATH` unset. If the environment has no `certifi` of its own, the command fails with `ModuleNotFoundError: No module named 'certifi'`; then only its `pip` matters.
+Then do everything that applies:
 
-</details>
+| The check prints | What to do |
+|---|---|
+| Paths in `/opt/venv` | Nothing: these are the image's copies, which come first on `PYTHONPATH` |
+| `pip` with `/etc/ssl/certs/ca-certificates.crt` | Nothing: Ubuntu's `pip`, from `python3 -m venv`, uses the system CA store |
+| `pip` with a path in the environment | Its own `pip`, with an old copy of `certifi`: upgrade it (1) |
+| `certifi` with a path in the environment | Its own `certifi`: upgrade it (2), after `pip` |
+| `certifi` in `~/.local` | Installed with `pip install --user`: upgrade it (3) |
+| `No module named 'certifi'` | Nothing: the environment has no `certifi` of its own |
 
-<details>
-<summary>Upgrade an environment's own <code>pip</code> and <code>certifi</code></summary>
+1. Install the new `pip` from its wheel, whose SHA-256 hash `pip` checks:
 
-With the environment activated in a fixed image, check which CA bundle its `pip` uses:
+   ```bash
+   python3 -m pip install "pip @ https://files.pythonhosted.org/packages/3f/06/3e4420302363fbb71be3c7f35ce042f54bfca330e3e66b3a2e3c4cca579f/pip-26.2.2-py3-none-any.whl#sha256=fd7f4dfa8190e014013b9f08f3e973f4e4c26ffd179a204895533a7254813a70"
+   ```
 
-```bash
-python -c "from pip._vendor import certifi; print(certifi.where())"
-```
+2. Upgrade the environment's `certifi`:
 
-- **`/etc/ssl/certs/ca-certificates.crt`:** the environment has Ubuntu's `pip`, which uses the image's system CA store, so switching to a fixed image fixes it. Environments made with `python3 -m venv` in the rocm, libfabric and mpich images have this `pip`.
-- **A path in the environment:** its `pip` uses its own copy of `certifi`, which stays old even after you switch images and trusts the root. Install the new `pip` from its wheel with the wheel's SHA-256 hash, which `pip` checks:
+   ```bash
+   python3 -m pip install --upgrade "certifi>=2026.10.19"
+   ```
 
-  ```bash
-  python -m pip install "pip @ https://files.pythonhosted.org/packages/3f/06/3e4420302363fbb71be3c7f35ce042f54bfca330e3e66b3a2e3c4cca579f/pip-26.2.2-py3-none-any.whl#sha256=fd7f4dfa8190e014013b9f08f3e973f4e4c26ffd179a204895533a7254813a70"
-  ```
+3. Upgrade a `certifi` installed with `--user`, which only Ubuntu's `python3` allows:
 
-A `certifi` of the environment's own stays old even after you switch images. Once its `pip` is fixed, upgrade it normally:
-
-```bash
-python -m pip install --upgrade "certifi>=2026.10.19"
-```
-
-The same applies to packages installed with `pip install --user`, which only Ubuntu's `python3` allows, with `--break-system-packages`. In the torch, full and plus images, `/opt/venv` comes before them, so the image's copies are used. In the rocm, libfabric and mpich images, or with `PYTHONPATH` unset, a `certifi` installed with `--user` is used and stays old. Ubuntu's `pip` uses the system CA store, so with a fixed image you can upgrade it directly:
-
-```bash
-python3 -m pip install --user --break-system-packages --upgrade "certifi>=2026.10.19"
-```
-
-> **Note:** when you upgrade an environment's own copies, upgrading `pip` is not enough if the environment runs on an old image: `pip` 24.2 and later also trust the system CA store of that image, which contains the root ([pip documentation](https://pip.pypa.io/en/stable/topics/https-certificates/)).
+   ```bash
+   python3 -m pip install --user --break-system-packages --upgrade "certifi>=2026.10.19"
+   ```
 
 </details>
 
