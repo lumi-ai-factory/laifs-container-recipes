@@ -90,7 +90,8 @@ your job scripts. To see which release a path points to:
 readlink -f /appl/local/laifs/containers/lumi-multitorch/u24r72f21m50t211/full.sif
 ```
 
-The release directories stay as they are, and `lumi-multitorch-latest.sif`
+The release directories stay as they are, unless an image is
+[too dangerous to keep](#removing-dangerous-images), and `lumi-multitorch-latest.sif`
 keeps pointing to the newest full image, like `lumi-multitorch/latest/full.sif`.
 If you need an exact release for reproducibility, keep using its directory.
 
@@ -116,9 +117,25 @@ If you need an exact release for reproducibility, keep using its directory.
    - **Images:** on LUMI, in `/appl/local/laifs/containers/`, and for official
      releases on Docker Hub.
 
-The original releases aren't changed or removed, so their names and checksums
+The original releases aren't changed or removed, except as described below, so their names and checksums
 stay valid for reproducibility. On LUMI, their directories get a `PATCHED.md`
 that points to the fixed release.
+
+### Removing dangerous images
+
+**The maintainers may remove an image from LUMI, or make it unreadable,
+without prior notice** if keeping it available is dangerous, for example if:
+
+- it contains malicious code from a supply chain attack, such as a
+  compromised Python package, or a model or dataset from Hugging Face that
+  runs code when loaded,
+- it contains exposed credentials, or
+- it has a vulnerability that is actively exploited.
+
+Jobs that use the image then fail. Afterwards, we
+publish a notice that says which images were removed, why, and which release
+to use instead. Their release notes, checksums and SBOMs stay published on
+GitHub.
 
 ## Using the images securely
 
