@@ -21,7 +21,11 @@ RUN --mount=type=secret,id=github-netrc,target=/root/.netrc,mode=0600 \
     #
     # Cache compiler output of the kernel build, which persists between builds
     export CCACHE_DIR=/root/.cache/ccache CCACHE_MAXSIZE=10G; \
-    export PYTORCH_NVCC="ccache /opt/rocm/bin/hipcc"; \
+    # Silence compiler warnings of the kernel build: -w on the hipcc command
+    # line (not in HIPCC_COMPILE_FLAGS_APPEND, which ccache doesn't see), and
+    # CFLAGS for the host C++ files, which setuptools adds to the c++ command
+    export PYTORCH_NVCC="ccache /opt/rocm/bin/hipcc -w"; \
+    export CFLAGS="-w"; \
     export AMDGPU_TARGET="${SGLANG_GPU_ARCH}"; \
     export PYTORCH_ROCM_ARCH="${SGLANG_GPU_ARCH}"; \
     export MAX_JOBS="${SGLANG_JOBS:-$(nproc)}"; \
