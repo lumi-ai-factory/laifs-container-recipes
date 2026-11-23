@@ -29,26 +29,28 @@ packages upgraded to
   [AWS security bulletin 2026-150-AWS](https://aws.amazon.com/security/security-bulletins/2026-150-aws/)
   advises, with the packages it needs.
 
-The exact versions are in the package changes of each image.
+The exact versions are in the package changes of the full image, which has
+all of these packages. The package changes of each image are in the
+release's archive, in `-changes.json` files.
 
 ## Fixed releases
 
-The release to use for each variant, and the affected releases that it
-replaces. Patched releases are built on the release in bold:
+The release to use for each variant, the release that a patched release is
+built on, and the affected releases that it replaces:
 
 {# Affected releases of each patched variant, by build timestamp #}
 {% set affected = {
     "u24r70f21m50t210": ["20260415_130625", "20260513_121430", "20260731_122833", "20260807_115122"],
     "u24r64f21m43t29": ["20251209_134408", "20260124_092648", "20260216_093549", "20260225_144743", "20260319_153422"],
 } %}
-| Variant | Fixed release | Replaces |
-|---|---|---|
-| u24r72f21m50t211 | `u24r72f21m50t211-20261028_090706`, official release | 20260929_104918 |
+| Variant | Fixed release | Built on | Replaces |
+|---|---|---|---|
+| u24r72f21m50t211 | `u24r72f21m50t211-20261028_090706`, official release | - | 20260929_104918 |
 {% for release in releases %}
-| {{ release.variant }} | [`{{ release.hotfix_tag }}`](#{{ release.variant }}), patched release | {% for timestamp in affected[release.variant] %}{% if release.build_tag.endswith(timestamp) %}**{{ timestamp }}**{% else %}{{ timestamp }}{% endif %}{% if not loop.last %}, {% endif %}{% endfor %} |
+| {{ release.variant }} | [`{{ release.hotfix_tag }}`](#{{ release.variant }}), patched release | {{ release.build_tag.rsplit("-", 1)[1] }} | {{ affected[release.variant] | join(", ") }} |
 {% endfor %}
-| u24r64f21m43t28 | None, end of life | 20251128_145346 |
-| `laifs-lumi-multi-20250728_103251.sif` | None, end of life | - |
+| u24r64f21m43t28 | None, end of life | - | 20251128_145346 |
+| `laifs-lumi-multi-20250728_103251.sif` | None, end of life | - | - |
 
 ## Patched releases
 {% for release in releases %}
@@ -65,10 +67,8 @@ Release `{{ release.hotfix_tag }}` patches [`{{ release.build_tag }}`]({{ repo_u
 
 {# GitHub needs the blank lines around the Markdown inside <details> #}
 <details>
-<summary>Package changes</summary>
-{% for image, diff in release.changes.items() %}
-
-#### Image lumi-multitorch-{{ image }}-{{ release.hotfix_tag }}
+<summary>Package changes of the full image</summary>
+{% set diff = release.changes.full %}
 
 Comprehensive list of package changes comparing the following releases:
 
@@ -76,7 +76,7 @@ Comprehensive list of package changes comparing the following releases:
 - `{{ diff.new }}`
 {% for manager, changes in diff.changes.items() %}
 
-##### {{ manager.capitalize() }} package changes
+#### {{ manager.capitalize() }} package changes
 {% for kind in ["changed", "added", "removed"] if changes[kind] %}
 
 **{{ kind.capitalize() }}:**
@@ -89,15 +89,6 @@ Comprehensive list of package changes comparing the following releases:
 {% else %}
 
 _No changes detected._
-{% endfor %}
-{% if image == "plus" %}
-
-{# The Plus Containerfile doesn't regenerate /.sbom.json #}
-_Note: the released plus image's SBOM is inherited from the full image and
-misses the packages that the plus image adds, such as `transformer_engine`.
-The hotfix regenerates the SBOM, so these packages are listed as added,
-although the hotfix doesn't install them._
-{% endif %}
 {% endfor %}
 
 </details>

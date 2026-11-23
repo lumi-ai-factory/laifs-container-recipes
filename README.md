@@ -36,9 +36,13 @@ The workflow is designed to make it easy to update software versions, rebuild im
 │   ├── simple/
 │   └── torch/
 ├── hotfixes/                # Patches for already released images
+│   ├── README.md            # How hotfixes are built and deployed
+│   ├── link-variants        # Points the stable paths on LUMI to each variant's latest release
+│   ├── list-releases        # Lists the released variants and their build tags
 │   └── <incident>/          # For example emsign-ca-2026-10/
 │       ├── README.md        # Notice for users of the affected images
-│       └── RELEASE.md       # Building the patched images, and the patched releases
+│       ├── BUILD.md         # Building the patched images
+│       └── release-notes.md.j2  # Template of the release notes of the patched releases
 ├── recipes/                 # Recipe templates and variable files
 │   └── <recipe>/            # For example lumi-multitorch/ or simple-example/
 │       ├── <recipe>-template.yaml

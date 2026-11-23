@@ -9,7 +9,7 @@ writes its assets to builds/lumi-multitorch-emsign-ca-2026-10-<build-id>/:
   lumi-multitorch-emsign-ca-2026-10-<build-id>-release.md
       Release notes, rendered from the Jinja template release-notes.md.j2,
       with the patched releases and the checksums of their SIF files, and
-      the package changes of all images, from diff-ca-fix's -changes.json.
+      the package changes of the full image, from diff-ca-fix's -changes.json.
       Also copied to each patched release's directory, so that its archive,
       its directory on LUMI and the release artifacts repository have them.
   lumi-multitorch-<variant>-<build-id>-release.tgz
