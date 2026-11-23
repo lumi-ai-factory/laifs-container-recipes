@@ -49,8 +49,11 @@ From: {{ image }}
     # man-db's trigger can't write its cache under --fakeroot; skip it
     export DEBIAN_FRONTEND=noninteractive
     rm /var/lib/man-db/auto-update
-    apt-get update
-    apt-get install -y --only-upgrade ca-certificates
+    # Drop stalled connections to Ubuntu's archive and retry, instead of
+    # hanging: no pipelining, a shorter timeout and retries
+    apt_opts="-o Acquire::http::Pipeline-Depth=0 -o Acquire::http::Timeout=30 -o Acquire::Retries=5"
+    apt-get $apt_opts update
+    apt-get $apt_opts install -y --only-upgrade ca-certificates
     touch /var/lib/man-db/auto-update
     apt-get clean
     rm -rf /var/lib/apt/lists/*
