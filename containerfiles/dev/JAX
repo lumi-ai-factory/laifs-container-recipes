@@ -1,0 +1,59 @@
+ARG BASE_IMAGE
+ARG BASE_IMAGE_TAG
+
+# JAX with ROCm GPU support from the prebuilt jax-rocm7 plugin and PJRT wheels,
+# built on the lumi-multitorch MPICH image. The wheels are installed without
+# their "with-rocm" extra, so they use the system ROCm in /opt/rocm.
+
+FROM $BASE_IMAGE:$BASE_IMAGE_TAG
+
+ARG JAX_VERSION
+ARG JAX_PIP_PACKAGES
+ARG JAX_EXTRA_PIP_PACKAGES
+ARG MPI4PY_VERSION
+
+RUN set -eu; \
+    #
+    # The MPICH image has no Python venv, so create one for JAX
+    #
+    python3 -m venv /opt/venv; \
+    . /opt/venv/bin/activate; \
+    #
+    # Keep jax and jaxlib at JAX_VERSION, so that the unpinned extra packages
+    # can't upgrade them past the version of the ROCm wheels
+    printf 'jax==%s\njaxlib==%s\n' "${JAX_VERSION}" "${JAX_VERSION}" > /tmp/constraints.txt; \
+    export PIP_CONSTRAINT=/tmp/constraints.txt; \
+    pip install ${JAX_PIP_PACKAGES} ${JAX_EXTRA_PIP_PACKAGES}; \
+    #
+    # Build mpi4py from source with the mpicc of the base image's MPICH,
+    # instead of using a wheel that bundles its own MPI
+    pip install -v --no-binary mpi4py "mpi4py==${MPI4PY_VERSION}"; \
+    rm /tmp/constraints.txt; \
+    #
+    # Check that JAX, its ROCm plugin and the extra packages import (no GPU
+    # needed), and that mpi4py uses MPICH (without initializing MPI)
+    python -c "import jax, jaxlib, jax_rocm7_plugin; print('jax', jax.__version__, 'jaxlib', jaxlib.__version__)"; \
+    python -c "import jax; assert jax.__version__ == '${JAX_VERSION}', jax.__version__"; \
+    python -c "import flax, optax, orbax.checkpoint, grain; print('flax', flax.__version__, 'optax', optax.__version__)"; \
+    python -c "import mpi4py; mpi4py.rc.initialize = False; from mpi4py import MPI; v = MPI.Get_library_version(); print(v); assert 'MPICH' in v"; \
+    #
+    # Add SBOM, replacing the one inherited from the base image
+    #
+    apt_json="$(dpkg-query -W -f='${Package}\t${Version}\n' | jq -R -s 'split("\n")[:-1] | map(split("\t") | {name: .[0], version: .[1]})')"; \
+    pip_json="$(pip list --format=json)"; \
+    jq -n \
+      --argjson apt "$apt_json" \
+      --argjson pip "$pip_json" \
+      '{apt: $apt, pip: $pip}' > /.sbom.json
+
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Same entrypoint as the lumi-multitorch torch image: disable libfabric GPU
+# peer-to-peer in single-node jobs without GPUs allocated through Slurm
+RUN printf '#!/usr/bin/env bash\n\
+if [ "${SLURM_NNODES}" = 1 ] && [ -z "${SLURM_GPUS_ON_NODE}" ]; then\n\
+    export FI_HMEM_DISABLE_P2P=1\n\
+fi\n\
+exec "$@"\n' > /opt/oci-entrypoint.sh && chmod +x /opt/oci-entrypoint.sh
+
+ENTRYPOINT ["/opt/oci-entrypoint.sh"]

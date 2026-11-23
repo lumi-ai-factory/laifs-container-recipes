@@ -42,3 +42,26 @@ steps:
         {{ component_list("sglang") | indent(8) }}
     env:
       {{- component_env("sglang") }}
+
+  - name: {{ recipe_name }}-jax
+    base: "{{ images.jax.base }}"
+    template: {{ images.jax.template }}
+    desc: |
+      **Overview**<br>
+      This image builds on {{ images.jax.base }} by adding JAX with ROCm GPU
+      support, installed from the prebuilt jax-rocm7 plugin and PJRT wheels
+      into a Python venv in /opt/venv. The wheels use the system ROCm of the
+      base image. The venv also includes the XProf profiler, and mpi4py built
+      against the MPICH of the base image.
+
+      **Details**<br>
+      Base image: {{ images.jax.base }}<br>
+      Components:
+        {{ component_list("jax") | indent(8) }}
+
+      Extra Python packages, at the newest versions that work with JAX {{ comps.jax.version }}:
+      {%- for pkg in comps.jax.extra_pip_packages %}
+        - {{ pkg }}
+      {%- endfor %}
+    env:
+      {{- component_env("jax") }}

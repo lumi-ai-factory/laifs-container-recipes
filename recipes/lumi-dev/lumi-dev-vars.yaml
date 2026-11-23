@@ -45,5 +45,36 @@ images:
         gpu_arch: *gpu_arch
         # Parallel compile jobs of the kernel build, empty for one per CPU
         # core. Lower it if the build runs out of memory.
-        jobs: "1"
+        # jobs: "4"
         build_rust_exts: "none"
+
+#
+# Image lumi-dev-jax
+#
+  jax:
+    template: "dev/JAX"
+    base: "docker.io/lumiaifactory/lumi-multitorch:mpich-u24r72f21m50t211"
+    components:
+      - name: jax
+        title: "JAX"
+        note: "prebuilt ROCm 7 wheels from PyPI"
+        # 0.10.2 is the newest release with "Legacy ROCm" wheels on PyPI. The
+        # PyPI wheels of later releases need TheRock ROCm 7.14 instead of the
+        # ROCm 7.2 of the base image.
+        version: "0.10.2"
+        # rocm7-local: the ROCm plugin and PJRT wheels without ROCm from pip,
+        # so JAX uses the system ROCm of the base image. xprof: the XProf
+        # profiler for jax.profiler traces.
+        pip_packages:
+          - "jax[rocm7-local,xprof]=={version}"
+        # Libraries installed with JAX. They are not pinned: pip picks the
+        # newest versions that work with the JAX version above.
+        extra_pip_packages:
+          - flax
+          - optax
+          - orbax-checkpoint
+          - grain
+      - name: mpi4py
+        title: "mpi4py"
+        note: "built from the PyPI source against the MPICH of the base image"
+        version: "4.1.2"
