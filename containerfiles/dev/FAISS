@@ -6,7 +6,9 @@ ARG BASE_IMAGE_TAG
 
 FROM $BASE_IMAGE:$BASE_IMAGE_TAG
 
-ENV PATH=/opt/faiss/bin:${PATH}
+# /opt/rocm/bin isn't on the base image's PATH, but faiss/gpu/hipify.sh runs
+# hipify-perl from there by name. Appended, so /usr/bin/hipcc stays first.
+ENV PATH=/opt/faiss/bin:${PATH}:/opt/rocm/bin
 
 ARG FAISS_APT_PACKAGES
 

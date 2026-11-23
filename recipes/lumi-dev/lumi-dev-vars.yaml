@@ -23,11 +23,11 @@ images:
       - name: faiss
         title: "FAISS"
         repo: "https://github.com/facebookresearch/faiss.git"
-        version: "v1.15.1"
+        version: "v1.16.0"
         gpu_arch: *gpu_arch
         # Parallel build jobs, empty for one per CPU core. Lower it if the
         # build runs out of memory.
-        jobs: "1"
+        # jobs: "4"
         apt_packages:
           - swig
 
