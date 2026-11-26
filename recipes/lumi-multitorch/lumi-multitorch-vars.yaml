@@ -133,8 +133,8 @@ images:
       - name: aws-ofi-nccl
         title: "AWS-OFI-NCCL"
         repo: "https://github.com/aws/aws-ofi-nccl"
-        commit: "2475c4c" # Tagged as latest release (v1.21.1) as of 2026-09-04
-        version: "1.21.1"
+        commit: "ad3a3c2" # Tagged as latest release as of 2026-11-26
+        version: "1.23.0"
       - name: hwloc
         repo: "https://github.com/open-mpi/hwloc"
         version: "2.15.0" # Latest version as of 2026-10-19
