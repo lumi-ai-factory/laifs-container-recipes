@@ -58,6 +58,8 @@ images:
           - libdrm-amdgpu-dev
           - rocm-dev
           - rocm-libs
+          - rocprofiler-compute
+          - rocprofiler-systems
       # Installed after ROCm, so changing these doesn't reinstall ROCm.
       - name: extra
         apt_packages:
