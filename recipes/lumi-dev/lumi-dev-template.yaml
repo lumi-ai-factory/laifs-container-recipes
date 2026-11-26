@@ -1,8 +1,20 @@
 {%- from "recipes/components.j2" import comps, component_env, component, component_list with context -%}
 
-name: "{{ recipe_name }}"
+{#- The images are built on one lumi-multitorch release, so the software digest
+    of this recipe is that of its base images -#}
+{%- set software_digest = base_digest -%}
+
+{#- Convert a short base image name such as "torch" to the full lumi-multitorch
+    image, for example "docker.io/lumiaifactory/lumi-multitorch:torch-u24r72f21m50t211" -#}
+{%- macro base_image(name) -%}
+  {{- base_registry ~ ':' ~ images[name].base ~ '-' ~ software_digest -}}
+{%- endmacro -%}
+
+{#- Recipe name ends with the software digest, as in lumi-multitorch:
+    build-wrapper drops it to find the previous releases of the recipe -#}
+name: "{{ recipe_name }}-{{ software_digest }}"
 tag: "{{ build_tag }}"
-release: "{{ recipe_name }}-{{ build_tag }}"
+release: "{{ recipe_name }}-{{ software_digest }}-{{ build_tag }}"
 desc: |
   Development images for LUMI, built on existing lumi-multitorch images. They
   are meant for testing software that isn't part of the lumi-multitorch
@@ -10,17 +22,17 @@ desc: |
 
 steps:
   - name: {{ recipe_name }}-faiss
-    base: "{{ images.faiss.base }}"
+    base: "{{ base_image('faiss') }}"
     template: {{ images.faiss.template }}
     desc: |
       **Overview**<br>
-      This image builds on {{ images.faiss.base }} by adding FAISS, a library
+      This image builds on {{ base_image('faiss') }} by adding FAISS, a library
       for similarity search of dense vectors, with ROCm GPU support. It includes
       the Python bindings in the system Python and the C++ tutorial programs
       (1-Flat ... 5-Multiple-GPUs) in /opt/faiss/bin.
 
       **Details**<br>
-      Base image: {{ images.faiss.base }}<br>
+      Base image: {{ base_image('faiss') }}<br>
       GPU architectures: {{ comps.faiss.gpu_arch }}<br>
       Components:
         {{ component_list("faiss") | indent(8) }}
@@ -28,15 +40,15 @@ steps:
       {{- component_env("faiss") }}
 
   - name: {{ recipe_name }}-sglang
-    base: "{{ images.sglang.base }}"
+    base: "{{ base_image('sglang') }}"
     template: {{ images.sglang.template }}
     desc: |
       **Overview**<br>
-      This image builds on {{ images.sglang.base }} by adding SGLang, a serving
+      This image builds on {{ base_image('sglang') }} by adding SGLang, a serving
       framework for large language models, with its ROCm kernels.
 
       **Details**<br>
-      Base image: {{ images.sglang.base }}<br>
+      Base image: {{ base_image('sglang') }}<br>
       GPU architectures: {{ comps.sglang.gpu_arch }}<br>
       Components:
         {{ component_list("sglang") | indent(8) }}
@@ -44,18 +56,18 @@ steps:
       {{- component_env("sglang") }}
 
   - name: {{ recipe_name }}-jax
-    base: "{{ images.jax.base }}"
+    base: "{{ base_image('jax') }}"
     template: {{ images.jax.template }}
     desc: |
       **Overview**<br>
-      This image builds on {{ images.jax.base }} by adding JAX with ROCm GPU
+      This image builds on {{ base_image('jax') }} by adding JAX with ROCm GPU
       support, installed from the prebuilt jax-rocm7 plugin and PJRT wheels
       into a Python venv in /opt/venv. The wheels use the system ROCm of the
       base image. The venv also includes the XProf profiler, and mpi4py built
       against the MPICH of the base image.
 
       **Details**<br>
-      Base image: {{ images.jax.base }}<br>
+      Base image: {{ base_image('jax') }}<br>
       Components:
         {{ component_list("jax") | indent(8) }}
 

@@ -4,10 +4,16 @@
 # Each component field becomes a build ARG named <NAME>_<FIELD>, for example
 # FAISS_GPU_ARCH. Lists are joined with spaces. Image-level keys next to
 # "components" are settings of the image itself and don't become build ARGs:
-# "template" is the Containerfile template, and "base" the existing image
-# (name:tag) the image is built on.
+# "template" is the Containerfile template, and "base" the lumi-multitorch
+# image the image is built on, as its short name (e.g. "torch").
 #
 recipe_name: lumi-dev
+
+# lumi-multitorch release the images are built on. The base image of each
+# image below is <base_registry>:<base>-<base_digest>, and base_digest is also
+# the software digest in the release name of this recipe.
+base_registry: "docker.io/lumiaifactory/lumi-multitorch"
+base_digest: "u24r72f21m50t211"
 
 # GPU architecture of all images, used below as "gpu_arch: *gpu_arch"
 gpu_arch: &gpu_arch "gfx90a"
@@ -18,7 +24,7 @@ images:
 #
   faiss:
     template: "dev/FAISS"
-    base: "docker.io/lumiaifactory/lumi-multitorch:torch-u24r72f21m50t211"
+    base: "torch"
     components:
       - name: faiss
         title: "FAISS"
@@ -36,7 +42,7 @@ images:
 #
   sglang:
     template: "dev/SGLang"
-    base: "docker.io/lumiaifactory/lumi-multitorch:torch-u24r72f21m50t211"
+    base: "torch"
     components:
       - name: sglang
         title: "SGLang"
@@ -53,7 +59,7 @@ images:
 #
   jax:
     template: "dev/JAX"
-    base: "docker.io/lumiaifactory/lumi-multitorch:mpich-u24r72f21m50t211"
+    base: "mpich"
     components:
       - name: jax
         title: "JAX"
