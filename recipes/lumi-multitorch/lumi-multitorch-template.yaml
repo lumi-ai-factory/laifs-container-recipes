@@ -17,11 +17,13 @@
 {%- set release_id = recipe_base_name ~ '-' ~ software_digest ~ '-' ~ build_tag -%}
 {#- build-wrapper replaces this placeholder with the latest release tag of the recipe -#}
 {%- set previous_release_id = '<PREVIOUS-RELEASE-ID>' -%}
-{%- set release_registry = "lumiaifactory/" ~ recipe_base_name -%}
+{#- release_registry_host and release_registry_namespace come from the vars file -#}
+{%- set release_registry = release_registry_namespace ~ "/" ~ recipe_base_name -%}
 
-{%- set release_directory = "/appl/local/laifs/containers/" ~ release_id -%}
-{%- set release_digest_symlink = "/appl/local/laifs/containers/" ~ recipe_base_name ~ '-' ~ software_digest -%}
-{%- set release_latest_symlink = "/appl/local/laifs/containers/" ~ recipe_base_name -%}
+{#- release_base_dir comes from the vars file -#}
+{%- set release_directory = release_base_dir ~ "/" ~ release_id -%}
+{%- set release_digest_symlink = release_base_dir ~ "/" ~ recipe_base_name ~ '-' ~ software_digest -%}
+{%- set release_latest_symlink = release_base_dir ~ "/" ~ recipe_base_name -%}
 
 {#- Convert image name from for example "mpich" to "lumi-multitorch-mpich-u01r23f45m67t89" -#}
 {%- macro image_digest_name(short_name) -%}
