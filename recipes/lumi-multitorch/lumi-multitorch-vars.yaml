@@ -17,6 +17,17 @@
 #
 gpu_arch: &gpu_arch "gfx90a"
 #
+# Registry the images are pushed to by the release script:
+# <release_registry_host>/<release_registry_namespace>/lumi-multitorch:<tag>
+#
+release_registry_host: "docker.io"
+release_registry_namespace: "lumiaifactory"
+#
+# Directory on LUMI the release script uploads the SIF images and release
+# artifacts to, as <release_base_dir>/<release id>
+#
+release_base_dir: "/appl/local/laifs/containers"
+#
 images:
 #
 #  ubuntu-rocm
