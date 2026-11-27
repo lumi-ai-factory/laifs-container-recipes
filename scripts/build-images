@@ -154,11 +154,86 @@ export_image() {
 
     set_apptainer_tmpdir "${IMAGE_NAME}:${IMAGE_TAG}"
 
-    log "*** Creating sif file with command $SIF_COMMAND (APPTAINER_TMPDIR=${APPTAINER_TMPDIR:-default})"
+    log "*** Creating sif file with command $SIF_COMMAND"
     ${SIF_COMMAND[@]} 2>&1 | sed -e 's/^/    /' | log
 
     log "*** Image checksums:"
     sha256sum "$OCI_FILE" "$SIF_FILE" | sed -e 's/^/    /' | log
+}
+
+
+inspect_image() {
+    # Print "podman image inspect" of an image for the build log, without
+    # GraphDriver: it has the paths of the image layers in the local storage
+    # of the build host (e.g. under the home directory), which say nothing
+    # about the image.
+    #
+    podman image inspect "$1" | jq 'map(del(.GraphDriver))'
+}
+
+
+save_sbom() {
+    # Save the SBOM of the image (/.sbom.json) as <image>-<tag>.json, if the
+    # image has one. Copied out of a created container that isn't started,
+    # so the image's entrypoint doesn't run.
+    #
+    local IMAGE_NAME=$1
+    local IMAGE_TAG=$2
+
+    local SBOM_FILE="${BUILD_DIR}/${IMAGE_NAME}-${IMAGE_TAG}.json"
+    local CONTAINER_ID
+
+    CONTAINER_ID=$(podman create "${IMAGE_NAME}:${IMAGE_TAG}")
+    if podman cp "${CONTAINER_ID}:/.sbom.json" "$SBOM_FILE" 2>&1 | log; then
+        log "*** SBOM saved to $SBOM_FILE"
+    else
+        rm -f "$SBOM_FILE"
+        log "*** No /.sbom.json in the image, SBOM not saved"
+    fi
+    podman rm "$CONTAINER_ID" > /dev/null
+}
+
+
+write_image_readme() {
+    # Write <image>-<tag>.md with the image ID and creation time, the image
+    # description of the recipe step and the checksums of the image's files.
+    # Call it after the last line of the build log, as the log is checksummed.
+    #
+    local STEP_JSON=$1
+    local IMAGE_NAME=$2
+    local IMAGE_TAG=$3
+    local IMAGE_ID=$4
+
+    local IMAGE_BUILD_NAME="${IMAGE_NAME}-${IMAGE_TAG}"
+    local README_FILE="${BUILD_DIR}/${IMAGE_BUILD_NAME}.md"
+
+    local IMAGE_META IMAGE_DESC
+    # Markdown joins consecutive lines into one paragraph, so the image
+    # metadata is a list and the checksums are in a code block
+    IMAGE_META=$(podman image inspect "$IMAGE_ID" | jq -r 'first|{Id,Created}|to_entries[]|"- \(.key): \(.value)"')
+    IMAGE_DESC=$(jq -r '.desc // ""' <<< "$STEP_JSON")
+
+    {
+        printf '# Container Image %s\n\n' "$IMAGE_BUILD_NAME"
+        printf '%s\n\n' "$IMAGE_META"
+        printf '## Description\n\n%s\n\n' "$IMAGE_DESC"
+        printf '## Files\n\n'
+        printf 'SHA256 checksums:\n\n```\n'
+        # File names relative to the build directory, and only the files
+        # that exist (images without an SBOM have no .json)
+        (
+            cd "$BUILD_DIR"
+            local f
+            for f in "${IMAGE_BUILD_NAME}".{Containerfile,json,log,sif}; do
+                if [[ -f "$f" ]]; then
+                    sha256sum "$f"
+                fi
+            done
+        )
+        printf '```\n'
+    } > "$README_FILE"
+
+    echo "Wrote $README_FILE"
 }
 
 
@@ -338,7 +413,7 @@ build_image() {
 
     if [[ ${STEP['SKIP_BUILD']} == "true" ]]; then
         log "Skipping build for ${STEP['IMAGE_NAME']}. Using existing image ${STEP['EXISTING_IMAGE']}:"
-        podman image inspect ${STEP['EXISTING_IMAGE']} | log
+        inspect_image "${STEP['EXISTING_IMAGE']}" | sed -e 's/^/    /' | log
 
         # Give the reused image the tag of this build, so that the images
         # built on top of it and the post-build scripts can refer to it.
@@ -373,7 +448,7 @@ build_image() {
     fi
 
     log "*** Image info:"
-    podman image inspect $image_id| sed -e 's/^/    /' | log
+    inspect_image "$image_id" | sed -e 's/^/    /' | log
 
     tag_build_stages "${BUILD_DIR}/${STEP['CF_NAME']}" "${STEP['IMAGE_NAME']}" "${STEP['IMAGE_TAG']}"
 
@@ -383,7 +458,13 @@ build_image() {
         export_image "${STEP['IMAGE_NAME']}" "${STEP['IMAGE_TAG']}"
     fi
 
+    save_sbom "${STEP['IMAGE_NAME']}" "${STEP['IMAGE_TAG']}"
+
     log "*** Building image ${STEP['IMAGE_NAME']}:${STEP['IMAGE_TAG']} completed at $(date)"
+
+    # Last, as the README has the checksum of the build log: nothing may be
+    # logged after this
+    write_image_readme "$STEP_JSON" "${STEP['IMAGE_NAME']}" "${STEP['IMAGE_TAG']}" "$image_id"
 
     echo "Building ${STEP['IMAGE_NAME']}:${STEP['IMAGE_TAG']} completed at $(date)"
 }
