@@ -32,9 +32,12 @@ done
 
 REMOTE_IMAGE_PATH=$REMOTE_IMAGE_DIR/$IMAGE_NAME
 
-if ! ssh "${SSH_USER}@${SSH_HOST}" test -f "$REMOTE_IMAGE_PATH"; then
-    scp "$IMAGE_NAME" "${SSH_USER}@${SSH_HOST}:${REMOTE_IMAGE_DIR}"
-fi
+# Copy the image unless the same file (size and modification time, kept with
+# -t) is already there. An interrupted copy is kept in .rsync-partial and
+# continued by the next run, and the image appears under its name only when
+# complete. No compression: SIF files are compressed already.
+rsync -th --partial-dir=.rsync-partial --info=progress2 \
+    "$IMAGE_NAME" "${SSH_USER}@${SSH_HOST}:${REMOTE_IMAGE_DIR}/"
 
 ssh "${SSH_USER}@${SSH_HOST}" "cd ${REMOTE_TESTS_DIR} && \
     bash scripts/run_tests.sh ${SLURM_ACCOUNT} ${REMOTE_IMAGE_PATH} ${RELEASE_NAME}"
